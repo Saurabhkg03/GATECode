@@ -1,0 +1,1313 @@
+{
+    "indexes": [
+        {
+            "collectionGroup": "questions_cse",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_cse",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_cse",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_cse",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_cse",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_cse",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_cse",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "question_type",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_cse",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_cse",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "tags",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_cse",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "tags",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_ece",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_ece",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_ece",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_ece",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_ece",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_ece",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_ece",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "question_type",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_ece",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_ece",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "tags",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_ee",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_ee",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_ee",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_me",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_me",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_me",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_ce",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_ce",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_ce",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "qIndex",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "tags",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "tags",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "tags",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "tags",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "tags",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "tags",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "tags",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "tags",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "tags",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "question_type",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_ece",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "questionNumber",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "tags",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "question_type",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_ee",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "tags",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions_cse",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "tags",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "title",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "users",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "stats.correct",
+                    "order": "DESCENDING"
+                },
+                {
+                    "fieldPath": "stats.accuracy",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "topic",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "contests",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "branch",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "startTime",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "users",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "stats.accuracy",
+                    "order": "DESCENDING"
+                },
+                {
+                    "fieldPath": "stats.correct",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "submissions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "branch",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "timestamp",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "questions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "subject",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "tags",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "verified",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "year",
+                    "order": "ASCENDING"
+                }
+            ]
+        }
+    ],
+    "fieldOverrides": []
+}

@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Helper Functions ---
+    
+    // Check if user is logged in
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Check if the user accessing the doc is the owner
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Check if user has admin/moderator role
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'moderator'];
+    }
+
+    // --- Collection Rules ---
+
+    // 1. Users Collection
+    match /users/{userId} {
+      // Allow users to read/write their own profile
+      allow write: if isSignedIn() && isOwner(userId);
+      
+      // Allow PUBLIC read for Leaderboard visibility
+      allow read: if true; 
+      
+      // Publicly readable submissions (for profile view)
+      match /submissions/{submissionId} {
+        allow read: if true;
+        allow write: if isSignedIn() && isOwner(userId);
+      }
+
+      // Other User Subcollections (Stats, Lists, etc.) - RESTRICTED
+      match /{document=**} {
+        allow read, write: if isSignedIn() && isOwner(userId);
+      }
+    }
+
+    // 2. Questions (Dynamic Collections like questions_ece, questions_cse, AND main 'questions')
+    match /{collectionName}/{questionId} {
+      // FIX: Allow read for generic 'questions' collection AND dynamic 'questions_*'
+      allow read: if collectionName == 'questions' || collectionName.matches('questions_.*');
+      allow write: if (collectionName == 'questions' || collectionName.matches('questions_.*')) && isSignedIn() && isAdmin();
+    }
+
+    // 3. Metadata (Read-only for public, Write for admins)
+    match /metadata/{branch} {
+      allow read: if true;
+      allow write: if isSignedIn() && isAdmin();
+    }
+
+    // 4. Contests
+    match /contests/{contestId} {
+      // Allow PUBLIC read so logged-out users can see contest list
+      allow read: if true;
+
+      // Only Admins/Mods can create new contests
+      allow create: if isSignedIn() && isAdmin();
+
+      // Updates:
+      allow update: if isSignedIn() && (
+        isAdmin() || 
+        // Allow user to add themselves to participants only
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participants'])
+      );
+
+      // Contest Submissions Subcollection
+      match /submissions/{userId} {
+        // Users can read/write their OWN submission
+        allow write: if isSignedIn() && isOwner(userId);
+        
+        // Allow PUBLIC read for Contest Leaderboards
+        allow read: if true;
+      }
+    }
+  }
+}
