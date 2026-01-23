@@ -65,7 +65,7 @@ export default function NotFound() {
                     Page Not Found
                 </h1>
                 <p className="mt-4 text-zinc-600 dark:text-zinc-400">
-                    Oops! The page you're looking for seems to have gotten lost in space.
+                    Oops! The page you&apos;re looking for seems to have gotten lost in space.
                 </p>
                 <Link
                     href="/"

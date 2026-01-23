@@ -51,7 +51,7 @@ export default function AdminPage() {
     const [totalQuestions, setTotalQuestions] = useState(0);
     const [loadingMore, setLoadingMore] = useState(false);
 
-    const fetchQuestions = useCallback(async (page: number, direction: 'next' | 'prev' | 'first' = 'first') => {
+    const fetchQuestions = useCallback(async (page: number, direction: 'next' | 'prev' | 'first' = 'first', cursorDoc: DocumentSnapshot | null = null) => {
         if (!userInfo || !questionCollectionPath) {
             return;
         }
@@ -87,10 +87,10 @@ export default function AdminPage() {
             let dataQuery = query(baseQuery, orderBy('qIndex', 'asc'));
 
             // Apply pagination logic
-            if (direction === 'next' && lastVisible) {
-                dataQuery = query(dataQuery, startAfter(lastVisible), limit(PAGE_SIZE));
-            } else if (direction === 'prev' && firstVisible) {
-                dataQuery = query(dataQuery, endBefore(firstVisible), limitToLast(PAGE_SIZE));
+            if (direction === 'next' && cursorDoc) {
+                dataQuery = query(dataQuery, startAfter(cursorDoc), limit(PAGE_SIZE));
+            } else if (direction === 'prev' && cursorDoc) {
+                dataQuery = query(dataQuery, endBefore(cursorDoc), limitToLast(PAGE_SIZE));
             } else {
                 dataQuery = query(dataQuery, limit(PAGE_SIZE));
             }
@@ -109,6 +109,8 @@ export default function AdminPage() {
                     setLastVisible(documentSnapshots.docs[documentSnapshots.docs.length - 1]);
                 }
             } else if (direction !== 'prev') {
+                // If we got no docs and weren't going back, we might be at the end ?
+                // But usually this logic is for valid pages.
                 setFirstVisible(null);
                 setLastVisible(null);
             }
@@ -130,7 +132,7 @@ export default function AdminPage() {
             setLoadingData(false);
             setLoadingMore(false);
         }
-    }, [userInfo, adminView, lastVisible, firstVisible, router, questionCollectionPath]);
+    }, [userInfo, adminView, router, questionCollectionPath]);
 
     useEffect(() => {
         if (!authLoading && !userInfo) {
@@ -142,7 +144,7 @@ export default function AdminPage() {
             setFirstVisible(null);
             fetchQuestions(1, 'first');
         }
-    }, [userInfo, adminView, authLoading, metadataLoading, router, questionCollectionPath]);
+    }, [userInfo, authLoading, metadataLoading, router, questionCollectionPath, fetchQuestions]);
 
     const handleApprove = async (id: string) => {
         if (!questionCollectionPath) return;
@@ -224,12 +226,12 @@ export default function AdminPage() {
 
     const handleNextPage = () => {
         if (!loadingMore && lastVisible && (currentPage * PAGE_SIZE < totalQuestions)) {
-            fetchQuestions(currentPage + 1, 'next');
+            fetchQuestions(currentPage + 1, 'next', lastVisible);
         }
     };
     const handlePrevPage = () => {
         if (!loadingMore && firstVisible && currentPage > 1) {
-            fetchQuestions(currentPage - 1, 'prev');
+            fetchQuestions(currentPage - 1, 'prev', firstVisible);
         }
     };
 

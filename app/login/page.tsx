@@ -69,6 +69,7 @@ export default function Login() {
                 <div className="flex flex-col items-center mb-8">
                     <Link href="/" className="mb-4">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src="/logo.png" alt="GATECode" className="w-12 h-12 rounded-xl" />
                     </Link>
                     <h1 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">
@@ -253,7 +254,7 @@ export default function Login() {
                 <div className="mt-8 text-center text-sm">
                     {mode === 'login' ? (
                         <p className="text-zinc-600 dark:text-zinc-400">
-                            Don't have an account?{' '}
+                            Don&apos;t have an account?{' '}
                             <button onClick={() => setMode('signup')} className="text-blue-600 dark:text-blue-400 font-medium hover:underline">
                                 Sign up
                             </button>

@@ -180,7 +180,7 @@ export default function HomeClient() {
                         <div className="flex-1 text-center md:text-left">
                             <h2 className="text-2xl font-bold text-zinc-800 dark:text-white">Daily Challenge ({branchName})</h2>
                             <p className="text-zinc-600 dark:text-zinc-300 mt-1">
-                                "{dailyChallenge.title}" from {dailyChallenge.subject}. Give it a shot!
+                                &quot;{dailyChallenge.title}&quot; from {dailyChallenge.subject}. Give it a shot!
                             </p>
                         </div>
                         <Link

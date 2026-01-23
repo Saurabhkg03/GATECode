@@ -26,6 +26,7 @@ const PodiumCard = ({ user, rank }: { user: User; rank: number }) => {
             <div className={`relative w-full glass-card p-4 rounded-2xl text-center flex flex-col items-center transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${styles.shadow}`}>
                 {rank === 1 && <Crown className="absolute -top-3.5 w-7 h-7 text-yellow-400 drop-shadow-lg" fill="currentColor" />}
                 <div className={`absolute top-2 right-2 text-xl font-bold ${styles.iconColor} opacity-70`}>#{rank}</div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     src={user.avatar || '/user.png'}
                     alt={user.name}
@@ -88,7 +89,7 @@ const RatingInfoModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
                     </div>
                     <ul className="list-disc list-inside space-y-1 pl-1">
                         <li><strong className="dark:text-white">Accuracy / 100:</strong> Your overall percentage of correct answers, normalized to a value between 0 and 1.</li>
-                        <li><strong className="dark:text-white">log<sub>10</sub>(Correct + 1):</strong> This part rewards solving more questions. Using a logarithm (base 10) means solving your first few questions correctly gives a bigger boost than solving more questions when you've already solved many.</li>
+                        <li><strong className="dark:text-white">log<sub>10</sub>(Correct + 1):</strong> This part rewards solving more questions. Using a logarithm (base 10) means solving your first few questions correctly gives a bigger boost than solving more questions when you&apos;ve already solved many.</li>
                         <li><strong className="dark:text-white">{RATING_SCALING_FACTOR}:</strong> This simply scales the result to make the rating number easier to read (e.g., 150 instead of 1.5).</li>
                     </ul>
                 </div>
@@ -111,7 +112,7 @@ export default function Leaderboard() {
     const [lastVisible, setLastVisible] = useState<DocumentSnapshot | null>(null);
     const [totalUsers, setTotalUsers] = useState(0);
 
-    const fetchLeaderboard = useCallback(async (page: number, direction: 'next' | 'prev' | 'first' = 'first') => {
+    const fetchLeaderboard = useCallback(async (page: number, direction: 'next' | 'prev' | 'first' = 'first', cursorDoc: DocumentSnapshot | null = null) => {
         if (!selectedBranch) {
             setLoadingData(true);
             return;
@@ -130,10 +131,10 @@ export default function Leaderboard() {
 
             let q = query(usersCollection, orderBy(`ratings.${selectedBranch}`, 'desc'));
 
-            if (direction === 'next' && lastVisible) {
-                q = query(q, startAfter(lastVisible), limit(PAGE_SIZE));
-            } else if (direction === 'prev' && firstVisible) {
-                q = query(q, endBefore(firstVisible), limitToLast(PAGE_SIZE));
+            if (direction === 'next' && cursorDoc) {
+                q = query(q, startAfter(cursorDoc), limit(PAGE_SIZE));
+            } else if (direction === 'prev' && cursorDoc) {
+                q = query(q, endBefore(cursorDoc), limitToLast(PAGE_SIZE));
             } else {
                 q = query(q, limit(PAGE_SIZE));
             }
@@ -175,23 +176,23 @@ export default function Leaderboard() {
         } finally {
             setLoadingData(false); setLoadingMore(false);
         }
-    }, [firstVisible, lastVisible, selectedBranch]);
+    }, [selectedBranch]);
 
     useEffect(() => {
         if (selectedBranch) {
             setFirstVisible(null); setLastVisible(null);
             fetchLeaderboard(1, 'first');
         }
-    }, [selectedBranch]);
+    }, [selectedBranch, fetchLeaderboard]);
 
     const handleNextPage = () => {
         if (!loadingMore && lastVisible && currentPage < totalPages) {
-            fetchLeaderboard(currentPage + 1, 'next');
+            fetchLeaderboard(currentPage + 1, 'next', lastVisible);
         }
     };
     const handlePrevPage = () => {
         if (!loadingMore && firstVisible && currentPage > 1) {
-            fetchLeaderboard(currentPage - 1, 'prev');
+            fetchLeaderboard(currentPage - 1, 'prev', firstVisible);
         }
     };
 
@@ -250,6 +251,7 @@ export default function Leaderboard() {
                                         {rank}
                                     </div>
                                     <div className="flex-1 flex items-center gap-3 overflow-hidden">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
                                             src={user.avatar || '/user.png'}
                                             alt={user.name}
