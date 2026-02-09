@@ -38,7 +38,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userInfo, setUserInfo] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  // --- PREDICTIVE AUTH: Initialize loading based on localStorage ---
+  // If 'isLoggedIn' is true in localStorage, start loading as TRUE (expecting user).
+  // If 'isLoggedIn' is missing/false, start loading as FALSE (show Landing Page immediately).
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('isLoggedIn') === 'true';
+    }
+    return true; // Default to true on server/first render to avoid mismatch, but useEffect will fix it fast
+  });
+
   const router = useRouter();
 
   useEffect(() => {
@@ -46,6 +56,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       console.log("Auth State Changed:", currentUser ? `UID: ${currentUser.uid}, Verified: ${currentUser.emailVerified}` : 'No User');
       setUser(currentUser);
+
+      // --- PREDICTIVE AUTH: Sync localStorage ---
+      if (currentUser) {
+        localStorage.setItem('isLoggedIn', 'true');
+      } else {
+        localStorage.removeItem('isLoggedIn');
+        setLoading(false); // Stop loading immediately if no user
+      }
 
       // This inner unsubscribe is for onSnapshot
       let unsubscribeSnapshot: () => void = () => { };
@@ -141,7 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         setUserInfo(null); // Clear userInfo if no user
-        setLoading(false);
+        setLoading(false); // Ensure loading is false if no user
       }
 
       // Return the snapshot unsubscriber
@@ -167,6 +185,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("Login attempt failed: Email not verified.");
       throw new Error('auth/email-not-verified'); // Throw specific error message
     }
+    // --- PREDICTIVE AUTH: Set localStorage on successful login ---
+    localStorage.setItem('isLoggedIn', 'true');
     console.log("Login successful, email verified.");
     // No need to set user/userInfo here, onAuthStateChanged handles it
   };
@@ -314,6 +334,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     signOut(auth);
+    localStorage.removeItem('isLoggedIn'); // --- PREDICTIVE AUTH: Clear key on logout ---
     console.log("User signed out.");
     router.push('/login');
   };
