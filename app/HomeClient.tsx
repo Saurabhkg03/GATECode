@@ -1,17 +1,15 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Zap, ArrowRight, BookOpen, BarChart } from 'lucide-react';
-// Corrected import paths to be relative to src or alias
 import { useAuth } from '@/contexts/AuthContext';
 import { useDailyChallenge } from '@/contexts/DailyChallengeContext';
 import { useMetadata } from '@/contexts/MetadataContext';
-import { db } from '@/firebase';
-import { collection, getDocs, query, limit, orderBy, doc, getDoc } from 'firebase/firestore';
-import { User, Question } from '@/data/mockData';
 import { HomeSkeleton } from '@/components/Skeletons';
+import { useLeaderboard } from '@/hooks/useLeaderboard';
+import { useQuestion } from '@/hooks/useQuestions';
 
 interface SubjectStats {
     name: string;
@@ -40,13 +38,22 @@ const getColorForString = (str: string): string => {
 
 export default function HomeClient() {
     const { userInfo, isAuthenticated, loading: authLoading } = useAuth();
-    // --- UPDATED: Get branch-aware metadata ---
-    const { metadata, loading: metadataLoading, availableBranches, selectedBranch, questionCollectionPath } = useMetadata();
+    const { metadata, loading: metadataLoading, availableBranches, selectedBranch } = useMetadata();
     const { dailyChallengeId, loadingChallenge } = useDailyChallenge();
 
-    const [dailyChallenge, setDailyChallenge] = useState<Question | null>(null);
-    const [leaderboardPreview, setLeaderboardPreview] = useState<User[]>([]);
-    const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
+    // --- Data Fetching with React Query ---
+
+    // 1. Leaderboard
+    const {
+        data: leaderboardPreview = [],
+        isLoading: loadingLeaderboard
+    } = useLeaderboard(5);
+
+    // 2. Daily Challenge
+    const {
+        data: dailyChallenge,
+        isLoading: loadingDailyChallengeData
+    } = useQuestion(dailyChallengeId || '');
 
     // --- DERIVE SUBJECTS FROM METADATA ---
     const subjectStats: SubjectStats[] = useMemo(() => {
@@ -62,81 +69,10 @@ export default function HomeClient() {
             .sort((a, b) => a.name.localeCompare(b.name));
     }, [metadata]);
 
-
-    // --- FETCH LEADERBOARD DATA ---
-    // --- UPDATED: To be branch-aware ---
-    useEffect(() => {
-        const fetchLeaderboard = async () => {
-            // Wait for branch to be selected
-            if (!selectedBranch) return;
-
-            setLoadingLeaderboard(true);
-            try {
-                // --- NEW: Sort by the branch-specific rating ---
-                const usersQuery = query(
-                    collection(db, 'users'),
-                    orderBy(`ratings.${selectedBranch}`, 'desc'),
-                    limit(5)
-                );
-                const usersSnapshot = await getDocs(usersQuery);
-
-                const fetchedUsers = usersSnapshot.docs.map(doc => {
-                    const data = doc.data() as User;
-                    // --- NEW: Use branch-specific stats ---
-                    const branchStats = data.branchStats?.[selectedBranch] || { attempted: 0, correct: 0, accuracy: 0, subjects: {} };
-                    const branchRating = data.ratings?.[selectedBranch] || 0;
-
-                    // Return a "partial" user object shaped for the leaderboard
-                    return {
-                        ...data,
-                        stats: branchStats, // Overwrite old stats with branch-specific
-                        rating: branchRating, // Overwrite old rating with branch-specific
-                    };
-                });
-
-                setLeaderboardPreview(fetchedUsers);
-
-            } catch (error) {
-                console.error("Error fetching leaderboard preview:", error);
-                setLeaderboardPreview([]);
-            } finally {
-                setLoadingLeaderboard(false);
-            }
-        };
-
-        fetchLeaderboard();
-    }, [selectedBranch]); // --- Re-fetch if branch changes ---
-
-    // --- FETCH DAILY CHALLENGE OBJECT ---
-    useEffect(() => {
-        const fetchChallenge = async () => {
-            // Use the branch-aware questionCollectionPath
-            if (dailyChallengeId && questionCollectionPath) {
-                try {
-                    const docRef = doc(db, questionCollectionPath, dailyChallengeId);
-                    const docSnap = await getDoc(docRef);
-                    if (docSnap.exists()) {
-                        setDailyChallenge({ id: docSnap.id, ...docSnap.data() } as Question);
-                    } else {
-                        console.warn(`Daily challenge document not found in ${questionCollectionPath}:`, dailyChallengeId);
-                        setDailyChallenge(null);
-                    }
-                } catch (error) {
-                    console.error("Error fetching daily challenge object:", error);
-                    setDailyChallenge(null);
-                }
-            } else {
-                setDailyChallenge(null); // No ID, so no challenge
-            }
-        };
-
-        if (!loadingChallenge) {
-            fetchChallenge();
-        }
-    }, [dailyChallengeId, loadingChallenge, questionCollectionPath]); // Re-run if collection path changes
+    const isDailyChallengeLoading = loadingChallenge || (!!dailyChallengeId && loadingDailyChallengeData);
 
     // Show skeleton if either auth, metadata, or challenge ID is loading
-    if (authLoading || metadataLoading || loadingChallenge) {
+    if (authLoading || metadataLoading || isDailyChallengeLoading) {
         return <HomeSkeleton />;
     }
 

@@ -12,29 +12,49 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     let title = `Question ${id} | GATE Code`;
     let description = `Practice question ${id} on GATE Code.`;
 
+    // Collections to check in order (default first, then branches)
+    const collectionsToCheck = [
+        'questions', // Main/Default
+        'questions_ece',
+        'questions_cse',
+        'questions_me',
+        'questions_ce',
+        'questions_ee',
+        'questions_in'
+    ];
+
     try {
         let data: Question | undefined;
 
         if (adminDb) {
             // Preferred: Use Admin SDK (Bypasses Firestore Rules)
-            try {
-                const docRef = adminDb.collection('questions').doc(id);
-                const docSnap = await docRef.get();
-                if (docSnap.exists) {
-                    data = { id: docSnap.id, ...docSnap.data() } as Question;
+            for (const colName of collectionsToCheck) {
+                try {
+                    const docRef = adminDb.collection(colName).doc(id);
+                    const docSnap = await docRef.get();
+                    if (docSnap.exists) {
+                        data = { id: docSnap.id, ...docSnap.data() } as Question;
+                        break; // Found it!
+                    }
+                } catch (adminError) {
+                    console.warn(`[SEO] Admin fetch failed for ${colName}/${id}:`, adminError);
                 }
-            } catch (adminError) {
-                console.warn("[SEO] Admin fetch failed, trying client fallback:", adminError);
             }
         }
 
         if (!data) {
             // Fallback: Use Client SDK (Subject to Rules)
-            // This is useful if Admin SDK init failed or environment vars are missing
-            const questionRef = doc(db, 'questions', id);
-            const questionSnap = await getDoc(questionRef);
-            if (questionSnap.exists()) {
-                data = questionSnap.data() as Question;
+            for (const colName of collectionsToCheck) {
+                try {
+                    const questionRef = doc(db, colName, id);
+                    const questionSnap = await getDoc(questionRef);
+                    if (questionSnap.exists()) {
+                        data = questionSnap.data() as Question;
+                        break; // Found it!
+                    }
+                } catch (e) {
+                    // Ignore fallback errors usually
+                }
             }
         }
 
@@ -42,7 +62,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
             title = `${data.title} | GATE Code`;
             description = `Solve this GATE question on ${data.subject || 'GATE Code'}.`;
         } else {
-            console.warn(`[SEO] Question ${id} not found.`);
+            console.warn(`[SEO] Question ${id} not found in any known collection.`);
         }
 
     } catch (e: any) {

@@ -28,6 +28,7 @@ import {
 } from 'firebase/firestore';
 import { Question } from '@/data/mockData';
 import { AdminPanelSkeleton } from '@/components/Skeletons';
+import JsonImportModal from '@/components/admin/JsonImportModal';
 
 type AdminView = 'pending' | 'all';
 const PAGE_SIZE = 10;
@@ -235,6 +236,15 @@ export default function AdminPage() {
         }
     };
 
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+    const handleImportSuccess = () => {
+        // Refresh data after successful import
+        fetchQuestions(1, 'first');
+    };
+
+    // ... existing helper functions ...
+
     const totalPages = Math.max(1, Math.ceil(totalQuestions / PAGE_SIZE));
 
     if (authLoading || metadataLoading || (loadingData && questions.length === 0)) {
@@ -256,11 +266,12 @@ export default function AdminPage() {
                     <Shield className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                         {userInfo?.role === 'admin' ? `Admin Panel (${selectedBranch.toUpperCase()})` : `Moderator Panel (${selectedBranch.toUpperCase()})`}
+                        <span className="text-sm font-normal text-gray-500 ml-2">[{userInfo?.role || 'No Role'}]</span>
                     </h1>
                 </div>
 
                 {(userInfo?.role === 'moderator' || userInfo?.role === 'admin') && (
-                    <div className="mb-6">
+                    <div className="mb-6 flex gap-4">
                         <Link
                             href="/add-question"
                             className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow hover:shadow-md"
@@ -268,7 +279,25 @@ export default function AdminPage() {
                             <PlusCircle className="w-5 h-5" />
                             Add New Question
                         </Link>
+                        {userInfo?.role === 'admin' && (
+                            <button
+                                onClick={() => setIsImportModalOpen(true)}
+                                className="inline-flex items-center gap-2 bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors shadow hover:shadow-md"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-file-json"><path d="M10 12h4" /><path d="M14 12v4" /><path d="M2.5 12c0-1.7 1.3-3 3-3 2 0 4 1.3 4 3s-2 3-4 3c-1.7 0-3-1.3-3-3" /><path d="M14.5 9c0-.8.7-1.5 1.5-1.5h3c.8 0 1.5.7 1.5 1.5v3c0 .8-.7 1.5-1.5 1.5h-3c-.8 0-1.5-.7-1.5-1.5z" /></svg>
+                                Import JSON
+                            </button>
+                        )}
                     </div>
+                )}
+
+                {/* Import Modal */}
+                {userInfo?.role === 'admin' && (
+                    <JsonImportModal
+                        isOpen={isImportModalOpen}
+                        onClose={() => setIsImportModalOpen(false)}
+                        onSuccess={handleImportSuccess}
+                    />
                 )}
 
                 {userInfo?.role === 'admin' && (
