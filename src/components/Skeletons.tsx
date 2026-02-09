@@ -117,23 +117,8 @@ export const PracticeSkeleton = () => (
             </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-          <div className="divide-y divide-zinc-200 dark:divide-zinc-800 md:hidden">
-            {[...Array(5)].map((_, i) => <MobilePracticeListItemSkeleton key={i} />)}
-          </div>
-          <div className="hidden md:block">
-            <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-              <thead className="bg-zinc-50 dark:bg-zinc-800">
-                <tr>
-                  {[...Array(6)].map((_, i) => <th key={i} className="px-6 py-3"><SkeletonBase className="h-4 w-16" /></th>)}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                {[...Array(5)].map((_, i) => <DesktopPracticeListItemSkeleton key={i} />)}
-              </tbody>
-            </table>
-          </div>
-        </div>
+
+        <DashboardSkeleton />
       </div>
     </div>
   </div>
@@ -257,7 +242,7 @@ export const ProfileSkeleton = () => (
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800 border-zinc-200 dark:border-zinc-800">
+            <div key={i} className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800">
               <SkeletonBase className="w-10 h-10 rounded-lg mb-3" />
               <SkeletonBase className="h-6 w-16 mb-1" />
               <SkeletonBase className="h-3 w-20" />
@@ -397,5 +382,40 @@ export const AddQuestionSkeleton = () => (
 
       <SkeletonBase className="h-14 w-full rounded-xl" />
     </div>
+  </div>
+);
+
+// --- QuestionCard Skeleton ---
+export const QuestionCardSkeleton = () => (
+  <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
+    <div className="flex items-start gap-4">
+      <SkeletonBase className="w-5 h-5 rounded-full flex-shrink-0" />
+      <div className="flex-1 min-w-0 space-y-2">
+        {/* Badges */}
+        <div className="flex items-center gap-2">
+          <SkeletonBase className="h-5 w-12 rounded" />
+          <SkeletonBase className="h-5 w-10 rounded" />
+          <SkeletonBase className="h-5 w-14 rounded" />
+        </div>
+        {/* Title */}
+        <SkeletonBase className="h-5 w-3/4 rounded" />
+        {/* Footer */}
+        <div className="flex items-center gap-2 pt-1">
+          <SkeletonBase className="h-4 w-24 rounded-full" />
+          <SkeletonBase className="h-4 w-24 rounded" />
+        </div>
+      </div>
+      {/* Chevron */}
+      <SkeletonBase className="w-5 h-5 rounded flex-shrink-0 self-center" />
+    </div>
+  </div>
+);
+
+// --- Dashboard Skeleton (Grid of QuestionCards) ---
+export const DashboardSkeleton = () => (
+  <div className="grid grid-cols-1 gap-4">
+    {[...Array(6)].map((_, i) => (
+      <QuestionCardSkeleton key={i} />
+    ))}
   </div>
 );

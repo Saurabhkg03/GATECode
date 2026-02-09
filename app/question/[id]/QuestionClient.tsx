@@ -12,8 +12,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Question, Submission, UserQuestionData, QuestionList, UserStats, UserStreakData, User } from '@/data/mockData';
 import { useMetadata } from '@/contexts/MetadataContext';
 import { QuestionDetailSkeleton } from '@/components/Skeletons';
-import 'katex/dist/katex.min.css';
-import renderMathInElement from 'katex/dist/contrib/auto-render';
+import MathRenderer from '@/components/MathRenderer';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 // --- Types ---
 
@@ -310,9 +310,6 @@ export default function QuestionClient({ id }: { id: string }) {
     const [timeElapsed, setTimeElapsed] = useState(0);
     const [isTimerOn, setIsTimerOn] = useState(false);
     const timerRef = useRef<number | null>(null);
-    const questionRef = useRef<HTMLDivElement>(null);
-    const explanationRef = useRef<HTMLDivElement>(null);
-    const optionsRef = useRef<(HTMLButtonElement | null)[]>([]);
 
     const handleResetTimer = () => {
         setTimeElapsed(0);
@@ -401,40 +398,6 @@ export default function QuestionClient({ id }: { id: string }) {
             }
         };
     }, [isAuthenticated, isTimerOn, submitted]);
-
-    useEffect(() => {
-        if (loadingData || !question) return;
-
-        // Configuration for KaTeX
-        const renderOptions = {
-            delimiters: [
-                { left: '$$', right: '$$', display: true },
-                { left: '$', right: '$', display: false },
-                { left: '[latex]', right: '[/latex]', display: true },
-                { left: '\\(', right: '\\)', display: false },
-                { left: '\\[', right: '\\]', display: true }
-            ],
-            throwOnError: false
-        };
-
-        // Delay slightly to ensure DOM is ready and prevent potential race conditions
-        const elements = [
-            questionRef.current,
-            explanationRef.current,
-            ...optionsRef.current
-        ];
-
-        elements.forEach(element => {
-            if (element) {
-                try {
-                    renderMathInElement(element, renderOptions);
-                } catch (e) {
-                    console.warn("KaTeX rendering error:", e);
-                }
-            }
-        });
-
-    }, [question, loadingData, submitted, selectedOptions, isCorrect]);
 
     const handleMcqSelect = (label: string) => {
         if (submitted || !isAuthenticated) return;
@@ -898,206 +861,210 @@ export default function QuestionClient({ id }: { id: string }) {
                         </div>
 
                         {/* Question Content */}
-                        <div className="p-6 md:p-8">
-                            <div
-                                ref={questionRef}
-                                className="prose prose-zinc dark:prose-invert prose-p:leading-relaxed prose-headings:font-bold prose-a:text-blue-600 dark:prose-a:text-blue-400 max-w-none mb-8 text-zinc-800 dark:text-zinc-200"
-                                dangerouslySetInnerHTML={{ __html: cleanedQuestionHtml }}
-                            />
+                        <ErrorBoundary>
+                            <div className="p-6 md:p-8">
+                                <MathRenderer
+                                    content={cleanedQuestionHtml}
+                                    className="prose prose-zinc dark:prose-invert prose-p:leading-relaxed prose-headings:font-bold prose-a:text-blue-600 dark:prose-a:text-blue-400 max-w-none mb-8 text-zinc-800 dark:text-zinc-200"
+                                />
 
-                            {question.question_image_links && question.question_image_links.length > 0 && (
-                                <div className="grid gap-6 mb-8">
-                                    {question.question_image_links.map((imgUrl, index) => {
-                                        const isKnownDomain = ['firebasestorage.googleapis.com', 'lh3.googleusercontent.com', 'supabase.co'].some(domain => imgUrl.includes(domain));
-                                        return (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <div key={`q-img-${index}`} className="relative rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-                                                <Image
-                                                    src={imgUrl}
-                                                    alt={`Question illustration ${index + 1}`}
-                                                    width={800}
-                                                    height={600}
-                                                    className="w-full h-auto mx-auto"
-                                                    unoptimized={!isKnownDomain}
-                                                />
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                            )}
-
-                            {/* Options Area */}
-                            <div className="space-y-6">
-
-                                {question.question_type === 'nat' ? (
-                                    <div className="max-w-sm">
-                                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Your Answer</label>
-                                        <div className="relative">
-                                            <input
-                                                type="text"
-                                                value={natAnswer}
-                                                onChange={(e) => setNatAnswer(e.target.value)}
-                                                disabled={submitted || !isAuthenticated}
-                                                className="w-full pl-4 pr-12 py-3 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-300 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-mono text-lg disabled:opacity-50"
-                                                placeholder="0.00"
-                                            />
-                                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none">
-                                                #
-                                            </div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="grid gap-3">
-                                        {question.options.map((option, index) => {
-                                            const isSelected = question.question_type === 'msq' ? selectedOptions.includes(option.label) : selectedOptions[0] === option.label;
-                                            const isCorrectOption = option.is_correct;
-                                            const cleanedOptionHtml = extractAndCleanHtml(option.text_html, 'option_data');
-
-                                            let containerClass = "relative w-full p-4 rounded-xl border-2 text-left transition-all duration-200 flex items-start gap-4 group ";
-                                            let iconClass = "flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm transition-colors duration-200 ";
-
-                                            if (!submitted) {
-                                                if (isSelected) {
-                                                    containerClass += "bg-blue-50 dark:bg-blue-900/10 border-blue-500 shadow-sm shadow-blue-100 dark:shadow-none";
-                                                    iconClass += "bg-blue-500 text-white shadow-sm";
-                                                } else {
-                                                    containerClass += "bg-white dark:bg-zinc-800/30 border-zinc-200 dark:border-zinc-800 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/30 dark:hover:bg-blue-900/5";
-                                                    iconClass += "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 group-hover:text-blue-600 dark:group-hover:text-blue-400";
-                                                }
-                                                if (isAuthenticated) containerClass += " cursor-pointer";
-                                                else containerClass += " cursor-not-allowed opacity-70";
-                                            } else {
-                                                containerClass += " cursor-default ";
-                                                if (isCorrectOption) {
-                                                    containerClass += "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-500 shadow-sm";
-                                                    iconClass += "bg-emerald-500 text-white shadow-sm";
-                                                } else if (isSelected && !isCorrectOption) {
-                                                    containerClass += "bg-red-50 dark:bg-red-900/10 border-red-500 shadow-sm";
-                                                    iconClass += "bg-red-500 text-white shadow-sm";
-                                                } else {
-                                                    containerClass += "bg-zinc-50/50 dark:bg-zinc-900/50 border-zinc-100 dark:border-zinc-800 opacity-50";
-                                                    iconClass += "bg-zinc-100 dark:bg-zinc-800 text-zinc-400";
-                                                }
-                                            }
-
+                                {question.question_image_links && question.question_image_links.length > 0 && (
+                                    <div className="grid gap-6 mb-8">
+                                        {question.question_image_links.map((imgUrl, index) => {
+                                            const isKnownDomain = ['firebasestorage.googleapis.com', 'lh3.googleusercontent.com', 'supabase.co'].some(domain => imgUrl.includes(domain));
                                             return (
-                                                <button
-                                                    key={option.label}
-                                                    ref={el => { optionsRef.current[index] = el; }}
-                                                    onClick={() => question.question_type === 'msq' ? handleMsqToggle(option.label) : handleMcqSelect(option.label)}
-                                                    disabled={submitted || !isAuthenticated}
-                                                    className={containerClass}
-                                                >
-                                                    <span className={iconClass}>
-                                                        {submitted && isCorrectOption ? <CheckIcon className="w-5 h-5" /> :
-                                                            submitted && !isCorrectOption && isSelected ? <XIcon className="w-5 h-5" /> :
-                                                                option.label}
-                                                    </span>
-                                                    <span className="flex-1 pt-1 text-zinc-700 dark:text-zinc-300 prose prose-sm dark:prose-invert font-medium" dangerouslySetInnerHTML={{ __html: cleanedOptionHtml }} />
-
-                                                    {submitted && (
-                                                        <div className="absolute top-4 right-4">
-                                                            {isCorrectOption ? <CheckCircle className="w-5 h-5 text-emerald-500" /> :
-                                                                isSelected ? <XCircle className="w-5 h-5 text-red-500" /> : null}
-                                                        </div>
-                                                    )}
-                                                </button>
-                                            );
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <div key={`q-img-${index}`} className="relative rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
+                                                    <Image
+                                                        src={imgUrl}
+                                                        alt={`Question illustration ${index + 1}`}
+                                                        width={800}
+                                                        height={600}
+                                                        className="w-full h-auto mx-auto"
+                                                        unoptimized={!isKnownDomain}
+                                                    />
+                                                </div>
+                                            )
                                         })}
                                     </div>
                                 )}
-                            </div>
 
-                            {/* Action Buttons */}
-                            <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800">
-                                {!submitted ? (
-                                    <button
-                                        onClick={handleSubmit}
-                                        disabled={(!selectedOptions.length && (question.question_type === 'mcq' || question.question_type === 'msq')) || (question.question_type === 'nat' && !natAnswer) || loadingAuth}
-                                        className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl font-bold tracking-wide shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all transform active:scale-[0.99] disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed"
-                                    >
-                                        Submit Answer
-                                    </button>
-                                ) : (
-                                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                {/* Options Area */}
+                                <div className="space-y-6">
 
-                                        {/* Result Banner */}
-                                        <div className={`p-4 rounded-xl flex items-start gap-4 ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/50' : 'bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/50'}`}>
-                                            <div className={`p-2 rounded-full ${isCorrect ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400'}`}>
-                                                {isCorrect ? <CheckIcon className="w-6 h-6" /> : <XIcon className="w-6 h-6" />}
-                                            </div>
-                                            <div>
-                                                <h3 className={`text-lg font-bold mb-1 ${isCorrect ? 'text-emerald-800 dark:text-emerald-400' : 'text-red-800 dark:text-red-400'}`}>
-                                                    {isCorrect ? 'Correct Answer!' : 'Incorrect'}
-                                                </h3>
-                                                <p className={`text-sm ${isCorrect ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
-                                                    {question.question_type === 'nat' && !isCorrect && `The correct range is ${question.nat_answer_min} - ${question.nat_answer_max}`}
-                                                    {question.question_type === 'mcq' && !isCorrect && `The correct option is ${question.options.find((o: Option) => o.is_correct)?.label}`}
-                                                    {question.question_type === 'msq' && !isCorrect && `Correct options: ${question.options.filter((o: Option) => o.is_correct).map((o: Option) => o.label).join(', ')}`}
-                                                    {isCorrect && "Great job! You nailed it."}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        {/* Explanation */}
-                                        {(cleanedExplanationHtml || (question.explanation_image_links && question.explanation_image_links.length > 0)) && (
-                                            <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800">
-                                                <div className="px-6 py-3 bg-zinc-100/50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-2">
-                                                    <BookOpen className="w-4 h-4 text-zinc-500" />
-                                                    <h3 className="font-semibold text-zinc-900 dark:text-white">Explanation</h3>
-                                                </div>
-                                                <div className="p-6">
-                                                    <div
-                                                        ref={explanationRef}
-                                                        className="prose prose-sm dark:prose-invert max-w-none text-zinc-700 dark:text-zinc-300"
-                                                        dangerouslySetInnerHTML={{ __html: cleanedExplanationHtml }}
-                                                    />
-                                                    {!question.explanation_redirect_url && question.explanation_image_links && question.explanation_image_links.length > 0 && (
-                                                        <div className="mt-6 space-y-4">
-                                                            {question.explanation_image_links.map((imgUrl: string, index: number) => {
-                                                                const isKnownDomain = ['firebasestorage.googleapis.com', 'lh3.googleusercontent.com', 'supabase.co'].some(domain => imgUrl.includes(domain));
-                                                                return (
-                                                                    <Image
-                                                                        key={`e-img-${index}`}
-                                                                        src={imgUrl}
-                                                                        alt={`Explanation illustration ${index + 1}`}
-                                                                        width={800}
-                                                                        height={600}
-                                                                        className="rounded-lg border dark:border-zinc-700 w-full h-auto mx-auto"
-                                                                        unoptimized={!isKnownDomain}
-                                                                    />
-                                                                )
-                                                            })}
-                                                        </div>
-                                                    )}
+                                    {question.question_type === 'nat' ? (
+                                        <div className="max-w-sm">
+                                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Your Answer</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    value={natAnswer}
+                                                    onChange={(e) => setNatAnswer(e.target.value)}
+                                                    disabled={submitted || !isAuthenticated}
+                                                    className="w-full pl-4 pr-12 py-3 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-300 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-mono text-lg disabled:opacity-50"
+                                                    placeholder="0.00"
+                                                />
+                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none">
+                                                    #
                                                 </div>
                                             </div>
-                                        )}
-
-                                        {/* Control Buttons (Try Again / Next) */}
-                                        <div className="flex gap-4">
-                                            <button
-                                                onClick={handleTryAgain}
-                                                disabled={resetting}
-                                                className="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                                            >
-                                                {resetting ? <Loader2 className="w-5 h-5 animate-spin" /> : <RotateCcw className="w-5 h-5" />}
-                                                Try Again
-                                            </button>
-                                            <button
-                                                onClick={handleNext}
-                                                disabled={!findNextQuestionId()}
-                                                className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400"
-                                            >
-                                                Next Question
-                                                <ArrowRight className="w-5 h-5" />
-                                            </button>
                                         </div>
+                                    ) : (
+                                        <div className="grid gap-3">
+                                            {question.options.map((option, index) => {
+                                                const isSelected = question.question_type === 'msq' ? selectedOptions.includes(option.label) : selectedOptions[0] === option.label;
+                                                const isCorrectOption = option.is_correct;
+                                                const cleanedOptionHtml = extractAndCleanHtml(option.text_html, 'option_data');
 
-                                    </div>
-                                )}
+                                                let containerClass = "relative w-full p-4 rounded-xl border-2 text-left transition-all duration-200 flex items-start gap-4 group ";
+                                                let iconClass = "flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm transition-colors duration-200 ";
+
+                                                if (!submitted) {
+                                                    if (isSelected) {
+                                                        containerClass += "bg-blue-50 dark:bg-blue-900/10 border-blue-500 shadow-sm shadow-blue-100 dark:shadow-none";
+                                                        iconClass += "bg-blue-500 text-white shadow-sm";
+                                                    } else {
+                                                        containerClass += "bg-white dark:bg-zinc-800/30 border-zinc-200 dark:border-zinc-800 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/30 dark:hover:bg-blue-900/5";
+                                                        iconClass += "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 group-hover:text-blue-600 dark:group-hover:text-blue-400";
+                                                    }
+                                                    if (isAuthenticated) containerClass += " cursor-pointer";
+                                                    else containerClass += " cursor-not-allowed opacity-70";
+                                                } else {
+                                                    containerClass += " cursor-default ";
+                                                    if (isCorrectOption) {
+                                                        containerClass += "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-500 shadow-sm";
+                                                        iconClass += "bg-emerald-500 text-white shadow-sm";
+                                                    } else if (isSelected && !isCorrectOption) {
+                                                        containerClass += "bg-red-50 dark:bg-red-900/10 border-red-500 shadow-sm";
+                                                        iconClass += "bg-red-500 text-white shadow-sm";
+                                                    } else {
+                                                        containerClass += "bg-zinc-50/50 dark:bg-zinc-900/50 border-zinc-100 dark:border-zinc-800 opacity-50";
+                                                        iconClass += "bg-zinc-100 dark:bg-zinc-800 text-zinc-400";
+                                                    }
+                                                }
+
+                                                return (
+                                                    <button
+                                                        key={option.label}
+                                                        onClick={() => question.question_type === 'msq' ? handleMsqToggle(option.label) : handleMcqSelect(option.label)}
+                                                        disabled={submitted || !isAuthenticated}
+                                                        className={containerClass}
+                                                    >
+                                                        <span className={iconClass}>
+                                                            {submitted && isCorrectOption ? <CheckIcon className="w-5 h-5" /> :
+                                                                submitted && !isCorrectOption && isSelected ? <XIcon className="w-5 h-5" /> :
+                                                                    option.label}
+                                                        </span>
+                                                        <MathRenderer
+                                                            content={cleanedOptionHtml}
+                                                            inline={true}
+                                                            className="flex-1 pt-1 text-zinc-700 dark:text-zinc-300 prose prose-sm dark:prose-invert font-medium text-left"
+                                                        />
+
+                                                        {submitted && (
+                                                            <div className="absolute top-4 right-4">
+                                                                {isCorrectOption ? <CheckCircle className="w-5 h-5 text-emerald-500" /> :
+                                                                    isSelected ? <XCircle className="w-5 h-5 text-red-500" /> : null}
+                                                            </div>
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                                    {!submitted ? (
+                                        <button
+                                            onClick={handleSubmit}
+                                            disabled={(!selectedOptions.length && (question.question_type === 'mcq' || question.question_type === 'msq')) || (question.question_type === 'nat' && !natAnswer) || loadingAuth}
+                                            className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl font-bold tracking-wide shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all transform active:scale-[0.99] disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed"
+                                        >
+                                            Submit Answer
+                                        </button>
+                                    ) : (
+                                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+                                            {/* Result Banner */}
+                                            <div className={`p-4 rounded-xl flex items-start gap-4 ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/50' : 'bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/50'}`}>
+                                                <div className={`p-2 rounded-full ${isCorrect ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400'}`}>
+                                                    {isCorrect ? <CheckIcon className="w-6 h-6" /> : <XIcon className="w-6 h-6" />}
+                                                </div>
+                                                <div>
+                                                    <h3 className={`text-lg font-bold mb-1 ${isCorrect ? 'text-emerald-800 dark:text-emerald-400' : 'text-red-800 dark:text-red-400'}`}>
+                                                        {isCorrect ? 'Correct Answer!' : 'Incorrect'}
+                                                    </h3>
+                                                    <p className={`text-sm ${isCorrect ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
+                                                        {question.question_type === 'nat' && !isCorrect && `The correct range is ${question.nat_answer_min} - ${question.nat_answer_max}`}
+                                                        {question.question_type === 'mcq' && !isCorrect && `The correct option is ${question.options.find((o: Option) => o.is_correct)?.label}`}
+                                                        {question.question_type === 'msq' && !isCorrect && `Correct options: ${question.options.filter((o: Option) => o.is_correct).map((o: Option) => o.label).join(', ')}`}
+                                                        {isCorrect && "Great job! You nailed it."}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {/* Explanation */}
+                                            {(cleanedExplanationHtml || (question.explanation_image_links && question.explanation_image_links.length > 0)) && (
+                                                <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800">
+                                                    <div className="px-6 py-3 bg-zinc-100/50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-2">
+                                                        <BookOpen className="w-4 h-4 text-zinc-500" />
+                                                        <h3 className="font-semibold text-zinc-900 dark:text-white">Explanation</h3>
+                                                    </div>
+                                                    <div className="p-6">
+                                                        <MathRenderer
+                                                            content={cleanedExplanationHtml}
+                                                            className="prose prose-sm dark:prose-invert max-w-none text-zinc-700 dark:text-zinc-300"
+                                                        />
+
+                                                        {!question.explanation_redirect_url && question.explanation_image_links && question.explanation_image_links.length > 0 && (
+                                                            <div className="mt-6 space-y-4">
+                                                                {question.explanation_image_links.map((imgUrl: string, index: number) => {
+                                                                    const isKnownDomain = ['firebasestorage.googleapis.com', 'lh3.googleusercontent.com', 'supabase.co'].some(domain => imgUrl.includes(domain));
+                                                                    return (
+                                                                        <Image
+                                                                            key={`e-img-${index}`}
+                                                                            src={imgUrl}
+                                                                            alt={`Explanation illustration ${index + 1}`}
+                                                                            width={800}
+                                                                            height={600}
+                                                                            className="rounded-lg border dark:border-zinc-700 w-full h-auto mx-auto"
+                                                                            unoptimized={!isKnownDomain}
+                                                                        />
+                                                                    )
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Control Buttons (Try Again / Next) */}
+                                            <div className="flex gap-4">
+                                                <button
+                                                    onClick={handleTryAgain}
+                                                    disabled={resetting}
+                                                    className="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                                >
+                                                    {resetting ? <Loader2 className="w-5 h-5 animate-spin" /> : <RotateCcw className="w-5 h-5" />}
+                                                    Try Again
+                                                </button>
+                                                <button
+                                                    onClick={handleNext}
+                                                    disabled={!findNextQuestionId()}
+                                                    className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400"
+                                                >
+                                                    Next Question
+                                                    <ArrowRight className="w-5 h-5" />
+                                                </button>
+                                            </div>
+
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        </ErrorBoundary>
 
                         {/* Notes Section Footer */}
                         <div className="bg-zinc-50 dark:bg-black/20 p-6 md:p-8 border-t border-zinc-200 dark:border-zinc-800">

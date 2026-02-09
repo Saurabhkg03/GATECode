@@ -5,7 +5,7 @@ import { ThemeProvider } from "../contexts/ThemeContext";
 import { AuthProvider } from "../contexts/AuthContext";
 import { DailyChallengeProvider } from "../contexts/DailyChallengeContext";
 import { MetadataProvider } from "../contexts/MetadataContext";
-import { QueryCacheProvider } from "../contexts/QueryCacheContext";
+import QueryProvider from "../providers/QueryProvider";
 
 export default function ClientProviders({
     children,
@@ -17,9 +17,9 @@ export default function ClientProviders({
         <ThemeProvider>
             <AuthProvider>
                 <MetadataProvider>
-                    <QueryCacheProvider>
+                    <QueryProvider>
                         <DailyChallengeProvider>{children}</DailyChallengeProvider>
-                    </QueryCacheProvider>
+                    </QueryProvider>
                 </MetadataProvider>
             </AuthProvider>
         </ThemeProvider>
