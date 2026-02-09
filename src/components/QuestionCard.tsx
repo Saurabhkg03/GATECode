@@ -1,6 +1,13 @@
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { CheckCircle, Circle, ChevronRight } from 'lucide-react';
 import { Question } from '@/data/mockData';
+
+// Dynamic import for Code Splitting
+const LatexRenderer = dynamic(() => import('./LatexRenderer'), {
+    ssr: false,
+    loading: () => <span className="animate-pulse bg-zinc-200 dark:bg-zinc-700 rounded h-4 w-24 inline-block align-middle" />
+});
 
 interface QuestionCardProps {
     question: Question;
@@ -54,7 +61,7 @@ export default function QuestionCard({ question, isSolved }: QuestionCardProps) 
                             ))}
                         </div>
                         <h3 className="font-medium text-zinc-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2">
-                            {question.title || "Untitled Question"}
+                            <LatexRenderer content={question.title || "Untitled Question"} inline={true} />
                         </h3>
                         <div className="flex items-center gap-2 mt-2 text-xs text-zinc-500 dark:text-zinc-400">
                             <span className="bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full truncate max-w-[150px]">

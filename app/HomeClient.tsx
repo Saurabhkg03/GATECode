@@ -8,8 +8,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDailyChallenge } from '@/contexts/DailyChallengeContext';
 import { useMetadata } from '@/contexts/MetadataContext';
 import { HomeSkeleton } from '@/components/Skeletons';
+import DashboardSkeleton from '@/components/DashboardSkeleton';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { useQuestion } from '@/hooks/useQuestions';
+
+// Imports for recent questions fetch
+import { useQuery } from '@tanstack/react-query';
+import { db } from '@/firebase';
+import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 
 interface SubjectStats {
     name: string;
@@ -36,7 +42,7 @@ const getColorForString = (str: string): string => {
 };
 
 
-export default function HomeClient() {
+export default function HomeClient({ initialQuestions = [] }: { initialQuestions?: any[] }) {
     const { userInfo, isAuthenticated, loading: authLoading } = useAuth();
     const { metadata, loading: metadataLoading, availableBranches, selectedBranch } = useMetadata();
     const { dailyChallengeId, loadingChallenge } = useDailyChallenge();
@@ -55,6 +61,24 @@ export default function HomeClient() {
         isLoading: loadingDailyChallengeData
     } = useQuestion(dailyChallengeId || '');
 
+    // 3. Recent Questions (Hydrated from Server)
+    // We use a query to keep it real-time or at least refreshable
+    // Assuming 'ece' for now as per server fetch, or use selectedBranch if context available
+    const { data: recentQuestions } = useQuery({
+        queryKey: ['recentQuestions', 'ece'], // Match server default
+        queryFn: async () => {
+            const q = query(
+                collection(db, 'questions/ece/questions'),
+                orderBy('year', 'desc'),
+                limit(20)
+            );
+            const snapshot = await getDocs(q);
+            return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+        },
+        initialData: initialQuestions,
+        staleTime: 1000 * 60, // 1 minute
+    });
+
     // --- DERIVE SUBJECTS FROM METADATA ---
     const subjectStats: SubjectStats[] = useMemo(() => {
         if (!metadata?.subjectCounts) {
@@ -69,10 +93,25 @@ export default function HomeClient() {
             .sort((a, b) => a.name.localeCompare(b.name));
     }, [metadata]);
 
+    // --- PREDICTIVE AUTH LOGIC ---
+    // If loading is true (meaning we think user is logged in but waiting for Firebase), show DashboardSkeleton.
+    // If not loading and authenticated, show Dashboard (the main content).
+    // If not loading and NOT authenticated, show Landing Page (the public view).
+
     const isDailyChallengeLoading = loadingChallenge || (!!dailyChallengeId && loadingDailyChallengeData);
 
-    // Show skeleton if either auth, metadata, or challenge ID is loading
-    if (authLoading || metadataLoading || isDailyChallengeLoading) {
+    // Case 1: Loading state (waiting for Auth or initial data)
+    if (authLoading || metadataLoading) {
+        // If we have 'isLoggedIn' in localStorage, we expect a dashboard.
+        // Show DashboardSkeleton to prevent flash.
+        if (typeof window !== 'undefined' && localStorage.getItem('isLoggedIn') === 'true') {
+            return <DashboardSkeleton />;
+        }
+        // Otherwise, generic loading or just wait (should be fast for non-logged in)
+        return <HomeSkeleton />;
+    }
+
+    if (isDailyChallengeLoading) {
         return <HomeSkeleton />;
     }
 
@@ -179,7 +218,7 @@ export default function HomeClient() {
                 <div className="glass-card p-6">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">
-                            Top Performers ({branchName})
+                            Top Performers
                         </h2>
                         <Link href="/leaderboard" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
                             View All
@@ -222,13 +261,11 @@ export default function HomeClient() {
                                     <div className="flex-1 min-w-0">
                                         <p className="font-medium text-zinc-800 dark:text-white truncate">{leader.name}</p>
                                         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                                            {/* --- FIXED: Added optional chaining --- */}
                                             {leader.stats?.correct ?? 0} solved
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400" title="Performance Rating">
                                         <BarChart className="w-4 h-4" />
-                                        {/* --- NEW: Show branch rating --- */}
                                         <span className="font-semibold text-sm">{leader.rating ?? 0}</span>
                                     </div>
                                 </div>
@@ -237,6 +274,40 @@ export default function HomeClient() {
                     </div>
                 </div>
             </div>
+
+            {/* Recent Questions Preview (using Server Fetched Data) */}
+            {recentQuestions && recentQuestions.length > 0 && (
+                <div className="mb-16">
+                    <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-3xl font-bold text-zinc-900 dark:text-white">
+                            Latest Practice Questions
+                        </h2>
+                        <Link href="/practice" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                            View All Questions
+                        </Link>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {recentQuestions.slice(0, 6).map((q: any) => (
+                            <Link key={q.id} href={`/question/${q.id}`} className="glass-card p-6 hover:shadow-lg transition-all group block">
+                                <div className="flex justify-between items-start mb-3">
+                                    <span className="text-xs font-semibold px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                                        {q.subject}
+                                    </span>
+                                    <span className="text-xs text-zinc-500">{q.year}</span>
+                                </div>
+                                <h3 className="font-semibold text-lg text-zinc-900 dark:text-white mb-2 line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                    {q.title || "Untitled Question"}
+                                </h3>
+                                <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                                    <span className="uppercase text-xs font-bold tracking-wider">{q.question_type}</span>
+                                    <span>•</span>
+                                    <span>{q.topic}</span>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Call to Action (if not logged in) */}
             {!isAuthenticated && (
