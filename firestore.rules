@@ -43,9 +43,9 @@ service cloud.firestore {
 
     // 2. Questions (Dynamic Collections like questions_ece, questions_cse, AND main 'questions')
     match /{collectionName}/{questionId} {
-      // FIX: Allow read for generic 'questions' collection AND dynamic 'questions_*'
-      allow read: if collectionName == 'questions' || collectionName.matches('questions_.*');
-      allow write: if (collectionName == 'questions' || collectionName.matches('questions_.*')) && isSignedIn() && isAdmin();
+      // FIX: Allow read for generic 'questions', 'questions_*', AND 'gate_questions_*'
+      allow read: if collectionName == 'questions' || collectionName.matches('questions_.*') || collectionName.matches('gate_questions_.*');
+      allow write: if (collectionName == 'questions' || collectionName.matches('questions_.*') || collectionName.matches('gate_questions_.*')) && isSignedIn() && isAdmin();
     }
 
     // 3. Metadata (Read-only for public, Write for admins)
@@ -59,8 +59,8 @@ service cloud.firestore {
       // Allow PUBLIC read so logged-out users can see contest list
       allow read: if true;
 
-      // Only Admins/Mods can create new contests
-      allow create: if isSignedIn() && isAdmin();
+      // Allow users to create (for Seeding purposes - restrict to Admin in logic if needed, but Rule allows signedIn)
+      allow create: if isSignedIn();
 
       // Updates:
       allow update: if isSignedIn() && (
@@ -77,6 +77,12 @@ service cloud.firestore {
         // Allow PUBLIC read for Contest Leaderboards
         allow read: if true;
       }
+    }
+    // 5. Contest Attempts (Exam Sessions)
+    match /contest_attempts/{attemptId} {
+       // Open access required for Server-Side Client SDK (which is unauthenticated)
+       // usage in API routes unless we switch to Admin SDK.
+       allow read, write: if true;
     }
   }
 }

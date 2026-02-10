@@ -8,8 +8,9 @@ import { cn } from "@/lib/utils";
 export default function NavbarWrapper() {
     const pathname = usePathname();
     const isLoginPage = pathname === "/login";
+    const isExamPage = pathname?.startsWith("/exam");
 
-    if (isLoginPage) return null;
+    if (isLoginPage || isExamPage) return null;
 
     return (
         <>

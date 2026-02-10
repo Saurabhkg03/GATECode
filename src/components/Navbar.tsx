@@ -111,6 +111,7 @@ export function Navbar() {
           <div className="hidden md:flex items-center gap-1 bg-zinc-100/50 dark:bg-zinc-900/50 p-1 rounded-full border border-zinc-200/50 dark:border-zinc-800/50">
             <NavLinkItem to="/" label="Home" />
             <NavLinkItem to="/practice" label="Practice" />
+            <NavLinkItem to="/contests" label="Contests" />
             <NavLinkItem to="/leaderboard" label="Leaderboard" />
             {(userInfo?.role === 'admin' || userInfo?.role === 'moderator') && (
               <NavLinkItem to="/admin" label="Admin" icon={<Shield className="w-3.5 h-3.5" />} />

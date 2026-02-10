@@ -298,6 +298,19 @@ export default function QuestionClient({ id }: { id: string }) {
     const [question, setQuestion] = useState<Question | null>(null);
     const [loadingData, setLoadingData] = useState(true);
 
+    // DEBUG: Navigation Diagnosis
+    useEffect(() => {
+        if (!loadingData && !metadataLoading) {
+            console.log("Navigation Debug:", {
+                questionId: id,
+                selectedBranch,
+                metadataTotalQuestions: metadata?.allQuestionIds?.length,
+                indexInMetadata: metadata?.allQuestionIds?.indexOf(id),
+                nextId: metadata?.allQuestionIds ? metadata.allQuestionIds[metadata.allQuestionIds.indexOf(id) + 1] : 'N/A'
+            });
+        }
+    }, [id, metadata, selectedBranch, loadingData, metadataLoading]);
+
     const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
     const [natAnswer, setNatAnswer] = useState('');
     const [submitted, setSubmitted] = useState(false);
