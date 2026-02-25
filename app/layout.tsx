@@ -21,7 +21,7 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en" suppressHydrationWarning>
-            <body className={`${inter.className} min-h-screen bg-zinc-50 dark:bg-zinc-950 font-sans text-foreground antialiased`}>
+            <body className={`${inter.className} min-h-screen bg-zinc-50 dark:bg-zinc-950 font-sans text-foreground antialiased`} suppressHydrationWarning>
                 <ClientProviders>
                     <ErrorBoundary>
                         <LayoutWrapper>
