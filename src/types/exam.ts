@@ -34,10 +34,17 @@ export interface Section {
 export interface Contest {
     id: string;
     title: string;
+    type?: 'admin' | 'mock';
     branch?: string;
+    createdBy?: string;
+    isPublic?: boolean;
+    isRated?: boolean; // True for Weekly/Biweekly, False for Mocks
+    isRatingsProcessed?: boolean; // Set to true once the backend script runs
     startTime?: string; // ISO string
+    endTime?: string;   // ISO string — explicit end time (overrides durationMinutes-based calc)
     durationMinutes: number;
     totalMarks?: number;
+    difficulty?: 'Easy' | 'Medium' | 'Hard';
     sections: Section[];
     description?: string;
 }
@@ -60,6 +67,13 @@ export interface ContestAttempt {
     timeLeftSeconds: number;
     isSubmitted: boolean;
     submittedAt?: number;
+
+    // Tracking & Anti-cheat
+    isPractice: boolean;
+    autoSubmitted?: boolean;
+    tabSwitchCount?: number;
+    tabSwitchViolations?: number[]; // Array of timestamps
+
     responses: Record<string, QuestionResponse>; // key is questionId
     score?: number; // calculated after submission
 }

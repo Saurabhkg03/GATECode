@@ -1,16 +1,59 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useExam } from '../../contexts/ExamContext';
 import { getPaletteColor } from '../../types/exam';
-import CustomAlert from '../ui/CustomAlert';
 
 const QuestionPalette = () => {
     const { state, dispatch, submitExam } = useExam();
     const { questions, responses, currentQuestionIndex, sections } = state;
     const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+    const [confirmChecked, setConfirmChecked] = useState(false);
 
-    // ... (rest of the component logic remains strictly same until return)
+    const stats = useMemo(() => {
+        let answered = 0;
+        let notAnswered = 0;
+        let marked = 0;
+        let notVisited = 0;
+
+        questions.forEach(q => {
+            const status = responses[q.id]?.status || 'not_visited';
+            if (status === 'answered') answered++;
+            else if (status === 'not_answered') notAnswered++;
+            else if (status === 'not_visited') notVisited++;
+            else if (status === 'marked_for_review') marked++;
+            else if (status === 'answered_marked_for_review') {
+                answered++;
+                marked++;
+            }
+        });
+
+        return {
+            total: questions.length,
+            answered,
+            notAnswered: notAnswered + notVisited,
+            marked
+        };
+    }, [questions, responses]);
+
+    const legendStats = useMemo(() => {
+        const counts = {
+            answered: 0,
+            notAnswered: 0,
+            notVisited: 0,
+            marked: 0,
+            answeredMarked: 0
+        };
+        questions.forEach(q => {
+            const status = responses[q.id]?.status || 'not_visited';
+            if (status === 'answered') counts.answered++;
+            else if (status === 'not_answered') counts.notAnswered++;
+            else if (status === 'not_visited') counts.notVisited++;
+            else if (status === 'marked_for_review') counts.marked++;
+            else if (status === 'answered_marked_for_review') counts.answeredMarked++;
+        });
+        return counts;
+    }, [questions, responses]);
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-zinc-900 border-l dark:border-zinc-800 shadow-lg overflow-hidden transition-colors">
@@ -105,11 +148,17 @@ const QuestionPalette = () => {
 
             {/* Legend - Compact Grid */}
             <div className="p-3 bg-gray-50 dark:bg-zinc-800 text-[10px] sm:text-xs border-t dark:border-zinc-700 grid grid-cols-2 gap-y-2 gap-x-1 text-gray-700 dark:text-gray-300">
-                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-green-500 rounded-sm"></div> Answered</div>
-                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-[#d9534f] rounded-sm"></div> Not Answered</div>
-                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-white border border-gray-400 rounded-sm"></div> Not Visited</div>
-                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-purple-600 rounded-sm"></div> Marked for Review</div>
-                <div className="col-span-2 flex items-center gap-1.5"><div className="w-3 h-3 bg-purple-600 relative rounded-sm"><div className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 bg-green-500 rounded-full border border-white"></div></div> Ans & Marked for Review</div>
+                <div className="flex items-center gap-1.5"><div className="w-5 h-5 flex items-center justify-center font-bold bg-[#5cb85c] text-white rounded-sm">{legendStats.answered}</div> Answered</div>
+                <div className="flex items-center gap-1.5"><div className="w-5 h-5 flex items-center justify-center font-bold bg-[#d9534f] text-white rounded-sm">{legendStats.notAnswered}</div> Not Answered</div>
+                <div className="flex items-center gap-1.5"><div className="w-5 h-5 flex items-center justify-center font-bold bg-white text-gray-600 border border-gray-400 dark:bg-zinc-800 dark:text-gray-300 dark:border-zinc-600 rounded-sm">{legendStats.notVisited}</div> Not Visited</div>
+                <div className="flex items-center gap-1.5"><div className="w-5 h-5 flex items-center justify-center font-bold bg-purple-600 text-white rounded-sm">{legendStats.marked}</div> Marked for Review</div>
+                <div className="col-span-2 flex items-center gap-1.5">
+                    <div className="w-5 h-5 flex items-center justify-center font-bold bg-purple-600 text-white relative rounded-sm">
+                        {legendStats.answeredMarked}
+                        <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-green-500 rounded-full border border-white dark:border-zinc-800"></div>
+                    </div>
+                    Ans & Marked for Review
+                </div>
             </div>
 
             {/* Submit Button */}
@@ -122,15 +171,68 @@ const QuestionPalette = () => {
                 </button>
             </div>
 
-            <CustomAlert
-                isOpen={showSubmitConfirm}
-                onClose={() => setShowSubmitConfirm(false)}
-                title="Submit Exam?"
-                description="Are you sure you want to submit? You cannot change your answers after submission."
-                type="confirm"
-                confirmText="Submit Exam"
-                onConfirm={submitExam}
-            />
+            {/* Submit Modal */}
+            {showSubmitConfirm && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-gray-200 dark:border-zinc-800">
+                        <div className="bg-blue-600 p-5 text-white text-center">
+                            <h2 className="text-xl font-bold">Exam Summary</h2>
+                            <p className="text-blue-100 text-sm mt-1 opacity-90">Please review your progress before submitting</p>
+                        </div>
+                        <div className="p-6">
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                <div className="bg-gray-50 dark:bg-zinc-800 p-3 rounded-lg text-center border dark:border-zinc-700">
+                                    <div className="text-3xl font-extrabold text-blue-600">{stats.total}</div>
+                                    <div className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mt-1">Total Qs</div>
+                                </div>
+                                <div className="bg-green-50 dark:bg-green-900/10 p-3 rounded-lg text-center border border-green-100 dark:border-green-900/30">
+                                    <div className="text-3xl font-extrabold text-green-600">{stats.answered}</div>
+                                    <div className="text-[10px] text-green-700 dark:text-green-500 uppercase font-bold tracking-wider mt-1">Answered</div>
+                                </div>
+                                <div className="bg-red-50 dark:bg-red-900/10 p-3 rounded-lg text-center border border-red-100 dark:border-red-900/30">
+                                    <div className="text-3xl font-extrabold text-red-500">{stats.notAnswered}</div>
+                                    <div className="text-[10px] text-red-700 dark:text-red-500 uppercase font-bold tracking-wider mt-1">Not Answered</div>
+                                </div>
+                                <div className="bg-purple-50 dark:bg-purple-900/10 p-3 rounded-lg text-center border border-purple-100 dark:border-purple-900/30">
+                                    <div className="text-3xl font-extrabold text-purple-600">{stats.marked}</div>
+                                    <div className="text-[10px] text-purple-700 dark:text-purple-500 uppercase font-bold tracking-wider mt-1">Review</div>
+                                </div>
+                            </div>
+
+                            <label className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-900/30 cursor-pointer mb-6 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors">
+                                <input
+                                    type="checkbox"
+                                    className="mt-0.5 w-4 h-4 rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+                                    checked={confirmChecked}
+                                    onChange={(e) => setConfirmChecked(e.target.checked)}
+                                />
+                                <span className="text-sm text-amber-900 dark:text-amber-200/80 font-medium select-none leading-tight">
+                                    I confirm I want to end the test. I understand I cannot change my answers after submission.
+                                </span>
+                            </label>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => { setShowSubmitConfirm(false); setConfirmChecked(false); }}
+                                    className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-gray-300 font-bold rounded-lg transition-colors text-sm"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => { if (confirmChecked) submitExam(); }}
+                                    disabled={!confirmChecked}
+                                    className={`flex-1 py-2.5 font-bold rounded-lg transition-all text-sm ${confirmChecked
+                                        ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/30 hover:-translate-y-0.5'
+                                        : 'bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600 shadow-none'
+                                        }`}
+                                >
+                                    Final Submit
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -9,15 +9,18 @@ import LatexRenderer from '@/components/LatexRenderer';
 import { extractAndCleanHtml } from '@/utils/htmlUtils';
 import { Loader2, Timer, User, Menu, X, ChevronRight, ChevronLeft, Save, Flag, Trash2, Calculator, FileText } from 'lucide-react';
 import VirtualCalculator from '@/components/exam/VirtualCalculator';
+import VirtualNumpad from '@/components/exam/VirtualNumpad';
 import ImageZoom from '@/components/ui/ImageZoom';
 import QuestionPaperModal from '@/components/exam/QuestionPaperModal';
 import CustomAlert from '@/components/ui/CustomAlert';
+import ExamTimer from '@/components/exam/ExamTimer';
 
 const LiveExamUI = () => {
+    const { user } = useAuth();
     const { state, dispatch, submitExam, triggerSync } = useExam();
     const {
         questions, sections, currentQuestionIndex, responses,
-        timeLeft, isLoading, contest, isSubmitting, isSubmitted, isSyncing
+        timeLeft, isLoading, contest, isSubmitting, isSubmitted, isTimeUp, isSyncing
     } = state;
 
     const [selectedSectionIndex, setSelectedSectionIndex] = useState(0);
@@ -25,6 +28,20 @@ const LiveExamUI = () => {
     const [showCalculator, setShowCalculator] = useState(false);
     const [showQuestionPaper, setShowQuestionPaper] = useState(false);
     const [showNavWarning, setShowNavWarning] = useState(false);
+    const [tabSwitchCount, setTabSwitchCount] = useState(0);
+    const [showTabWarning, setShowTabWarning] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+
+    // Fullscreen state
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [showFullscreenWarning, setShowFullscreenWarning] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     // --- Navigation Protection ---
     useEffect(() => {
@@ -55,6 +72,81 @@ const LiveExamUI = () => {
         };
     }, [isSubmitted]);
 
+    // --- Tab / Window Visibility Monitoring ---
+    useEffect(() => {
+        if (isSubmitted) return;
+
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                setTabSwitchCount(prev => {
+                    const next = prev + 1;
+
+                    // Log the violation to Firestore (fire-and-forget)
+                    const attemptId = state.attemptId;
+                    if (attemptId) {
+                        import('firebase/firestore').then(({ doc, updateDoc, arrayUnion }) => {
+                            import('@/firebase').then(({ db }) => {
+                                updateDoc(doc(db, 'contest_attempts', attemptId), {
+                                    tabSwitchViolations: arrayUnion(Date.now())
+                                }).catch(() => {/* silent */ });
+                            });
+                        });
+                    }
+
+                    return next;
+                });
+
+                setShowTabWarning(true);
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [isSubmitted, state.attemptId]);
+
+    // --- Fullscreen Monitoring ---
+    useEffect(() => {
+        if (isSubmitted || isMobile) return;
+
+        const handleFullscreenChange = () => {
+            if (!document.fullscreenElement) {
+                // User exited fullscreen
+                setIsFullscreen(false);
+                setShowFullscreenWarning(true);
+
+                // Log violation
+                const attemptId = state.attemptId;
+                if (attemptId) {
+                    import('firebase/firestore').then(({ doc, updateDoc, arrayUnion }) => {
+                        import('@/firebase').then(({ db }) => {
+                            updateDoc(doc(db, 'contest_attempts', attemptId), {
+                                fullscreenViolations: arrayUnion(Date.now())
+                            }).catch(() => {/* silent */ });
+                        });
+                    });
+                }
+            } else {
+                setIsFullscreen(true);
+                setShowFullscreenWarning(false);
+            }
+        };
+
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, [isSubmitted, isMobile, state.attemptId]);
+
+    const enterFullscreen = async () => {
+        try {
+            await document.documentElement.requestFullscreen();
+            setIsFullscreen(true);
+        } catch (err) {
+            console.error("Error attempting to enable fullscreen:", err);
+            // Fallback: let them proceed if browser blocks it entirely, 
+            // but log to console. For actual exam, you might want strict blocking.
+            setIsFullscreen(true);
+        }
+    };
+
     // Sync section selection with current question
     useEffect(() => {
         if (questions.length > 0) {
@@ -73,13 +165,7 @@ const LiveExamUI = () => {
         }
     }, [currentQuestionIndex, questions, sections, responses, dispatch]);
 
-    // Format time
-    const formatTime = (seconds: number) => {
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
-        const s = seconds % 60;
-        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    };
+    // Format time removed (moved to ExamTimer)
 
     if (isLoading || !contest) {
         return (
@@ -123,6 +209,9 @@ const LiveExamUI = () => {
 
     const handleOptionSelect = (optLabel: string) => {
         if (currentQuestion.question_type === 'mcq') {
+            // Strict MCQ: Prevent deselection via clicking the same option again.
+            if (selectedOpts.includes(optLabel)) return;
+
             dispatch({
                 type: 'MARK_ANSWER',
                 payload: { questionId: currentQuestion.id, selectedOptions: [optLabel] }
@@ -172,7 +261,56 @@ const LiveExamUI = () => {
 
     return (
         <div className="flex flex-col h-screen bg-gray-100 dark:bg-zinc-950 text-gray-900 dark:text-gray-100 font-sans overflow-hidden select-none overscroll-none">
-            {/* --- TOP HEADER --- */}
+            {/* --- FULLSCREEN ENFORCEMENT OVERLAY --- */}
+            {!isFullscreen && !isSubmitted && !isMobile && isLoading === false && contest && (
+                <div className="absolute inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-6 text-center backdrop-blur-md">
+                    <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
+                        <div className="w-16 h-16 bg-blue-500/20 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <span className="text-3xl">⛶</span>
+                        </div>
+                        <h2 className="text-2xl font-bold text-white mb-3">
+                            {showFullscreenWarning ? "Fullscreen Exited!" : "Enter Fullscreen"}
+                        </h2>
+                        <p className="text-gray-400 mb-8 leading-relaxed">
+                            {showFullscreenWarning
+                                ? "You have exited fullscreen mode. This incident has been logged. You must return to fullscreen to continue the exam."
+                                : "This exam requires fullscreen mode to prevent distractions and ensure security. Please click the button below to begin."}
+                        </p>
+                        <button
+                            onClick={enterFullscreen}
+                            className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-blue-500/25"
+                        >
+                            {showFullscreenWarning ? "Return to Fullscreen" : "Enter Fullscreen"}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* --- TIME UP AUTO-SUBMIT OVERLAY --- */}
+            {isTimeUp && !isSubmitted && (
+                <div className="absolute inset-0 z-50 bg-black/80 flex flex-col items-center justify-center backdrop-blur-sm">
+                    <Loader2 className="w-12 h-12 text-purple-500 animate-spin mb-4" />
+                    <h2 className="2xl font-bold text-white mb-2">Time is up!</h2>
+                    <p className="text-gray-300">Auto-submitting your answers securely...</p>
+                </div>
+            )}
+            {/* --- Tab Switch Warning Banner --- */}
+            {showTabWarning && (
+                <div className="relative bg-red-600 text-white text-sm font-semibold px-4 py-2 flex items-center justify-between z-50 animate-in slide-in-from-top-2 duration-300">
+                    <span>
+                        ⚠️ Warning: You left the exam tab. Tab switches are logged and may lead to disqualification.
+                        {tabSwitchCount > 1 && <span className="ml-2 opacity-80">({tabSwitchCount} violation{tabSwitchCount > 1 ? 's' : ''} recorded)</span>}
+                    </span>
+                    <button
+                        onClick={() => setShowTabWarning(false)}
+                        className="ml-4 p-1 rounded hover:bg-red-700 transition-colors"
+                        aria-label="Dismiss warning"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
+
             <header className="h-14 bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 flex items-center justify-between px-4 shrink-0 z-10">
                 <div className="font-bold text-lg truncate flex items-center gap-2">
                     <span className="hidden sm:inline text-purple-600">GATE 2025</span>
@@ -194,13 +332,7 @@ const LiveExamUI = () => {
                 </div>
 
                 <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-2 bg-gray-100 dark:bg-zinc-800 px-3 py-1.5 rounded-md border dark:border-zinc-700">
-                        <Timer className={`w-4 h-4 ${timeLeft < 300 ? 'text-red-500 animate-pulse' : 'text-gray-500'}`} />
-                        <span className={`font-mono font-bold text-lg ${timeLeft < 300 ? 'text-red-600' : ''}`}>
-                            {formatTime(timeLeft)}
-                        </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Left</span>
-                    </div>
+                    {user && <ExamTimer contestId={contest.id} uid={user.uid} />}
 
 
                     <div className="hidden sm:flex items-center gap-2">
@@ -238,29 +370,59 @@ const LiveExamUI = () => {
             </header>
 
             {/* --- SUB HEADER (SECTIONS) --- */}
-            <div className="bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 flex items-center px-4 overflow-x-auto gap-1 shrink-0 no-scrollbar z-10">
-                <span className="text-sm font-semibold text-gray-500 mr-2 uppercase tracking-wide">Sections:</span>
-                {sections.map((section, idx) => (
-                    <button
-                        key={idx}
-                        onClick={() => {
-                            const firstQ = section.questions[0];
-                            const gIdx = questions.findIndex(q => q.id === firstQ.id);
-                            if (gIdx !== -1) dispatch({ type: 'SET_CURRENT_QUESTION', payload: gIdx });
-                        }}
-                        className={`
-                            px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
-                            ${selectedSectionIndex === idx
-                                ? 'border-purple-600 text-purple-600 bg-purple-50/50 dark:bg-purple-900/10'
-                                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'}
-                        `}
-                    >
-                        {section.name}
-                        <span className="ml-2 text-xs bg-gray-200 dark:bg-zinc-800 px-1.5 py-0.5 rounded-full text-gray-600 dark:text-gray-400">
-                            {section.questions.length}
-                        </span>
-                    </button>
-                ))}
+            <div className="bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 flex flex-wrap items-center px-4 gap-2 shrink-0 z-20 pt-2 pb-0">
+                <span className="text-sm font-semibold text-gray-500 mr-2 uppercase tracking-wide mb-2">Sections:</span>
+                {sections.map((section, idx) => {
+                    const secStats = section.questions.reduce((acc, q) => {
+                        const s = responses[q.id]?.status || 'not_visited';
+                        if (s === 'answered' || s === 'answered_marked_for_review') acc.attempted++;
+                        else if (s === 'not_visited') acc.notVisited++;
+                        else acc.notAttempted++;
+                        return acc;
+                    }, { attempted: 0, notAttempted: 0, notVisited: 0 });
+
+                    return (
+                        <div key={idx} className="group relative inline-block">
+                            <button
+                                onClick={() => {
+                                    const firstQ = section.questions[0];
+                                    const gIdx = questions.findIndex(q => q.id === firstQ.id);
+                                    if (gIdx !== -1) dispatch({ type: 'SET_CURRENT_QUESTION', payload: gIdx });
+                                }}
+                                className={`
+                                    px-4 py-2.5 mb-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-2
+                                    ${selectedSectionIndex === idx
+                                        ? 'border-purple-600 text-purple-600 bg-purple-50/50 dark:bg-purple-900/10'
+                                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'}
+                                `}
+                            >
+                                {section.name}
+                                <span className={`text-xs px-1.5 py-0.5 rounded-full ${selectedSectionIndex === idx ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300' : 'bg-gray-200 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'}`}>
+                                    {section.questions.length}
+                                </span>
+                            </button>
+
+                            {/* Hover Tooltip */}
+                            <div className="absolute top-full left-0 z-50 mt-1 hidden group-hover:block w-56 bg-gray-800 text-white text-sm rounded shadow-xl p-4 border border-gray-700 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="font-bold mb-2 border-b border-gray-600 pb-1">{section.name} Progress</div>
+                                <div className="space-y-1.5 font-medium">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-300">Attempted:</span>
+                                        <span className="text-green-400 bg-green-400/10 px-1.5 rounded">{secStats.attempted}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-300">Visited (Not Ans):</span>
+                                        <span className="text-red-400 bg-red-400/10 px-1.5 rounded">{secStats.notAttempted}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-300">Not Visited:</span>
+                                        <span className="text-gray-400 bg-gray-600/30 px-1.5 rounded">{secStats.notVisited}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
             {/* --- MAIN CONTENT --- */}
@@ -292,11 +454,17 @@ const LiveExamUI = () => {
                     <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
                         <div className="max-w-4xl mx-auto pb-20">
                             {/* Question Text */}
-                            <div className="prose dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 text-lg leading-relaxed select-text mb-6">
+                            <div
+                                className="prose dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 text-lg leading-relaxed select-none mb-6"
+                                onCopy={(e) => {
+                                    e.preventDefault();
+                                }}
+                                onContextMenu={(e) => e.preventDefault()}
+                            >
                                 <LatexRenderer content={extractAndCleanHtml(currentQuestion.question_html)} />
                             </div>
 
-                            {/* Question Images (NEW) */}
+                            {/* Question Images */}
                             {currentQuestion.question_image_links && currentQuestion.question_image_links.length > 0 && (
                                 <div className="space-y-6 mb-8 flex flex-col items-center">
                                     {currentQuestion.question_image_links.map((link, idx) => (
@@ -309,8 +477,8 @@ const LiveExamUI = () => {
                                 </div>
                             )}
 
-                            {/* Options / Inputs */}
-                            <div className="space-y-3">
+                            {/* Options / Inputs (Reverted to single pane, stacked below question) */}
+                            <div className="space-y-3 mt-8">
                                 {(currentQuestion.question_type === 'mcq' || currentQuestion.question_type === 'msq') && (
                                     currentQuestion.options?.map((opt, idx) => {
                                         const isSelected = selectedOpts.includes(opt.label);
@@ -326,12 +494,21 @@ const LiveExamUI = () => {
                                                 `}
                                             >
                                                 <div className={`
-                                                    w-6 h-6 rounded-full flex items-center justify-center border shrink-0 mt-0.5 transition-colors
+                                                    w-6 h-6 flex items-center justify-center border shrink-0 mt-0.5 transition-colors
+                                                    ${currentQuestion.question_type === 'mcq' ? 'rounded-full' : 'rounded'}
                                                     ${isSelected
                                                         ? 'bg-blue-600 border-blue-600 text-white'
                                                         : 'border-gray-400 group-hover:border-blue-400'}
                                                 `}>
-                                                    {isSelected && <div className="w-2.5 h-2.5 bg-white rounded-full" />}
+                                                    {isSelected && (
+                                                        currentQuestion.question_type === 'mcq' ? (
+                                                            <div className="w-2.5 h-2.5 bg-white rounded-full" />
+                                                        ) : (
+                                                            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                        )
+                                                    )}
                                                 </div>
                                                 <div className="flex-1">
                                                     <span className="font-bold mr-2 text-gray-500 dark:text-gray-400">{opt.label}.</span>
@@ -346,24 +523,28 @@ const LiveExamUI = () => {
 
                                 {currentQuestion.question_type === 'nat' && (
                                     <div className="mt-6">
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        <label className="block w-full sm:w-2/3 lg:w-3/4 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 text-left">
                                             Enter your numerical answer:
                                         </label>
-                                        <input
-                                            type="text"
-                                            inputMode="decimal"
-                                            autoComplete="off"
-                                            value={natAns}
-                                            onChange={(e) => handleNatChange(e.target.value)}
-                                            onPaste={(e) => {
-                                                const pastedData = e.clipboardData.getData('text');
-                                                if (!/^-?\d*\.?\d*$/.test(pastedData)) {
-                                                    e.preventDefault();
-                                                }
-                                            }}
-                                            className="w-full sm:w-1/2 p-4 text-xl font-mono border-2 border-gray-300 dark:border-zinc-700 rounded focus:border-blue-500 focus:ring-0 dark:bg-zinc-900 dark:text-white"
-                                            placeholder="Type answer here..."
-                                        />
+                                        <div className="flex flex-col">
+                                            <input
+                                                type="text"
+                                                readOnly
+                                                value={natAns}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        e.currentTarget.blur();
+                                                        handleSaveNext();
+                                                    }
+                                                }}
+                                                className="w-full sm:w-2/3 lg:w-3/4 p-4 text-2xl font-mono font-bold tracking-wider border-2 border-gray-300 dark:border-zinc-700 rounded-t-lg bg-gray-50 dark:bg-zinc-800 text-gray-900 dark:text-white outline-none cursor-default shadow-inner focus:border-blue-500 focus:ring-0"
+                                                placeholder="-"
+                                            />
+                                            <div className="w-full sm:w-2/3 lg:w-3/4 rounded-b-lg overflow-hidden border-2 border-t-0 border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
+                                                <VirtualNumpad value={natAns} onChange={handleNatChange} />
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -372,10 +553,18 @@ const LiveExamUI = () => {
 
                     {/* Fixed Bottom Action Bar */}
                     <div className="p-4 bg-white dark:bg-zinc-900 border-t dark:border-zinc-800 flex flex-wrap gap-2 items-center justify-between shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20 shrink-0">
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+                            <button
+                                onClick={() => dispatch({ type: 'SET_CURRENT_QUESTION', payload: currentQuestionIndex - 1 })}
+                                disabled={currentQuestionIndex === 0}
+                                className="px-3 sm:px-4 py-2 bg-white hover:bg-gray-100 disabled:bg-gray-50 focus:bg-gray-100 text-gray-700 disabled:text-gray-400 disabled:opacity-70 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700 dark:disabled:bg-zinc-900 dark:disabled:opacity-60 rounded border border-gray-300 dark:border-zinc-600 font-semibold flex items-center gap-1.5 sm:gap-2 transition-colors shrink-0"
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                                <span className="inline">Previous</span>
+                            </button>
                             <button
                                 onClick={handleMarkReviewNext}
-                                className="px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50 rounded border border-purple-200 dark:border-purple-800 font-semibold flex items-center gap-2 transition-colors"
+                                className="px-3 sm:px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50 rounded border border-purple-200 dark:border-purple-800 font-semibold flex items-center gap-1.5 sm:gap-2 transition-colors shrink-0"
                             >
                                 <Flag className="w-4 h-4" />
                                 <span className="hidden sm:inline">Mark for Review & Next</span>
@@ -383,7 +572,7 @@ const LiveExamUI = () => {
                             </button>
                             <button
                                 onClick={handleClearResponse}
-                                className="px-4 py-2 bg-white hover:bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700 rounded border border-gray-300 dark:border-zinc-600 font-semibold flex items-center gap-2 transition-colors"
+                                className="px-3 sm:px-4 py-2 bg-white hover:bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700 rounded border border-gray-300 dark:border-zinc-600 font-semibold flex items-center gap-1.5 sm:gap-2 transition-colors shrink-0"
                             >
                                 <Trash2 className="w-4 h-4" />
                                 <span className="hidden sm:inline">Clear Response</span>

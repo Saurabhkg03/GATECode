@@ -126,44 +126,66 @@ export const PracticeSkeleton = () => (
 
 // --- Question Detail Page Skeleton ---
 export const QuestionDetailSkeleton = () => (
-  <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div className="flex justify-between items-center mb-6">
-      <SkeletonBase className="h-6 w-24 rounded" />
-      <SkeletonBase className="h-4 w-32 rounded" />
-      <SkeletonBase className="h-6 w-20 rounded" />
-    </div>
+  <div className="min-h-screen bg-zinc-50 dark:bg-black pb-20 md:pb-8 flex flex-col">
+    <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6 flex-1 flex flex-col min-h-0">
 
-    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
-      <div className="p-6 border-b border-zinc-200 dark:border-zinc-800">
-        <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-4">
-          <SkeletonBase className="h-8 w-3/4 rounded-lg" />
-          <div className="flex gap-2">
-            <SkeletonBase className="h-9 w-24 rounded-lg" />
-            <SkeletonBase className="h-9 w-24 rounded-lg" />
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {[...Array(4)].map((_, i) => <SkeletonBase key={i} className="h-6 w-20 rounded-full" />)}
-        </div>
+      <div className="flex justify-between items-center mb-4 shrink-0">
+        <SkeletonBase className="h-8 w-24 rounded-lg" />
+        <SkeletonBase className="h-4 w-32 rounded" />
+        <SkeletonBase className="h-8 w-24 rounded-lg" />
       </div>
 
-      <div className="p-6 space-y-6">
-        <div className="space-y-3">
-          <SkeletonBase className="h-4 w-full" />
-          <SkeletonBase className="h-4 w-5/6" />
-          <SkeletonBase className="h-4 w-4/5" />
-        </div>
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 flex-1 min-h-[600px] lg:min-h-0 lg:h-[calc(100vh-140px)]">
 
-        <div className="space-y-3 pt-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
-              <SkeletonBase className="w-6 h-6 rounded-full flex-shrink-0" />
-              <SkeletonBase className="h-5 w-full rounded" />
+        {/* Left Pane */}
+        <div className="flex-1 lg:w-1/2 flex flex-col bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
+          <div className="p-5 md:p-6 border-b border-zinc-100 dark:border-zinc-800/50 shrink-0">
+            <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-4">
+              <SkeletonBase className="h-8 w-3/4 rounded-lg" />
+              <div className="flex gap-2">
+                <SkeletonBase className="h-9 w-24 rounded-lg" />
+                <SkeletonBase className="h-9 w-24 rounded-lg" />
+              </div>
             </div>
-          ))}
+            <div className="flex flex-wrap items-center gap-3">
+              {[...Array(4)].map((_, i) => <SkeletonBase key={i} className="h-6 w-20 rounded-full" />)}
+            </div>
+          </div>
+
+          <div className="p-5 md:p-6 flex-1">
+            <div className="space-y-4">
+              <SkeletonBase className="h-5 w-full" />
+              <SkeletonBase className="h-5 w-11/12" />
+              <SkeletonBase className="h-5 w-4/5" />
+              <SkeletonBase className="h-5 w-full" />
+              <SkeletonBase className="h-5 w-3/4" />
+            </div>
+            <SkeletonBase className="h-48 w-full rounded-xl mt-8" />
+          </div>
         </div>
 
-        <SkeletonBase className="h-12 w-full rounded-xl mt-4" />
+        {/* Right Pane */}
+        <div className="flex-1 lg:w-1/2 flex flex-col bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden mt-6 lg:mt-0 lg:h-full">
+          <div className="p-5 md:p-6 flex-1 flex flex-col">
+            <div className="flex-1 space-y-4 lg:space-y-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                  <SkeletonBase className="w-6 h-6 rounded-lg flex-shrink-0" />
+                  <SkeletonBase className="h-6 w-1/2 rounded" />
+                </div>
+              ))}
+            </div>
+            <div className="pt-6 shrink-0 mt-auto border-t border-zinc-100 dark:border-zinc-800">
+              <SkeletonBase className="h-14 w-full rounded-xl" />
+            </div>
+          </div>
+
+          <div className="bg-zinc-50 dark:bg-black/20 p-5 shrink-0 border-t border-zinc-200 dark:border-zinc-800">
+            <SkeletonBase className="h-5 w-32 mb-4" />
+            <SkeletonBase className="h-28 w-full rounded-xl" />
+          </div>
+        </div>
+
       </div>
     </div>
   </div>

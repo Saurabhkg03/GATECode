@@ -750,363 +750,389 @@ export default function QuestionClient({ id }: { id: string }) {
                 />
             )}
 
-            <div className="min-h-screen bg-zinc-50 dark:bg-black pb-20 md:pb-8">
-                <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+            <div className="min-h-screen bg-zinc-50 dark:bg-black pb-20 md:pb-8 flex flex-col">
+                <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6 flex-1 flex flex-col min-h-0">
 
                     {/* Top Navigation Bar */}
-                    <div className="flex justify-between items-center mb-6">
-                        <button
-                            onClick={handlePrev}
-                            disabled={!findPrevQuestionId()}
-                            className="flex items-center gap-2 px-3 py-1.5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                            <span className="hidden sm:inline font-medium">Previous</span>
-                        </button>
-
+                    <div className="flex justify-between items-center mb-4 shrink-0 px-4 sm:px-8">
                         <button
                             onClick={() => router.push('/practice')}
-                            className="text-sm font-semibold text-zinc-500 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors uppercase tracking-wide"
+                            className="flex items-center gap-2 text-sm font-semibold text-zinc-500 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors uppercase tracking-wide"
                         >
+                            <ArrowLeft className="w-4 h-4" />
                             Back to List
                         </button>
 
-                        <button
-                            onClick={handleNext}
-                            disabled={!findNextQuestionId()}
-                            className="flex items-center gap-2 px-3 py-1.5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                            <span className="hidden sm:inline font-medium">Next</span>
-                            <ArrowRight className="w-5 h-5" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handlePrev}
+                                disabled={!findPrevQuestionId()}
+                                className="flex items-center gap-2 px-3 py-1.5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                                <ArrowLeft className="w-5 h-5" />
+                                <span className="hidden sm:inline font-medium">Previous</span>
+                            </button>
+                            <button
+                                onClick={handleNext}
+                                disabled={!findNextQuestionId()}
+                                className="flex items-center gap-2 px-3 py-1.5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                                <span className="hidden sm:inline font-medium">Next</span>
+                                <ArrowRight className="w-5 h-5" />
+                            </button>
+                        </div>
                     </div>
 
-                    {!loadingAuth && !isAuthenticated && <LoginPrompt />}
+                    {!loadingAuth && !isAuthenticated && <div className="shrink-0 mb-4"><LoginPrompt /></div>}
 
-                    {/* Main Question Card */}
-                    <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+                    {/* Layout Split Container */}
+                    <ErrorBoundary>
+                        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
 
-                        {/* Header Section */}
-                        <div className="p-6 md:p-8 border-b border-zinc-100 dark:border-zinc-800/50">
-                            <div className="flex flex-col gap-4">
+                            {/* LEFT PANE: Header & Question Description */}
+                            <div className="w-full lg:w-1/2 flex flex-col bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden flex-shrink-0 lg:sticky lg:top-6 lg:self-start">
 
-                                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                                    <h1 className="text-xl md:text-2xl font-bold text-zinc-900 dark:text-white leading-tight">
-                                        {question.title}
-                                    </h1>
+                                {/* Header Section */}
+                                <div className="p-5 md:p-6 border-b border-zinc-100 dark:border-zinc-800/50 shrink-0">
+                                    <div className="flex flex-col gap-4">
 
-                                    {/* Toolbar */}
-                                    <div className="flex items-center gap-2 self-start md:self-auto bg-zinc-100 dark:bg-zinc-800/50 p-1 rounded-xl">
+                                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                                            <div className="flex items-start gap-2">
+                                                {metadata?.allQuestionIds && metadata.allQuestionIds.indexOf(id) !== -1 && (
+                                                    <span className="text-xl md:text-2xl font-bold text-zinc-900 dark:text-white leading-tight pt-0.5 md:pt-1">
+                                                        {metadata.allQuestionIds.indexOf(id) + 1}.
+                                                    </span>
+                                                )}
+                                                <h1 className="text-xl md:text-2xl font-bold text-zinc-900 dark:text-white leading-tight pt-0.5 md:pt-1">
+                                                    {question.title}
+                                                </h1>
+                                            </div>
 
-                                        {/* Timer */}
-                                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/50 dark:border-zinc-700/50">
-                                            <TimerIcon className={`w-4 h-4 ${isTimerOn ? 'text-blue-500 animate-pulse' : 'text-zinc-400'}`} />
-                                            <span className="text-sm font-mono font-medium text-zinc-700 dark:text-zinc-300 min-w-[3rem] text-center">
-                                                {formatTime(timeElapsed)}
-                                            </span>
-                                            <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-1"></div>
-                                            <button
-                                                onClick={() => setIsTimerOn(!isTimerOn)}
-                                                disabled={submitted || !isAuthenticated}
-                                                className="p-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors disabled:opacity-50"
-                                            >
-                                                {isTimerOn ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-                                            </button>
-                                            <button
-                                                onClick={handleResetTimer}
-                                                disabled={submitted || !isAuthenticated || timeElapsed === 0}
-                                                className="p-1 hover:text-red-500 transition-colors disabled:opacity-50"
-                                            >
-                                                <RotateCcw className="w-3.5 h-3.5" />
-                                            </button>
-                                        </div>
+                                            {/* Toolbar */}
+                                            <div className="flex items-center gap-2 self-start md:self-auto bg-zinc-100 dark:bg-zinc-800/50 p-1 rounded-xl">
 
-                                        {/* Actions */}
-                                        <button
-                                            onClick={handleToggleFavorite}
-                                            disabled={!isAuthenticated}
-                                            className={`p-2 rounded-lg transition-all ${isFavorite
-                                                ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                                : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-white dark:hover:bg-zinc-800'
-                                                } disabled:opacity-50`}
-                                            title="Favorite"
-                                        >
-                                            <Bookmark className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
-                                        </button>
-
-                                        <button
-                                            onClick={() => setShowListModal(true)}
-                                            disabled={!isAuthenticated}
-                                            className="p-2 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-white dark:hover:bg-zinc-800 transition-all disabled:opacity-50"
-                                            title="Save to List"
-                                        >
-                                            <ListPlus className="w-4 h-4" />
-                                        </button>
-
-                                    </div>
-                                </div>
-
-                                {/* Tags */}
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide uppercase ${getQuestionTypeColor(question.question_type)}`}>
-                                        {question.question_type || 'MCQ'}
-                                    </span>
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/50">
-                                        <BookOpen className="w-3 h-3" /> {question.subject}
-                                    </span>
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/50">
-                                        <FolderPlus className="w-3 h-3" /> {question.topic}
-                                    </span>
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/50">
-                                        <Calendar className="w-3 h-3" /> GATE {question.year}
-                                    </span>
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/50">
-                                        {question.branch ? question.branch.toUpperCase() : 'GENERAL'}
-                                    </span>
-                                    {otherTags.map(tag => (
-                                        <span key={tag} className="px-2 py-1 rounded-md text-xs text-zinc-500 dark:text-zinc-500 border border-zinc-100 dark:border-zinc-800">
-                                            {tag}
-                                        </span>
-                                    ))}
-                                </div>
-
-                            </div>
-                        </div>
-
-                        {/* Question Content */}
-                        <ErrorBoundary>
-                            <div className="p-6 md:p-8">
-                                <MathRenderer
-                                    content={cleanedQuestionHtml}
-                                    className="prose prose-zinc dark:prose-invert prose-p:leading-relaxed prose-headings:font-bold prose-a:text-blue-600 dark:prose-a:text-blue-400 max-w-none mb-8 text-zinc-800 dark:text-zinc-200"
-                                />
-
-                                {question.question_image_links && question.question_image_links.length > 0 && (
-                                    <div className="grid gap-6 mb-8">
-                                        {question.question_image_links.map((imgUrl, index) => {
-                                            const isKnownDomain = ['firebasestorage.googleapis.com', 'lh3.googleusercontent.com', 'supabase.co'].some(domain => imgUrl.includes(domain));
-                                            return (
-                                                // eslint-disable-next-line @next/next/no-img-element
-                                                <div key={`q-img-${index}`} className="relative rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-                                                    <Image
-                                                        src={imgUrl}
-                                                        alt={`Question illustration ${index + 1}`}
-                                                        width={800}
-                                                        height={600}
-                                                        className="w-full h-auto mx-auto"
-                                                        unoptimized={!isKnownDomain}
-                                                    />
+                                                {/* Timer */}
+                                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/50 dark:border-zinc-700/50">
+                                                    <TimerIcon className={`w-4 h-4 ${isTimerOn ? 'text-blue-500 animate-pulse' : 'text-zinc-400'}`} />
+                                                    <span className="text-sm font-mono font-medium text-zinc-700 dark:text-zinc-300 min-w-[3rem] text-center">
+                                                        {formatTime(timeElapsed)}
+                                                    </span>
+                                                    <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-1"></div>
+                                                    <button
+                                                        onClick={() => setIsTimerOn(!isTimerOn)}
+                                                        disabled={submitted || !isAuthenticated}
+                                                        className="p-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors disabled:opacity-50"
+                                                    >
+                                                        {isTimerOn ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                                                    </button>
+                                                    <button
+                                                        onClick={handleResetTimer}
+                                                        disabled={submitted || !isAuthenticated || timeElapsed === 0}
+                                                        className="p-1 hover:text-red-500 transition-colors disabled:opacity-50"
+                                                    >
+                                                        <RotateCcw className="w-3.5 h-3.5" />
+                                                    </button>
                                                 </div>
-                                            )
-                                        })}
-                                    </div>
-                                )}
 
-                                {/* Options Area */}
-                                <div className="space-y-6">
+                                                {/* Actions */}
+                                                <button
+                                                    onClick={handleToggleFavorite}
+                                                    disabled={!isAuthenticated}
+                                                    className={`p-2 rounded-lg transition-all ${isFavorite
+                                                        ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                                        : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-white dark:hover:bg-zinc-800'
+                                                        } disabled:opacity-50`}
+                                                    title="Favorite"
+                                                >
+                                                    <Bookmark className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+                                                </button>
 
-                                    {question.question_type === 'nat' ? (
-                                        <div className="max-w-sm">
-                                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Your Answer</label>
-                                            <div className="relative">
-                                                <input
-                                                    type="text"
-                                                    value={natAnswer}
-                                                    onChange={(e) => setNatAnswer(e.target.value)}
-                                                    disabled={submitted || !isAuthenticated}
-                                                    className="w-full pl-4 pr-12 py-3 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-300 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-mono text-lg disabled:opacity-50"
-                                                    placeholder="0.00"
-                                                />
-                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none">
-                                                    #
-                                                </div>
+                                                <button
+                                                    onClick={() => setShowListModal(true)}
+                                                    disabled={!isAuthenticated}
+                                                    className="p-2 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-white dark:hover:bg-zinc-800 transition-all disabled:opacity-50"
+                                                    title="Save to List"
+                                                >
+                                                    <ListPlus className="w-4 h-4" />
+                                                </button>
+
                                             </div>
                                         </div>
-                                    ) : (
-                                        <div className="grid gap-3">
-                                            {question.options.map((option, index) => {
-                                                const isSelected = question.question_type === 'msq' ? selectedOptions.includes(option.label) : selectedOptions[0] === option.label;
-                                                const isCorrectOption = option.is_correct;
-                                                const cleanedOptionHtml = extractAndCleanHtml(option.text_html, 'option_data');
 
-                                                let containerClass = "relative w-full p-4 rounded-xl border-2 text-left transition-all duration-200 flex items-start gap-4 group ";
-                                                let iconClass = "flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm transition-colors duration-200 ";
+                                        {/* Tags */}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide uppercase ${getQuestionTypeColor(question.question_type)}`}>
+                                                {question.question_type || 'MCQ'}
+                                            </span>
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/50">
+                                                <BookOpen className="w-3 h-3" /> {question.subject}
+                                            </span>
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/50">
+                                                <FolderPlus className="w-3 h-3" /> {question.topic}
+                                            </span>
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/50">
+                                                <Calendar className="w-3 h-3" /> GATE {question.year}
+                                            </span>
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700/50">
+                                                {question.branch ? question.branch.toUpperCase() : 'GENERAL'}
+                                            </span>
+                                            {otherTags.map(tag => (
+                                                <span key={tag} className="px-2 py-1 rounded-md text-xs text-zinc-500 dark:text-zinc-500 border border-zinc-100 dark:border-zinc-800">
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                        </div>
 
-                                                if (!submitted) {
-                                                    if (isSelected) {
-                                                        containerClass += "bg-blue-50 dark:bg-blue-900/10 border-blue-500 shadow-sm shadow-blue-100 dark:shadow-none";
-                                                        iconClass += "bg-blue-500 text-white shadow-sm";
-                                                    } else {
-                                                        containerClass += "bg-white dark:bg-zinc-800/30 border-zinc-200 dark:border-zinc-800 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/30 dark:hover:bg-blue-900/5";
-                                                        iconClass += "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 group-hover:text-blue-600 dark:group-hover:text-blue-400";
-                                                    }
-                                                    if (isAuthenticated) containerClass += " cursor-pointer";
-                                                    else containerClass += " cursor-not-allowed opacity-70";
-                                                } else {
-                                                    containerClass += " cursor-default ";
-                                                    if (isCorrectOption) {
-                                                        containerClass += "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-500 shadow-sm";
-                                                        iconClass += "bg-emerald-500 text-white shadow-sm";
-                                                    } else if (isSelected && !isCorrectOption) {
-                                                        containerClass += "bg-red-50 dark:bg-red-900/10 border-red-500 shadow-sm";
-                                                        iconClass += "bg-red-500 text-white shadow-sm";
-                                                    } else {
-                                                        containerClass += "bg-zinc-50/50 dark:bg-zinc-900/50 border-zinc-100 dark:border-zinc-800 opacity-50";
-                                                        iconClass += "bg-zinc-100 dark:bg-zinc-800 text-zinc-400";
-                                                    }
-                                                }
+                                    </div>
+                                </div>
 
+                                {/* Question Content */}
+                                <div className="p-5 md:p-6 flex-1 text-base lg:text-lg">
+                                    <MathRenderer
+                                        content={cleanedQuestionHtml}
+                                        className="prose prose-zinc dark:prose-invert prose-p:leading-relaxed prose-headings:font-bold prose-a:text-blue-600 dark:prose-a:text-blue-400 max-w-none mb-8 text-zinc-800 dark:text-zinc-200"
+                                    />
+
+                                    {question.question_image_links && question.question_image_links.length > 0 && (
+                                        <div className="grid gap-6 mb-8">
+                                            {question.question_image_links.map((imgUrl, index) => {
+                                                const isKnownDomain = ['firebasestorage.googleapis.com', 'lh3.googleusercontent.com', 'supabase.co'].some(domain => imgUrl.includes(domain));
                                                 return (
-                                                    <button
-                                                        key={option.label}
-                                                        onClick={() => question.question_type === 'msq' ? handleMsqToggle(option.label) : handleMcqSelect(option.label)}
-                                                        disabled={submitted || !isAuthenticated}
-                                                        className={containerClass}
-                                                    >
-                                                        <span className={iconClass}>
-                                                            {submitted && isCorrectOption ? <CheckIcon className="w-5 h-5" /> :
-                                                                submitted && !isCorrectOption && isSelected ? <XIcon className="w-5 h-5" /> :
-                                                                    option.label}
-                                                        </span>
-                                                        <MathRenderer
-                                                            content={cleanedOptionHtml}
-                                                            inline={true}
-                                                            className="flex-1 pt-1 text-zinc-700 dark:text-zinc-300 prose prose-sm dark:prose-invert font-medium text-left"
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <div key={`q-img-${index}`} className="relative rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
+                                                        <Image
+                                                            src={imgUrl}
+                                                            alt={`Question illustration ${index + 1}`}
+                                                            width={800}
+                                                            height={600}
+                                                            className="w-full h-auto mx-auto"
+                                                            unoptimized={!isKnownDomain}
                                                         />
-
-                                                        {submitted && (
-                                                            <div className="absolute top-4 right-4">
-                                                                {isCorrectOption ? <CheckCircle className="w-5 h-5 text-emerald-500" /> :
-                                                                    isSelected ? <XCircle className="w-5 h-5 text-red-500" /> : null}
-                                                            </div>
-                                                        )}
-                                                    </button>
-                                                );
+                                                    </div>
+                                                )
                                             })}
                                         </div>
                                     )}
                                 </div>
+                            </div> {/* End Left Pane */}
 
-                                {/* Action Buttons */}
-                                <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800">
-                                    {!submitted ? (
-                                        <button
-                                            onClick={handleSubmit}
-                                            disabled={(!selectedOptions.length && (question.question_type === 'mcq' || question.question_type === 'msq')) || (question.question_type === 'nat' && !natAnswer) || loadingAuth}
-                                            className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl font-bold tracking-wide shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all transform active:scale-[0.99] disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed"
-                                        >
-                                            Submit Answer
-                                        </button>
-                                    ) : (
-                                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            {/* RIGHT PANE: Options, Action Buttons & Notes */}
+                            <div className="w-full lg:w-1/2 flex flex-col bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden mt-6 lg:mt-0 lg:sticky lg:top-6 lg:self-start">
+                                <div className="p-5 md:p-6 flex-1 flex flex-col">
+                                    <div className="flex-1 mb-6">
+                                        {/* Options Area */}
+                                        <div className="space-y-4 lg:space-y-6">
 
-                                            {/* Result Banner */}
-                                            <div className={`p-4 rounded-xl flex items-start gap-4 ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/50' : 'bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/50'}`}>
-                                                <div className={`p-2 rounded-full ${isCorrect ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400'}`}>
-                                                    {isCorrect ? <CheckIcon className="w-6 h-6" /> : <XIcon className="w-6 h-6" />}
-                                                </div>
-                                                <div>
-                                                    <h3 className={`text-lg font-bold mb-1 ${isCorrect ? 'text-emerald-800 dark:text-emerald-400' : 'text-red-800 dark:text-red-400'}`}>
-                                                        {isCorrect ? 'Correct Answer!' : 'Incorrect'}
-                                                    </h3>
-                                                    <p className={`text-sm ${isCorrect ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
-                                                        {question.question_type === 'nat' && !isCorrect && `The correct range is ${question.nat_answer_min} - ${question.nat_answer_max}`}
-                                                        {question.question_type === 'mcq' && !isCorrect && `The correct option is ${question.options.find((o: Option) => o.is_correct)?.label}`}
-                                                        {question.question_type === 'msq' && !isCorrect && `Correct options: ${question.options.filter((o: Option) => o.is_correct).map((o: Option) => o.label).join(', ')}`}
-                                                        {isCorrect && "Great job! You nailed it."}
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            {/* Explanation */}
-                                            {(cleanedExplanationHtml || (question.explanation_image_links && question.explanation_image_links.length > 0)) && (
-                                                <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800">
-                                                    <div className="px-6 py-3 bg-zinc-100/50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-2">
-                                                        <BookOpen className="w-4 h-4 text-zinc-500" />
-                                                        <h3 className="font-semibold text-zinc-900 dark:text-white">Explanation</h3>
-                                                    </div>
-                                                    <div className="p-6">
-                                                        <MathRenderer
-                                                            content={cleanedExplanationHtml}
-                                                            className="prose prose-sm dark:prose-invert max-w-none text-zinc-700 dark:text-zinc-300"
+                                            {question.question_type === 'nat' ? (
+                                                <div className="max-w-sm">
+                                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Your Answer</label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="text"
+                                                            value={natAnswer}
+                                                            onChange={(e) => setNatAnswer(e.target.value)}
+                                                            disabled={submitted || !isAuthenticated}
+                                                            className="w-full pl-4 pr-12 py-3 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-300 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-mono text-lg disabled:opacity-50"
+                                                            placeholder="0.00"
                                                         />
-
-                                                        {!question.explanation_redirect_url && question.explanation_image_links && question.explanation_image_links.length > 0 && (
-                                                            <div className="mt-6 space-y-4">
-                                                                {question.explanation_image_links.map((imgUrl: string, index: number) => {
-                                                                    const isKnownDomain = ['firebasestorage.googleapis.com', 'lh3.googleusercontent.com', 'supabase.co'].some(domain => imgUrl.includes(domain));
-                                                                    return (
-                                                                        <Image
-                                                                            key={`e-img-${index}`}
-                                                                            src={imgUrl}
-                                                                            alt={`Explanation illustration ${index + 1}`}
-                                                                            width={800}
-                                                                            height={600}
-                                                                            className="rounded-lg border dark:border-zinc-700 w-full h-auto mx-auto"
-                                                                            unoptimized={!isKnownDomain}
-                                                                        />
-                                                                    )
-                                                                })}
-                                                            </div>
-                                                        )}
+                                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none">
+                                                            #
+                                                        </div>
                                                     </div>
+                                                </div>
+                                            ) : (
+                                                <div className="grid gap-3">
+                                                    {question.options.map((option, index) => {
+                                                        const isSelected = question.question_type === 'msq' ? selectedOptions.includes(option.label) : selectedOptions[0] === option.label;
+                                                        const isCorrectOption = option.is_correct;
+                                                        const cleanedOptionHtml = extractAndCleanHtml(option.text_html, 'option_data');
+
+                                                        let containerClass = "relative w-full p-4 rounded-xl border-2 text-left transition-all duration-200 flex items-start gap-4 group ";
+                                                        let iconClass = "flex-shrink-0 w-8 h-8 flex items-center justify-center font-bold text-sm transition-colors duration-200 ";
+
+                                                        if (question.question_type === 'mcq') {
+                                                            iconClass += "rounded-full ";
+                                                        } else {
+                                                            iconClass += "rounded-lg ";
+                                                        }
+
+                                                        if (!submitted) {
+                                                            if (isSelected) {
+                                                                containerClass += "bg-blue-50 dark:bg-blue-900/10 border-blue-500 shadow-sm shadow-blue-100 dark:shadow-none";
+                                                                iconClass += "bg-blue-500 text-white shadow-sm";
+                                                            } else {
+                                                                containerClass += "bg-white dark:bg-zinc-800/30 border-zinc-200 dark:border-zinc-800 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/30 dark:hover:bg-blue-900/5";
+                                                                iconClass += "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 group-hover:text-blue-600 dark:group-hover:text-blue-400";
+                                                            }
+                                                            if (isAuthenticated) containerClass += " cursor-pointer";
+                                                            else containerClass += " cursor-not-allowed opacity-70";
+                                                        } else {
+                                                            containerClass += " cursor-default ";
+                                                            if (isCorrectOption) {
+                                                                containerClass += "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-500 shadow-sm";
+                                                                iconClass += "bg-emerald-500 text-white shadow-sm";
+                                                            } else if (isSelected && !isCorrectOption) {
+                                                                containerClass += "bg-red-50 dark:bg-red-900/10 border-red-500 shadow-sm";
+                                                                iconClass += "bg-red-500 text-white shadow-sm";
+                                                            } else {
+                                                                containerClass += "bg-zinc-50/50 dark:bg-zinc-900/50 border-zinc-100 dark:border-zinc-800 opacity-50";
+                                                                iconClass += "bg-zinc-100 dark:bg-zinc-800 text-zinc-400";
+                                                            }
+                                                        }
+
+                                                        return (
+                                                            <button
+                                                                key={option.label}
+                                                                onClick={() => question.question_type === 'msq' ? handleMsqToggle(option.label) : handleMcqSelect(option.label)}
+                                                                disabled={submitted || !isAuthenticated}
+                                                                className={containerClass}
+                                                            >
+                                                                <span className={iconClass}>
+                                                                    {submitted && isCorrectOption ? <CheckIcon className="w-5 h-5" /> :
+                                                                        submitted && !isCorrectOption && isSelected ? <XIcon className="w-5 h-5" /> :
+                                                                            (!submitted && isSelected && question.question_type === 'msq') ? <CheckIcon className="w-5 h-5" /> : (!submitted && isSelected && question.question_type === 'mcq') ? <div className="w-3 h-3 bg-white rounded-full" /> : option.label}
+                                                                </span>
+                                                                <MathRenderer
+                                                                    content={cleanedOptionHtml}
+                                                                    inline={true}
+                                                                    className="flex-1 pt-1 text-zinc-700 dark:text-zinc-300 prose prose-sm dark:prose-invert font-medium text-left"
+                                                                />
+
+                                                                {submitted && (
+                                                                    <div className="absolute top-4 right-4">
+                                                                        {isCorrectOption ? <CheckCircle className="w-5 h-5 text-emerald-500" /> :
+                                                                            isSelected ? <XCircle className="w-5 h-5 text-red-500" /> : null}
+                                                                    </div>
+                                                                )}
+                                                            </button>
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
-
-                                            {/* Control Buttons (Try Again / Next) */}
-                                            <div className="flex gap-4">
-                                                <button
-                                                    onClick={handleTryAgain}
-                                                    disabled={resetting}
-                                                    className="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                                                >
-                                                    {resetting ? <Loader2 className="w-5 h-5 animate-spin" /> : <RotateCcw className="w-5 h-5" />}
-                                                    Try Again
-                                                </button>
-                                                <button
-                                                    onClick={handleNext}
-                                                    disabled={!findNextQuestionId()}
-                                                    className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400"
-                                                >
-                                                    Next Question
-                                                    <ArrowRight className="w-5 h-5" />
-                                                </button>
-                                            </div>
-
                                         </div>
-                                    )}
-                                </div>
-                            </div>
-                        </ErrorBoundary>
+                                    </div> {/* End specific top half of right pane */}
 
-                        {/* Notes Section Footer */}
-                        <div className="bg-zinc-50 dark:bg-black/20 p-6 md:p-8 border-t border-zinc-200 dark:border-zinc-800">
-                            <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-4 flex items-center gap-2">
-                                <ClipboardList className="w-4 h-4" /> Personal Notes
-                            </h3>
-                            <div className="relative">
-                                <textarea
-                                    value={note}
-                                    onChange={(e) => setNote(e.target.value)}
-                                    disabled={!isAuthenticated}
-                                    placeholder={isAuthenticated ? "Write your private notes, thoughts or doubts about this question here..." : "Login to save private notes."}
-                                    className="w-full p-4 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-shadow min-h-[120px] resize-y disabled:bg-zinc-100 dark:disabled:bg-zinc-800 disabled:text-zinc-500"
-                                />
-                                <div className="absolute bottom-3 right-3">
-                                    <button
-                                        onClick={handleSaveNote}
-                                        disabled={!isAuthenticated || savingNote}
-                                        className="px-4 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-lg text-xs font-bold hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
-                                    >
-                                        {savingNote ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                                        Save
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                                    {/* Action Buttons */}
+                                    <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800 shrink-0">
+                                        {!submitted ? (
+                                            <button
+                                                onClick={handleSubmit}
+                                                disabled={(!selectedOptions.length && (question.question_type === 'mcq' || question.question_type === 'msq')) || (question.question_type === 'nat' && !natAnswer) || loadingAuth}
+                                                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl font-bold tracking-wide shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all transform active:scale-[0.99] disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed"
+                                            >
+                                                Submit Answer
+                                            </button>
+                                        ) : (
+                                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-                    </div>
-                </div>
+                                                {/* Result Banner */}
+                                                <div className={`p-4 rounded-xl flex items-start gap-4 ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/50' : 'bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/50'}`}>
+                                                    <div className={`p-2 rounded-full ${isCorrect ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400'}`}>
+                                                        {isCorrect ? <CheckIcon className="w-6 h-6" /> : <XIcon className="w-6 h-6" />}
+                                                    </div>
+                                                    <div>
+                                                        <h3 className={`text-lg font-bold mb-1 ${isCorrect ? 'text-emerald-800 dark:text-emerald-400' : 'text-red-800 dark:text-red-400'}`}>
+                                                            {isCorrect ? 'Correct Answer!' : 'Incorrect'}
+                                                        </h3>
+                                                        <p className={`text-sm ${isCorrect ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
+                                                            {question.question_type === 'nat' && !isCorrect && `The correct range is ${question.nat_answer_min} - ${question.nat_answer_max}`}
+                                                            {question.question_type === 'mcq' && !isCorrect && `The correct option is ${question.options.find((o: Option) => o.is_correct)?.label}`}
+                                                            {question.question_type === 'msq' && !isCorrect && `Correct options: ${question.options.filter((o: Option) => o.is_correct).map((o: Option) => o.label).join(', ')}`}
+                                                            {isCorrect && "Great job! You nailed it."}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                {/* Explanation */}
+                                                {(cleanedExplanationHtml || (question.explanation_image_links && question.explanation_image_links.length > 0)) && (
+                                                    <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800">
+                                                        <div className="px-6 py-3 bg-zinc-100/50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-2">
+                                                            <BookOpen className="w-4 h-4 text-zinc-500" />
+                                                            <h3 className="font-semibold text-zinc-900 dark:text-white">Explanation</h3>
+                                                        </div>
+                                                        <div className="p-6">
+                                                            <MathRenderer
+                                                                content={cleanedExplanationHtml}
+                                                                className="prose prose-sm dark:prose-invert max-w-none text-zinc-700 dark:text-zinc-300"
+                                                            />
+
+                                                            {!question.explanation_redirect_url && question.explanation_image_links && question.explanation_image_links.length > 0 && (
+                                                                <div className="mt-6 space-y-4">
+                                                                    {question.explanation_image_links.map((imgUrl: string, index: number) => {
+                                                                        const isKnownDomain = ['firebasestorage.googleapis.com', 'lh3.googleusercontent.com', 'supabase.co'].some(domain => imgUrl.includes(domain));
+                                                                        return (
+                                                                            <Image
+                                                                                key={`e-img-${index}`}
+                                                                                src={imgUrl}
+                                                                                alt={`Explanation illustration ${index + 1}`}
+                                                                                width={800}
+                                                                                height={600}
+                                                                                className="rounded-lg border dark:border-zinc-700 w-full h-auto mx-auto"
+                                                                                unoptimized={!isKnownDomain}
+                                                                            />
+                                                                        )
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Control Buttons (Try Again / Next) */}
+                                                <div className="flex gap-4">
+                                                    <button
+                                                        onClick={handleTryAgain}
+                                                        disabled={resetting}
+                                                        className="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                                    >
+                                                        {resetting ? <Loader2 className="w-5 h-5 animate-spin" /> : <RotateCcw className="w-5 h-5" />}
+                                                        Try Again
+                                                    </button>
+                                                    <button
+                                                        onClick={handleNext}
+                                                        disabled={!findNextQuestionId()}
+                                                        className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400"
+                                                    >
+                                                        Next Question
+                                                        <ArrowRight className="w-5 h-5" />
+                                                    </button>
+                                                </div>
+
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Notes Section Footer */}
+                                <div className="bg-zinc-50 dark:bg-black/20 p-5 shrink-0 border-t border-zinc-200 dark:border-zinc-800">
+                                    <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-4 flex items-center gap-2">
+                                        <ClipboardList className="w-4 h-4" /> Personal Notes
+                                    </h3>
+                                    <div className="relative">
+                                        <textarea
+                                            value={note}
+                                            onChange={(e) => setNote(e.target.value)}
+                                            disabled={!isAuthenticated}
+                                            placeholder={isAuthenticated ? "Write your private notes, thoughts or doubts about this question here..." : "Login to save private notes."}
+                                            className="w-full p-4 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-shadow min-h-[120px] resize-y disabled:bg-zinc-100 dark:disabled:bg-zinc-800 disabled:text-zinc-500"
+                                        />
+                                        <div className="absolute bottom-3 right-3">
+                                            <button
+                                                onClick={handleSaveNote}
+                                                disabled={!isAuthenticated || savingNote}
+                                                className="px-4 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-lg text-xs font-bold hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
+                                            >
+                                                {savingNote ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                                                Save
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div> {/* End Right Pane */}
+                        </div> {/* End Layout Split Container */}
+                    </ErrorBoundary>
+                </div> {/* End Max Width Container */}
             </div>
         </>
 

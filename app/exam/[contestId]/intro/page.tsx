@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { CheckCircle, ExternalLink, FileText, Loader2, RotateCcw, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { Contest, ContestAttempt } from '@/types/exam';
 import CustomAlert from '@/components/ui/CustomAlert';
 import { useSearchParams } from 'next/navigation';
@@ -45,8 +45,28 @@ export default function ExamIntroPage() {
                 const querySnap = await getDocs(q);
                 const fetchedAttempts = querySnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ContestAttempt));
 
-                // Sort by startedAt DESC (Newest first)
-                setAttempts(fetchedAttempts.sort((a, b) => b.startedAt - a.startedAt));
+                const sorted = fetchedAttempts.sort((a, b) => b.startedAt - a.startedAt);
+
+                // Auto-close stale unsubmitted attempts:
+                // If there is a submitted attempt that is newer than an unsubmitted one,
+                // that unsubmitted one is orphaned and should be marked as submitted.
+                const hasSubmittedAttempt = sorted.some(a => a.isSubmitted);
+                const staleAttempts = sorted.filter(a => !a.isSubmitted);
+
+                if (hasSubmittedAttempt && staleAttempts.length > 0) {
+                    const now = Date.now();
+                    await Promise.all(staleAttempts.map(att =>
+                        updateDoc(doc(db, 'contest_attempts', att.id), {
+                            isSubmitted: true,
+                            timeLeftSeconds: 0,
+                            lastUpdated: now
+                        })
+                    ));
+                    // Mark as submitted locally too
+                    sorted.forEach(a => { if (!a.isSubmitted) a.isSubmitted = true; });
+                }
+
+                setAttempts(sorted);
             } catch (e) {
                 console.error("Failed to load exam data", e);
             } finally {
@@ -56,12 +76,37 @@ export default function ExamIntroPage() {
         fetchData();
     }, [contestId, user]);
 
-    const activeAttempt = attempts.find(a => !a.isSubmitted);
+    const activeAttempt = attempts.find(a => {
+        if (a.isSubmitted) return false;
+        // Check if time has expired (with a small 2-minute buffer for sync delays)
+        if (contest) {
+            const elapsedTime = (Date.now() - a.startedAt) / 1000;
+            const originalDurationSeconds = contest.durationMinutes * 60;
+            if (elapsedTime >= originalDurationSeconds + 120) {
+                return false;
+            }
+        }
+        return true;
+    });
+
+    // Mark all unsubmitted attempts as submitted to prevent stale "live" states
+    const closeStaleAttempts = async () => {
+        const staleAttempts = attempts.filter(a => !a.isSubmitted);
+        const now = Date.now();
+        await Promise.all(staleAttempts.map(att =>
+            updateDoc(doc(db, 'contest_attempts', att.id), {
+                isSubmitted: true,
+                timeLeftSeconds: 0,
+                lastUpdated: now
+            })
+        ));
+        // Update local state to reflect submitted
+        setAttempts(prev => prev.map(a => !a.isSubmitted ? { ...a, isSubmitted: true } : a));
+    };
 
     const handleBegin = () => {
-        // Logic: If there is an active unsubmitted attempt, resume it. 
-        // If not, starting will create a new one.
-        if (!activeAttempt || isRead) {
+        // Only proceed if the user has confirmed they read the instructions
+        if (isRead) {
             router.push(`/exam/${contestId}/live`);
         }
     };
@@ -71,15 +116,13 @@ export default function ExamIntroPage() {
         try {
             setFetchingAttempts(true);
 
+            // Mark all stale unsubmitted attempts as submitted before starting fresh
+            await closeStaleAttempts();
+
             // Clear local storage progress for this contest
             localStorage.removeItem(`gate_exam_progress_${contestId}`);
+            localStorage.removeItem(`exam_target_time_${contestId}_${user.uid}`);
 
-            // Redirect to live. The Start API will now see NO unsubmitted attempts 
-            // because we are forcing it to only query isSubmitted: false.
-            // If there's an OLD unsubmitted one we might want to handle it, 
-            // but the Start API already resumes if found. 
-            // So for a REAL re-attempt, we should probably tell the API to ignore existing?
-            // Actually, let's just make the API call to start.
             router.push(`/exam/${contestId}/live?force_fresh=true`);
         } catch (e) {
             console.error("Failed to reset attempt", e);
@@ -134,51 +177,62 @@ export default function ExamIntroPage() {
                             </div>
 
                             <div className="grid grid-cols-1 gap-4">
-                                {attempts.map((att, idx) => (
-                                    <div
-                                        key={att.id}
-                                        className={`bg-white dark:bg-zinc-900 p-5 rounded-xl border dark:border-zinc-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 transition-all hover:shadow-md ${!att.isSubmitted ? 'ring-2 ring-blue-500/50 bg-blue-50/10' : ''}`}
-                                    >
-                                        <div className="flex items-center gap-4 w-full sm:w-auto">
-                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${att.isSubmitted ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 animate-pulse'}`}>
-                                                {att.isSubmitted ? <CheckCircle className="w-6 h-6" /> : <RotateCcw className="w-6 h-6" />}
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-black text-gray-900 dark:text-white">Attempt #{attempts.length - idx}</span>
-                                                    {!att.isSubmitted && <span className="bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Active</span>}
+                                {attempts.map((att, idx) => {
+                                    let isActiveAttempt = !att.isSubmitted;
+                                    if (isActiveAttempt && contest) {
+                                        const elapsedTime = (Date.now() - att.startedAt) / 1000;
+                                        const originalDurationSeconds = contest.durationMinutes * 60;
+                                        if (elapsedTime >= originalDurationSeconds + 120) {
+                                            isActiveAttempt = false;
+                                        }
+                                    }
+
+                                    return (
+                                        <div
+                                            key={att.id}
+                                            className={`bg-white dark:bg-zinc-900 p-5 rounded-xl border dark:border-zinc-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 transition-all hover:shadow-md ${isActiveAttempt ? 'ring-2 ring-blue-500/50 bg-blue-50/10' : ''}`}
+                                        >
+                                            <div className="flex items-center gap-4 w-full sm:w-auto">
+                                                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${!isActiveAttempt ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 animate-pulse'}`}>
+                                                    {!isActiveAttempt ? <CheckCircle className="w-6 h-6" /> : <RotateCcw className="w-6 h-6" />}
                                                 </div>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                    {new Date(att.startedAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date(att.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </p>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-black text-gray-900 dark:text-white">Attempt #{attempts.length - idx}</span>
+                                                        {isActiveAttempt && <span className="bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Active</span>}
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                        {new Date(att.startedAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date(att.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end">
+                                                <div className="text-right">
+                                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-0.5">Activities</p>
+                                                    <p className="font-bold text-gray-700 dark:text-gray-300">{Object.keys(att.responses || {}).length} Questions</p>
+                                                </div>
+
+                                                {!isActiveAttempt ? (
+                                                    <button
+                                                        onClick={() => router.push(`/exam/${contestId}/result?attemptId=${att.id}`)}
+                                                        className="px-5 py-2.5 bg-gray-100 dark:bg-zinc-800 hover:bg-purple-600 hover:text-white text-gray-700 dark:text-gray-200 rounded-lg font-bold text-sm transition-all flex items-center gap-2"
+                                                    >
+                                                        View Result
+                                                        <ExternalLink className="w-3.5 h-3.5" />
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={handleBegin}
+                                                        className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-black text-sm shadow-xl shadow-blue-500/20 transform transition-all hover:-translate-y-0.5"
+                                                    >
+                                                        Resume Exam
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
-
-                                        <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end">
-                                            <div className="text-right">
-                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-0.5">Activities</p>
-                                                <p className="font-bold text-gray-700 dark:text-gray-300">{Object.keys(att.responses || {}).length} Questions</p>
-                                            </div>
-
-                                            {att.isSubmitted ? (
-                                                <button
-                                                    onClick={() => router.push(`/exam/${contestId}/result?attemptId=${att.id}`)}
-                                                    className="px-5 py-2.5 bg-gray-100 dark:bg-zinc-800 hover:bg-purple-600 hover:text-white text-gray-700 dark:text-gray-200 rounded-lg font-bold text-sm transition-all flex items-center gap-2"
-                                                >
-                                                    View Result
-                                                    <ExternalLink className="w-3.5 h-3.5" />
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    onClick={handleBegin}
-                                                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-black text-sm shadow-xl shadow-blue-500/20 transform transition-all hover:-translate-y-0.5"
-                                                >
-                                                    Resume Exam
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                             </div>
                         </div>
                     ) : (

@@ -196,3 +196,7 @@
 .katex-html {
   display: inline-block !important;
 }
+
+.dark .katex {
+  color: white !important;
+}

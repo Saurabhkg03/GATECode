@@ -5,7 +5,7 @@ import { Contest, ContestAttempt, QuestionResponse, Section, Question } from '@/
 
 export async function POST(req: NextRequest) {
     try {
-        const { contestId, uid } = await req.json();
+        const { contestId, uid, forceFresh } = await req.json();
 
         if (!contestId || !uid) {
             return NextResponse.json({ error: 'Missing contestId or uid' }, { status: 400 });
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
         const contestData = contestSnap.data() as Contest;
 
-        // 2. Check for Existing Unsubmitted Attempt (to Resume)
+        // 2. Check for Existing Attempts (to Resume or Deduplicate)
         const attemptsRef = collection(db, 'contest_attempts');
         const q = query(
             attemptsRef,
@@ -31,23 +31,100 @@ export async function POST(req: NextRequest) {
         );
         const querySnap = await getDocs(q);
 
-        let attempt: ContestAttempt;
+        let attempt: ContestAttempt | undefined = undefined;
         let serverTime = Date.now();
+
+        // Dedup window: if a new attempt was created in the last 10 seconds, reuse it
+        // This prevents double-creation from React StrictMode double-invocation
+        const DEDUP_WINDOW_MS = 10_000;
 
         if (!querySnap.empty) {
             // Resume the most recent unsubmitted attempt
-            const existingAttempts = querySnap.docs.map(doc => doc.data() as ContestAttempt);
-            attempt = existingAttempts.sort((a, b) => b.startedAt - a.startedAt)[0];
+            const existingAttempts = querySnap.docs.map(d => ({ id: d.id, ...d.data() } as ContestAttempt));
 
-            // Recalculate timeLeft based on server time
-            const elapsedTime = (serverTime - attempt.startedAt) / 1000;
-            const originalDurationSeconds = contestData.durationMinutes * 60;
-            attempt.timeLeftSeconds = Math.max(0, originalDurationSeconds - elapsedTime);
+            // Sort newest first
+            existingAttempts.sort((a, b) => b.startedAt - a.startedAt);
 
-        } else {
+            // Cleanup expired or stale attempts
+            let foundResumable = false;
+
+            for (const att of existingAttempts) {
+                const elapsedTime = (serverTime - att.startedAt) / 1000;
+
+                let attemptAllocatedSeconds = contestData.durationMinutes * 60;
+                let isAttemptPractice = att.isPractice || false;
+
+                if (contestData.endTime) {
+                    const endMs = new Date(contestData.endTime).getTime();
+                    // Original start time vs End time
+                    const timeUntilEndSeconds = Math.floor((endMs - att.startedAt) / 1000);
+
+                    if (timeUntilEndSeconds <= 0) {
+                        isAttemptPractice = true;
+                        // Practice gets full time
+                        attemptAllocatedSeconds = contestData.durationMinutes * 60;
+                    } else if (!isAttemptPractice) {
+                        attemptAllocatedSeconds = Math.min(attemptAllocatedSeconds, timeUntilEndSeconds);
+                    }
+                }
+
+                const isExpired = elapsedTime >= attemptAllocatedSeconds;
+                const isVeryRecent = (serverTime - att.startedAt) < DEDUP_WINDOW_MS;
+
+                // For resume logic, if it's not expired or we are forcing fresh
+                if (forceFresh && !isVeryRecent) {
+                    // Auto-submit stale unsubmitted attempts when force fresh
+                    const attRef = doc(db, 'contest_attempts', att.id);
+                    await updateDoc(attRef, {
+                        isSubmitted: true,
+                        timeLeftSeconds: 0,
+                        lastUpdated: serverTime
+                    });
+                } else if (isExpired && !isVeryRecent) {
+                    // Auto-submit expired attempts
+                    const attRef = doc(db, 'contest_attempts', att.id);
+                    await updateDoc(attRef, {
+                        isSubmitted: true,
+                        timeLeftSeconds: 0,
+                        lastUpdated: serverTime
+                    });
+                } else if (!foundResumable && !isExpired) {
+                    // Resume valid attempt (could be a dedup match or a real in-progress attempt)
+                    attempt = att;
+                    attempt.timeLeftSeconds = Math.max(0, attemptAllocatedSeconds - elapsedTime);
+                    // Update practice state if it changed retroactively
+                    if (isAttemptPractice !== att.isPractice) {
+                        attempt.isPractice = isAttemptPractice;
+                        const attRef = doc(db, 'contest_attempts', att.id);
+                        await updateDoc(attRef, { isPractice: isAttemptPractice });
+                    }
+                    foundResumable = true;
+                }
+            }
+        }
+
+        if (!attempt) {
             // Create a brand new unique attempt
-            const newAttemptId = `${contestId}_${uid}_${Math.random().toString(36).substring(2, 9)}`;
+            const newAttemptId = `${contestId}_${uid}_${serverTime}_${Math.random().toString(36).substring(2, 6)}`;
             const attemptRef = doc(db, 'contest_attempts', newAttemptId);
+
+            let allocatedSeconds = contestData.durationMinutes * 60;
+            let isPractice = false;
+
+            if (contestData.endTime) {
+                const endMs = new Date(contestData.endTime).getTime();
+                const timeUntilEndSeconds = Math.floor((endMs - serverTime) / 1000);
+
+                if (timeUntilEndSeconds <= 0) {
+                    // CONTEST IS OVER. 
+                    // Allow them to take it, but flag as a Practice/Virtual attempt!
+                    isPractice = true;
+                    allocatedSeconds = contestData.durationMinutes * 60; // Give full time for practice
+                } else {
+                    // STRICT WINDOW: Cap their time to whatever is left before the official end
+                    allocatedSeconds = Math.min(allocatedSeconds, timeUntilEndSeconds);
+                }
+            }
 
             attempt = {
                 id: newAttemptId,
@@ -55,8 +132,9 @@ export async function POST(req: NextRequest) {
                 uid,
                 startedAt: serverTime,
                 lastUpdated: serverTime,
-                timeLeftSeconds: contestData.durationMinutes * 60,
+                timeLeftSeconds: allocatedSeconds,
                 isSubmitted: false,
+                isPractice: isPractice,
                 responses: {}
             };
 

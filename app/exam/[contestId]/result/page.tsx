@@ -4,12 +4,14 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { Contest, ContestAttempt, Question } from '@/types/exam';
-import { Loader2, CheckCircle, XCircle, AlertCircle, Home, FileText, ChevronUp } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, AlertCircle, Home, FileText, ChevronUp, Clock } from 'lucide-react';
 import LatexRenderer from '@/components/LatexRenderer';
 import { extractAndCleanHtml } from '@/utils/htmlUtils';
 import ImageZoom from '@/components/ui/ImageZoom';
+import ReviewModeUI from '@/components/exam/ReviewModeUI';
+import { getRankTier } from '@/utils/rating';
 
 import { useSearchParams } from 'next/navigation';
 
@@ -23,9 +25,13 @@ export default function ExamResultPage() {
 
     const [attempt, setAttempt] = useState<ContestAttempt | null>(null);
     const [contest, setContest] = useState<Contest | null>(null);
+    const [userRatingData, setUserRatingData] = useState<{ oldRating: number; newRating: number } | null>(null);
     const [enrichedQuestions, setEnrichedQuestions] = useState<Record<string, Question>>({});
     const [fetching, setFetching] = useState(true);
-    const [showSolutions, setShowSolutions] = useState(false);
+    const [isReviewMode, setIsReviewMode] = useState(false);
+    const [globalRank, setGlobalRank] = useState<{ rank: number; total: number } | null>(null);
+    const [globalAvgTimes, setGlobalAvgTimes] = useState<Record<string, number>>({});
+    const [loadingRank, setLoadingRank] = useState(true);
 
     useEffect(() => {
         if (!loading && !user) {
@@ -53,6 +59,21 @@ export default function ExamResultPage() {
                     }
                     if (attemptSnap.exists()) {
                         setAttempt(attemptSnap.data() as ContestAttempt);
+                    }
+
+                    if (fetchedContest && fetchedContest.isRatingsProcessed && user) {
+                        const userProfileSnap = await getDoc(doc(db, 'users', user.uid));
+                        if (userProfileSnap.exists()) {
+                            const userData = userProfileSnap.data();
+                            const ratingHistory = userData.ratingHistory || [];
+                            const historyEntry = ratingHistory.find((entry: any) => entry.contestId === contestId);
+                            if (historyEntry) {
+                                setUserRatingData({
+                                    oldRating: historyEntry.oldRating,
+                                    newRating: historyEntry.newRating
+                                });
+                            }
+                        }
                     }
 
                     // Hydrate questions if contest exists
@@ -84,8 +105,75 @@ export default function ExamResultPage() {
                 }
             };
             fetchData();
+
+            // Fetch Global Rank
+            const fetchRank = async () => {
+                try {
+                    const attemptsRef = collection(db, 'contest_attempts');
+                    const rankQuery = query(
+                        attemptsRef,
+                        where('contestId', '==', contestId),
+                        where('isSubmitted', '==', true),
+                        where('isPractice', '!=', true), // Filter out practice attempts
+                        orderBy('isPractice'), // Required by Firestore for inequalities
+                        orderBy('score', 'desc')
+                    );
+
+                    const snapshot = await getDocs(rankQuery);
+                    const allLiveAttempts = snapshot.docs.map(doc => ({
+                        uid: doc.data().uid,
+                        score: doc.data().score || 0,
+                        responses: doc.data().responses || {}
+                    }));
+
+                    // Calculate Global Average Time Per Question
+                    const qStats: Record<string, { totalSecs: number, count: number }> = {};
+                    allLiveAttempts.forEach(att => {
+                        Object.values(att.responses).forEach((resp: any) => {
+                            if (resp.timeSpent > 0 && resp.status !== 'not_visited') {
+                                if (!qStats[resp.questionId]) qStats[resp.questionId] = { totalSecs: 0, count: 0 };
+                                qStats[resp.questionId].totalSecs += resp.timeSpent;
+                                qStats[resp.questionId].count++;
+                            }
+                        });
+                    });
+
+                    const avgTimeMap: Record<string, number> = {};
+                    for (const qId in qStats) {
+                        avgTimeMap[qId] = Math.round(qStats[qId].totalSecs / qStats[qId].count);
+                    }
+                    setGlobalAvgTimes(avgTimeMap);
+
+                    // Deduplicate by user (take highest score if multiple, though logic usually prevents multiple live)
+                    const userBestScores: Record<string, number> = {};
+                    allLiveAttempts.forEach(att => {
+                        if (userBestScores[att.uid] === undefined || att.score > userBestScores[att.uid]) {
+                            userBestScores[att.uid] = att.score;
+                        }
+                    });
+
+                    const sortedScores = Object.values(userBestScores).sort((a: any, b: any) => b - a);
+                    const myScore = userBestScores[user.uid] || 0;
+                    const myRank = sortedScores.indexOf(myScore) + 1;
+
+                    setGlobalRank({
+                        rank: myRank > 0 ? myRank : 0,
+                        total: sortedScores.length
+                    });
+                } catch (err) {
+                    console.error("Error fetching ranking:", err);
+                } finally {
+                    setLoadingRank(false);
+                }
+            };
+
+            if (user && !attemptIdFromUrl) {
+                fetchRank();
+            } else {
+                setLoadingRank(false);
+            }
         }
-    }, [user, loading, contestId, router]);
+    }, [user, loading, contestId, router, attemptIdFromUrl]);
 
     if (loading || fetching) {
         return (
@@ -234,11 +322,11 @@ export default function ExamResultPage() {
                 </div>
                 <div className="flex gap-3">
                     <button
-                        onClick={() => setShowSolutions(!showSolutions)}
-                        className={`px-4 py-2 rounded-md font-medium text-sm transition-colors border flex items-center gap-2 ${showSolutions ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700'}`}
+                        onClick={() => setIsReviewMode(true)}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-medium text-sm transition-colors border flex items-center gap-2"
                     >
                         <FileText className="w-4 h-4" />
-                        {showSolutions ? 'Show Scorecard' : 'View Solutions'}
+                        Review Exam
                     </button>
                     <button
                         onClick={() => router.push('/contests')}
@@ -252,7 +340,7 @@ export default function ExamResultPage() {
 
             <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-20">
 
-                {!showSolutions ? (
+                {!isReviewMode && (
                     /* --- SCORECARD VIEW --- */
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         {/* KPI Cards */}
@@ -261,6 +349,24 @@ export default function ExamResultPage() {
                                 <div className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">Total Score</div>
                                 <div className="text-4xl font-extrabold text-purple-600">{score.toFixed(2)}</div>
                                 <div className="text-xs text-gray-400 mt-1">/ {contest.totalMarks} Marks</div>
+                            </div>
+                            <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-sm border dark:border-zinc-800 text-center transform transition-transform hover:scale-[1.02]">
+                                <div className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">Global Rank</div>
+                                {loadingRank ? (
+                                    <div className="flex justify-center py-2"><Loader2 className="w-6 h-6 animate-spin text-purple-500" /></div>
+                                ) : globalRank && globalRank.rank > 0 ? (
+                                    <>
+                                        <div className="text-4xl font-extrabold text-amber-500">
+                                            {Math.max(0, ((globalRank.total - globalRank.rank) / globalRank.total) * 100).toFixed(1)}<span className="text-xl">%ile</span>
+                                        </div>
+                                        <div className="text-xs text-gray-400 mt-1">Rank #{globalRank.rank} / {globalRank.total}</div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="text-4xl font-extrabold text-gray-400">N/A</div>
+                                        <div className="text-xs text-gray-400 mt-1">Practice Mode</div>
+                                    </>
+                                )}
                             </div>
                             <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-sm border dark:border-zinc-800 text-center transform transition-transform hover:scale-[1.02]">
                                 <div className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">Accuracy</div>
@@ -289,6 +395,36 @@ export default function ExamResultPage() {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Rating Change Card (Conditional) */}
+                            {contest.isRatingsProcessed && userRatingData && (
+                                <div className="md:col-span-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/10 dark:to-purple-900/10 p-4 rounded-lg shadow-sm border border-indigo-100 dark:border-indigo-900/30 flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-white dark:bg-zinc-800 rounded-full shadow-sm">
+                                            <svg className="w-6 h-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-sm font-bold text-gray-900 dark:text-white">Rating Update</h3>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">Contest Rating has been finalized</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-xl font-extrabold text-gray-900 dark:text-white flex items-center justify-end gap-2">
+                                            <span className="text-gray-400 text-lg line-through">{userRatingData.oldRating}</span>
+                                            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                            </svg>
+                                            <span className={getRankTier(userRatingData.newRating).color}>{userRatingData.newRating}</span>
+                                            <span className={`text-sm ml-2 ${userRatingData.newRating >= userRatingData.oldRating ? 'text-green-500' : 'text-red-500'}`}>
+                                                ({userRatingData.newRating >= userRatingData.oldRating ? '+' : ''}{userRatingData.newRating - userRatingData.oldRating})
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                         </div>
 
 
@@ -355,6 +491,51 @@ export default function ExamResultPage() {
                             </div>
                         </div>
 
+                        {/* --- NEW: Time-Per-Question Analysis --- */}
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                                <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 p-1.5 rounded-md">
+                                    <Clock className="w-4 h-4" />
+                                </span>
+                                Time Analysis vs Global Average
+                            </h3>
+                            <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border dark:border-zinc-800 shadow-sm overflow-x-auto">
+                                <div className="min-w-[500px]">
+                                    {questionAnalysis.map((qa, idx) => {
+                                        if (!qa.isAttempted && (!qa.response || !qa.response.timeSpent)) return null;
+
+                                        const myTime = qa.response?.timeSpent || 0;
+                                        const avgTime = globalAvgTimes?.[qa.question.id] || 0;
+                                        const maxTime = Math.max(120, myTime, avgTime);
+
+                                        return (
+                                            <div key={qa.question.id} className="flex items-center gap-4 py-3 border-b border-gray-100 dark:border-zinc-800/50 last:border-0 hover:bg-gray-50 dark:hover:bg-zinc-800/20 transition-colors">
+                                                <div className="w-8 shrink-0 text-sm font-bold text-gray-500 dark:text-zinc-400">Q{idx + 1}</div>
+                                                <div className="flex-1 space-y-2 relative pt-2 pb-2">
+                                                    {/* My Time Bar */}
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-8 shrink-0 text-[10px] font-semibold text-gray-400 uppercase text-right tracking-wider">You</div>
+                                                        <div className="flex items-center gap-2 flex-1">
+                                                            <div className={`h-4 rounded-r-md ${myTime > avgTime * 1.5 ? 'bg-red-400' : 'bg-blue-500'}`} style={{ width: `${Math.max(2, (myTime / maxTime) * 100)}%` }}></div>
+                                                            <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{Math.floor(myTime / 60)}m {myTime % 60}s</span>
+                                                        </div>
+                                                    </div>
+                                                    {/* Avg Time Bar */}
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-8 shrink-0 text-[10px] font-semibold text-gray-400 uppercase text-right tracking-wider">Avg</div>
+                                                        <div className="flex items-center gap-2 flex-1">
+                                                            <div className="h-2 rounded-r-sm bg-gray-300 dark:bg-zinc-600" style={{ width: `${Math.max(2, (avgTime / maxTime) * 100)}%` }}></div>
+                                                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{Math.floor(avgTime / 60)}m {avgTime % 60}s</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Prompt to View Solutions */}
                         <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/10 dark:to-indigo-900/10 border border-purple-100 dark:border-purple-800 rounded-lg p-8 text-center shadow-sm">
                             <h3 className="text-xl font-bold text-purple-900 dark:text-purple-100 mb-2">Review Your Performance</h3>
@@ -362,40 +543,25 @@ export default function ExamResultPage() {
                                 Analyze every question, view correct answers, and read detailed explanations to improve your concepts.
                             </p>
                             <button
-                                onClick={() => setShowSolutions(true)}
+                                onClick={() => setIsReviewMode(true)}
                                 className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2 mx-auto"
                             >
                                 <FileText className="w-5 h-5" />
-                                View Detailed Solutions
-                            </button>
-                        </div>
-                    </div>
-                ) : (
-                    /* --- SOLUTIONS VIEW --- */
-                    <div className="space-y-8 animate-in fade-in duration-300">
-                        {questionAnalysis.map(({ question, response, isCorrect, isAttempted, userVal }, idx) => (
-                            <SolutionCard
-                                key={question.id}
-                                index={idx + 1}
-                                question={question}
-                                isGivenCorrect={isCorrect}
-                                isAttempted={isAttempted}
-                                userVal={userVal}
-                            />
-                        ))}
-
-                        <div className="text-center pt-8">
-                            <p className="text-gray-500 text-sm mb-4">End of Solutions</p>
-                            <button
-                                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                                className="text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 mx-auto"
-                            >
-                                Back to Top <ChevronUp className="w-4 h-4" />
+                                Enter Review Mode
                             </button>
                         </div>
                     </div>
                 )}
             </div>
+
+            {/* --- SOLUTIONS FULLSCREEN VIEW --- */}
+            {isReviewMode && (
+                <ReviewModeUI
+                    questionAnalysis={questionAnalysis}
+                    contest={contest}
+                    onExit={() => setIsReviewMode(false)}
+                />
+            )}
         </div>
     );
 }

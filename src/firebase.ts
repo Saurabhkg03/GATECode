@@ -40,6 +40,19 @@ export interface UserProfile {
   createdAt: string;
   role?: 'admin' | 'user';
   // Add other user-specific fields
+
+  // NEW RATING FIELDS
+  rating?: number; // Defaults to 1500
+  highestRating?: number; // Defaults to 1500
+  contestCount?: number; // Number of rated contests taken
+  ratingHistory?: {
+    contestId: string;
+    contestTitle: string;
+    date: number;
+    oldRating: number;
+    newRating: number;
+    rank: number;
+  }[];
 }
 
 export interface Option {

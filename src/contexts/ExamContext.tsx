@@ -12,10 +12,14 @@ interface ExamState {
     sections: Section[];
     currentQuestionIndex: number; // Global index across all sections
     responses: Record<string, QuestionResponse>;
-    timeLeft: number; // seconds
+    timeLeft: number; // seconds remaining (live updating)
+    startedAt: number; // Server timestamp (millis)
+    initialTimeLimit: number; // Allocated duration (seconds)
+    timeOffset: number; // Local time minus Server time
     isLoading: boolean;
     isSubmitting: boolean;
     isSubmitted: boolean;
+    isTimeUp: boolean; // Flag to show the auto-submit overlay
     error: string | null;
     contest: Contest | null;
     attemptId: string | null;
@@ -24,7 +28,7 @@ interface ExamState {
 
 interface ExamActionBase { type: string; }
 type ExamAction =
-    | { type: 'INIT_EXAM'; payload: { questions: Question[]; contest: Contest; attempt: ContestAttempt } }
+    | { type: 'INIT_EXAM'; payload: { questions: Question[]; contest: Contest; attempt: ContestAttempt; timeOffset: number } }
     | { type: 'SET_CURRENT_QUESTION'; payload: number }
     | { type: 'MARK_ANSWER'; payload: { questionId: string; selectedOptions: string[]; natAnswer?: string } }
     | { type: 'MARK_REVIEW'; payload: { questionId: string } }
@@ -34,6 +38,7 @@ type ExamAction =
     | { type: 'SYNC_TIME'; payload: number }
     | { type: 'SET_SUBMITTING'; payload: boolean }
     | { type: 'SET_SUBMITTED' }
+    | { type: 'SET_TIME_UP' }
     | { type: 'SET_ERROR'; payload: string | null }
     | { type: 'SET_SYNCING'; payload: boolean };
 
@@ -43,9 +48,13 @@ const initialState: ExamState = {
     currentQuestionIndex: 0,
     responses: {},
     timeLeft: 0,
+    startedAt: 0,
+    initialTimeLimit: 0,
+    timeOffset: 0,
     isLoading: true,
     isSubmitting: false,
     isSubmitted: false,
+    isTimeUp: false,
     error: null,
     contest: null,
     attemptId: null,
@@ -64,13 +73,19 @@ function examReducer(state: ExamState, action: ExamAction): ExamState {
                 sections: action.payload.contest.sections,
                 responses: action.payload.attempt.responses || {},
                 timeLeft: action.payload.attempt.timeLeftSeconds,
+                startedAt: action.payload.attempt.startedAt,
+                initialTimeLimit: action.payload.attempt.timeLeftSeconds, // Capture initial
+                timeOffset: action.payload.timeOffset || 0,
                 attemptId: action.payload.attempt.id,
                 isSubmitted: action.payload.attempt.isSubmitted,
                 isLoading: false,
             };
 
         case 'SET_SUBMITTED':
-            return { ...state, isSubmitted: true, isSubmitting: false };
+            return { ...state, isSubmitted: true, isSubmitting: false, isTimeUp: false };
+
+        case 'SET_TIME_UP':
+            return { ...state, isTimeUp: true };
 
         case 'SET_CURRENT_QUESTION':
             return { ...state, currentQuestionIndex: action.payload };
@@ -237,41 +252,56 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
 
     // 1. Initial Fetch and Rehydration
     useEffect(() => {
+        const controller = new AbortController();
+
         const startExam = async () => {
             try {
+                const forceFresh = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('force_fresh') === 'true';
+
                 const res = await fetch('/api/exam/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contestId, uid }),
+                    body: JSON.stringify({ contestId, uid, forceFresh }),
+                    signal: controller.signal,
                 });
 
                 if (!res.ok) throw new Error('Failed to start exam');
 
                 const data = await res.json();
 
-                // Aggressive Rehydration: Check LocalStorage
-                // Key format: gate_exam_progress_${contestId}
-                const localKey = `gate_exam_progress_${contestId}`;
-                const localDataStr = typeof window !== 'undefined' ? localStorage.getItem(localKey) : null;
+                // Calculate the clock offset immediately upon receiving response
+                const serverTime = data.serverTime || Date.now();
+                const offset = Date.now() - serverTime;
 
                 let restoredResponses = data.attempt.responses || {};
                 let restoredTime = data.attempt.timeLeftSeconds;
 
-                if (localDataStr) {
-                    try {
-                        const localData = JSON.parse(localDataStr);
-                        // If we have a valid timestamp, check if local is fresher
-                        // Logic: If local has MORE answers or is more recent? 
-                        // Simple logic: Merge. Local overwrites server for same Type.
-                        restoredResponses = { ...restoredResponses, ...localData.responses };
-                        // Prefer the minimum time left to prevent cheating by clearing cache? 
-                        // Actually, taking the MIN is safer for the exam integrity.
-                        // But if user was offline, local time might be correct. 
-                        // Let's trust local time if it's reasonable (not greater than server time + margin).
-                        // For now, use the server time for critical integrity, but responses from local.
-                    } catch (e) {
-                        console.error("Failed to parse local backup", e);
+                // NOTE: We now use attempt.id for the backup key to prevent bleeding
+                // between different practice attempts of the same contest.
+                let didRestoreFromLocal = false;
+
+                if (!forceFresh && data.attempt.id) {
+                    const localKey = `exam_backup_${data.attempt.id}`;
+                    const localDataStr = typeof window !== 'undefined' ? localStorage.getItem(localKey) : null;
+                    if (localDataStr) {
+                        try {
+                            const localData = JSON.parse(localDataStr);
+                            const localKeysCount = Object.keys(localData || {}).length;
+                            const remoteKeysCount = Object.keys(restoredResponses).length;
+
+                            // Merge missing local responses into the restored responses
+                            restoredResponses = { ...localData, ...restoredResponses };
+
+                            // If local had more or different data, we consider it a restore event
+                            if (localKeysCount > 0 && JSON.stringify(localData) !== JSON.stringify(data.attempt.responses)) {
+                                didRestoreFromLocal = true;
+                            }
+                        } catch (e) {
+                            console.error("Failed to parse local backup", e);
+                        }
                     }
+                } else {
+                    // Force Fresh ignores localData.
                 }
 
                 dispatch({
@@ -281,12 +311,21 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
                         attempt: {
                             ...data.attempt,
                             responses: restoredResponses,
-                            timeLeftSeconds: restoredTime
-                        }
+                            // Use raw original time limit strictly, not decremented local-saved time
+                            timeLeftSeconds: data.attempt.timeLeftSeconds
+                        },
+                        timeOffset: offset
                     }
                 });
 
+                if (didRestoreFromLocal) {
+                    console.log("[Resiliency] Restored offline responses from localStorage. Triggering background sync...");
+                    // Give state a tiny moment to flush, then force a sync
+                    setTimeout(() => triggerSync(), 1000);
+                }
+
             } catch (err: any) {
+                if (err.name === 'AbortError') return; // Ignore — React StrictMode cleanup
                 dispatch({ type: 'SET_ERROR', payload: err.message });
             }
         };
@@ -294,36 +333,28 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
         if (uid && contestId) {
             startExam();
         }
+
+        return () => controller.abort();
     }, [contestId, uid]);
 
-    // 2. Timer (Delta-Based Drift Proof)
-    // 2. Timer (Drift-Proof "Delta" Calculation)
+    // 2. Timer (Absolute Offset-Based Drift Proof)
     useEffect(() => {
-        if (state.isLoading || state.isSubmitted || !state.contest) return;
+        if (state.isLoading || state.isSubmitted || !state.contest || !state.startedAt) return;
 
-        const TARGET_TIME_KEY = `exam_target_time_${contestId}_${uid}`;
-
-        // 1. Initialize or Retrieve Target Time
-        let targetEndTime = parseInt(localStorage.getItem(TARGET_TIME_KEY) || '0');
-
-        // If invalid or in the past (and we have time remaining), calculate new target
-        // We trust the server's "timeLeft" on initial load/rehydration
-        if (!targetEndTime || targetEndTime < Date.now()) {
-            // Buffer: current time + remaining seconds
-            targetEndTime = Date.now() + (state.timeLeft * 1000);
-            localStorage.setItem(TARGET_TIME_KEY, targetEndTime.toString());
-        }
+        // The absolute server deadline timestamp
+        const absoluteDeadlineMs = state.startedAt + (state.initialTimeLimit * 1000);
 
         const timer = setInterval(() => {
-            const now = Date.now();
-            const diff = targetEndTime - now;
+            // Find current time normalized to server time
+            const currentTrueTime = Date.now() - state.timeOffset;
+            const remainingMs = absoluteDeadlineMs - currentTrueTime;
 
-            // Calculate exact seconds remaining
-            const secondsLeft = Math.floor(diff / 1000);
+            const secondsLeft = Math.max(0, Math.floor(remainingMs / 1000));
 
             if (secondsLeft <= 0) {
                 // Time's up!
                 dispatch({ type: 'SYNC_TIME', payload: 0 });
+                dispatch({ type: 'SET_TIME_UP' });
                 clearInterval(timer);
 
                 // Trigger submission immediately if not already submitting
@@ -331,14 +362,15 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
                     submitExam();
                 }
             } else {
-                // Update UI
-                // Only dispatch if necessary (optional optimization, but React handles it well)
-                dispatch({ type: 'SYNC_TIME', payload: secondsLeft });
+                // Throttle updates locally if needed, but here we just tick exactly what's remaining.
+                if (stateRef.current.timeLeft !== secondsLeft) {
+                    dispatch({ type: 'SYNC_TIME', payload: secondsLeft });
+                }
             }
         }, 1000);
 
         return () => clearInterval(timer);
-    }, [state.isLoading, state.isSubmitted, state.contest, contestId, uid]);
+    }, [state.isLoading, state.isSubmitted, state.contest, state.startedAt, state.initialTimeLimit, state.timeOffset]);
 
     // 3. Auto-Submit on Timeout
     useEffect(() => {
@@ -349,28 +381,25 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
 
     // 4. Aggressive Caching (Debounced LocalStorage)
     useEffect(() => {
-        if (!state.attemptId) return;
+        if (!state.attemptId || state.isSubmitted) return;
 
         const timeoutId = setTimeout(() => {
             if (typeof window !== 'undefined') {
-                const localKey = `gate_exam_progress_${contestId}`;
-                const payload = {
-                    responses: state.responses,
-                    timeLeft: state.timeLeft,
-                    lastUpdated: Date.now()
-                };
-                localStorage.setItem(localKey, JSON.stringify(payload));
+                // Strictly backup only the responses map keyed by attemptId
+                const localKey = `exam_backup_${state.attemptId}`;
+                localStorage.setItem(localKey, JSON.stringify(state.responses));
             }
         }, 500); // 500ms debounce
 
         return () => clearTimeout(timeoutId);
-    }, [state.responses, state.timeLeft, state.attemptId, contestId]);
+    }, [state.responses, state.attemptId, state.isSubmitted]);
 
     // 5. Background Sync & Retry Logic
     const syncToFirestore = useCallback(async () => {
         const attemptId = stateRef.current.attemptId;
         const responses = stateRef.current.responses;
-        const timeLeft = stateRef.current.timeLeft;
+        // The timeLeft in state is now drift-proof and completely reliable
+        const accurateTimeLeft = stateRef.current.timeLeft;
 
         if (!attemptId) return;
 
@@ -383,10 +412,11 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
 
             await updateDoc(attemptRef, {
                 responses: cleanResponses,
-                timeLeftSeconds: timeLeft,
+                timeLeftSeconds: accurateTimeLeft,
                 lastUpdated: Date.now()
             });
 
+            dispatch({ type: 'SYNC_TIME', payload: accurateTimeLeft });
             dispatch({ type: 'SET_SYNCING', payload: false });
 
             // Clear any pending retries if success
@@ -436,9 +466,12 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
 
         dispatch({ type: 'SET_SUBMITTING', payload: true });
 
+        // Final time left is cleanly pulled from our state ref
+        const finalTimeLeft = stateRef.current.timeLeft;
+
         const payload = {
             responses: stateRef.current.responses,
-            timeLeftSeconds: stateRef.current.timeLeft,
+            timeLeftSeconds: finalTimeLeft,
             isSubmitted: true,
             submittedAt: Date.now(),
             lastUpdated: Date.now(),
@@ -447,40 +480,30 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
             attemptId: stateRef.current.attemptId
         };
 
-        // Beacon API Logic
         const url = '/api/exam/submit';
-        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
 
-        let sent = false;
-        if (navigator.sendBeacon) {
-            sent = navigator.sendBeacon(url, blob);
-        }
+        // Use standard fetch instead of sendBeacon for reliable awaiting
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
 
-        if (!sent) {
-            // Fallback to fetch with keepalive
-            try {
-                await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                    keepalive: true
-                });
-                sent = true;
-            } catch (e) {
-                console.error("Fetch fallback failed", e);
+            if (res.ok) {
+                // Optimistic clean up
+                if (typeof window !== 'undefined') {
+                    localStorage.removeItem(`gate_exam_progress_${contestId}`);
+                    localStorage.removeItem(`exam_target_time_${contestId}_${uid}`);
+                }
+                dispatch({ type: 'SET_SUBMITTED' });
+                window.location.href = `/exam/${contestId}/result?attemptId=${stateRef.current.attemptId}`;
+            } else {
+                throw new Error("Server returned non-ok status");
             }
-        }
-
-        if (sent) {
-            // Optimistic clean up
-            if (typeof window !== 'undefined') {
-                localStorage.removeItem(`gate_exam_progress_${contestId}`);
-            }
-            dispatch({ type: 'SET_SUBMITTED' });
-            window.location.href = `/exam/${contestId}/result`;
-        } else {
+        } catch (e) {
+            console.error("Submission failed", e);
             dispatch({ type: 'SET_SUBMITTING', payload: false });
-            // Instead of native alert, we set error state which will be picked up by UI
             dispatch({ type: 'SET_ERROR', payload: "Submission failed. Please check your internet connection and try again." });
         }
     };

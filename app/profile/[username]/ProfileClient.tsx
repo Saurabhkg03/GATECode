@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { Calendar, Settings as SettingsIcon, CheckCircle, TrendingUp, Zap, BarChart, Loader2 } from 'lucide-react';
+import { Calendar, Settings as SettingsIcon, CheckCircle, TrendingUp, Zap, BarChart, Loader2, Trophy } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase';
 import {
@@ -23,6 +23,8 @@ import { User, Submission, Question } from '@/data/mockData';
 import UserNotFound from '@/components/UserNotFound';
 import { ProfileSkeleton } from '@/components/Skeletons';
 import { useMetadata } from '@/contexts/MetadataContext';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { getRankTier } from '@/utils/rating';
 
 const SUBMISSIONS_PAGE_SIZE = 5;
 
@@ -357,7 +359,9 @@ export default function ProfileClient({ username }: { username: string }) {
         branchStreak,
         branchCalendar,
         allAvailableYears,
-        subjectStats
+        subjectStats,
+        ratingHistory,
+        highestRating
     } = useMemo(() => {
         if (!profileUser || !metadata) {
             return {
@@ -366,7 +370,9 @@ export default function ProfileClient({ username }: { username: string }) {
                 branchStreak: { currentStreak: 0, lastSubmissionDate: '' },
                 branchCalendar: {},
                 allAvailableYears: [],
-                subjectStats: []
+                subjectStats: [],
+                ratingHistory: [] as any[],
+                highestRating: 1500
             };
         }
 
@@ -391,13 +397,17 @@ export default function ProfileClient({ username }: { username: string }) {
             total: total
         }));
 
+        const ratingHistory = profileUser.ratingHistory || [];
+
         return {
             branchRating: rating,
             branchStats: stats,
             branchStreak: streak,
             branchCalendar: calendar,
             allAvailableYears: Array.from(years).sort((a, b) => b - a),
-            subjectStats: subjectStats
+            subjectStats: subjectStats,
+            ratingHistory,
+            highestRating: profileUser.highestRating || 1500
         };
     }, [profileUser, metadata, selectedBranch]);
 
@@ -424,11 +434,11 @@ export default function ProfileClient({ username }: { username: string }) {
                                 <div className="relative">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={profileUser.avatar || '/user.png'} alt={profileUser.name || 'User Avatar'} className="w-28 h-28 rounded-full shadow-lg border-4 border-white dark:border-zinc-700 object-cover" onError={(e) => { e.currentTarget.src = '/user.png'; }} />
-                                    <span className="absolute bottom-0 right-0 bg-gradient-to-tr from-blue-500 to-indigo-600 text-white rounded-full px-2 py-1 text-xs font-bold shadow-md flex items-center gap-1">
-                                        <BarChart className="w-3 h-3" /> {branchRating}
+                                    <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 ${getRankTier(branchRating).bg} ${getRankTier(branchRating).color} rounded-full px-3 py-1 text-xs font-bold shadow-md flex items-center gap-1 whitespace-nowrap border border-current`}>
+                                        {getRankTier(branchRating).title}
                                     </span>
                                 </div>
-                                <h1 className="text-2xl font-bold text-zinc-800 dark:text-white mt-4">{profileUser.name || 'User'}</h1>
+                                <h1 className={`text-2xl font-bold mt-6 ${getRankTier(branchRating).color}`}>{profileUser.name || 'User'}</h1>
                                 <p className="text-zinc-500 dark:text-zinc-400">@{profileUser.username || 'username'}</p>
                                 <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 mt-2 text-sm">
                                     <Calendar className="w-4 h-4" />
@@ -479,11 +489,58 @@ export default function ProfileClient({ username }: { username: string }) {
 
                         {/* Stat Cards Grid */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-6">
-                            <StatCard icon={BarChart} value={branchRating} label="Rating" colorClass="text-blue-500 dark:text-blue-400" />
-                            <StatCard icon={TrendingUp} value={branchStats.attempted || 0} label="Attempted" colorClass="text-purple-500 dark:text-purple-400" />
+                            <StatCard icon={BarChart} value={branchRating} label="Current Rating" colorClass="text-blue-500 dark:text-blue-400" />
+                            <StatCard icon={Trophy} value={highestRating} label="Highest Rating" colorClass="text-yellow-500 dark:text-yellow-400" />
                             <StatCard icon={CheckCircle} value={branchStats.correct || 0} label="Solved" colorClass="text-emerald-500 dark:text-emerald-400" />
-                            <StatCard icon={Zap} value={`${branchStreak.currentStreak || 0} Days`} label="Current Streak" colorClass="text-yellow-500 dark:text-yellow-400" />
+                            <StatCard icon={Zap} value={`${branchStreak.currentStreak || 0} Days`} label="Current Streak" colorClass="text-orange-500 dark:text-orange-400" />
                         </div>
+
+                        {/* Rating History Graph */}
+                        {ratingHistory && ratingHistory.length > 0 && (
+                            <div className="bg-white dark:bg-zinc-900/70 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <h2 className="text-lg font-semibold pb-4 text-zinc-800 dark:text-white flex items-center gap-2">
+                                    <TrendingUp className="w-5 h-5 text-purple-500" /> Rating History
+                                </h2>
+                                <div className="h-64 mt-4 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={ratingHistory}>
+                                            <XAxis
+                                                dataKey="date"
+                                                tickFormatter={(tick) => new Date(tick).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                stroke="#888888"
+                                                fontSize={12}
+                                                tickLine={false}
+                                                axisLine={false}
+                                            />
+                                            <YAxis
+                                                domain={['dataMin - 50', 'dataMax + 50']}
+                                                stroke="#888888"
+                                                fontSize={12}
+                                                tickLine={false}
+                                                axisLine={false}
+                                                tickFormatter={(value) => `${value}`}
+                                            />
+                                            <Tooltip
+                                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
+                                                labelFormatter={(label) => new Date(label).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                                                formatter={(value: any, name: any, props: any) => [
+                                                    <span key="data" className="font-bold">{value} <span className="text-xs text-gray-500 font-normal">({props.payload.contestTitle})</span></span>,
+                                                    'Rating'
+                                                ]}
+                                            />
+                                            <Line
+                                                type="monotone"
+                                                dataKey="newRating"
+                                                stroke="#8b5cf6"
+                                                strokeWidth={3}
+                                                dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }}
+                                                activeDot={{ r: 6, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }}
+                                            />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Recent Submissions Card */}
                         <div className="bg-white dark:bg-zinc-900/70 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
