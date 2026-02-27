@@ -4,7 +4,7 @@ import { adminDb } from "@/lib/firebaseAdmin";
 import { Question } from "@/data/mockData";
 
 export const metadata: Metadata = {
-    title: "GATECode - Master GATE with AI-Powered Practice",
+    title: "GATECode",
     description: "Join GATECode to practice verified GATE questions. Track your progress, compete on the leaderboard, and master concepts with AI explanations.",
 };
 

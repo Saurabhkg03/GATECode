@@ -27,10 +27,12 @@ import {
     DocumentData,
 } from 'firebase/firestore';
 import { Question } from '@/data/mockData';
+import { Contest } from '@/types/exam';
 import { AdminPanelSkeleton } from '@/components/Skeletons';
 import JsonImportModal from '@/components/admin/JsonImportModal';
+import ContestGenerator from '@/components/admin/ContestGenerator';
 
-type AdminView = 'pending' | 'all';
+type AdminView = 'pending' | 'all' | 'contests';
 const PAGE_SIZE = 10;
 
 export default function AdminPage() {
@@ -45,6 +47,10 @@ export default function AdminPage() {
     const [adminView, setAdminView] = useState<AdminView>('pending');
     const [queryError, setQueryError] = useState('');
 
+    // Admin Contests State
+    const [adminContests, setAdminContests] = useState<Contest[]>([]);
+    const [loadingContests, setLoadingContests] = useState(false);
+
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const [firstVisible, setFirstVisible] = useState<DocumentSnapshot | null>(null);
@@ -53,7 +59,7 @@ export default function AdminPage() {
     const [loadingMore, setLoadingMore] = useState(false);
 
     const fetchQuestions = useCallback(async (page: number, direction: 'next' | 'prev' | 'first' = 'first', cursorDoc: DocumentSnapshot | null = null) => {
-        if (!userInfo || !questionCollectionPath) {
+        if (!userInfo || !questionCollectionPath || adminView === 'contests') {
             return;
         }
 
@@ -141,11 +147,45 @@ export default function AdminPage() {
             return;
         }
         if (userInfo && !metadataLoading && questionCollectionPath) {
-            setLastVisible(null);
-            setFirstVisible(null);
-            fetchQuestions(1, 'first');
+            if (adminView !== 'contests') {
+                setLastVisible(null);
+                setFirstVisible(null);
+                fetchQuestions(1, 'first');
+            } else {
+                fetchAdminContests();
+            }
         }
-    }, [userInfo, authLoading, metadataLoading, router, questionCollectionPath, fetchQuestions]);
+    }, [userInfo, authLoading, metadataLoading, router, questionCollectionPath, fetchQuestions, adminView]);
+
+    const fetchAdminContests = async () => {
+        try {
+            setLoadingContests(true);
+            const q = query(collection(db, 'contests'), orderBy('id', 'desc'));
+            const snapshot = await getDocs(q);
+            const data: Contest[] = [];
+            snapshot.forEach(doc => {
+                data.push({ id: doc.id, ...doc.data() } as Contest);
+            });
+            setAdminContests(data);
+        } catch (error) {
+            console.error("Error fetching admin contests:", error);
+            setQueryError('Failed to fetch contests.');
+        } finally {
+            setLoadingContests(false);
+        }
+    };
+
+    const handleDeleteContest = async (id: string) => {
+        if (window.confirm("Are you sure you want to delete this contest?")) {
+            try {
+                await deleteDoc(doc(db, 'contests', id));
+                setAdminContests(prev => prev.filter(c => c.id !== id));
+            } catch (error) {
+                console.error("Error deleting contest:", error);
+                setQueryError('Failed to delete contest.');
+            }
+        }
+    };
 
     const handleApprove = async (id: string) => {
         if (!questionCollectionPath) return;
@@ -315,6 +355,12 @@ export default function AdminPage() {
                             >
                                 All Questions
                             </button>
+                            <button
+                                onClick={() => { if (adminView !== 'contests') setAdminView('contests'); }}
+                                className={`${adminView === 'contests' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-500'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+                            >
+                                Contests
+                            </button>
                         </nav>
                     </div>
                 )}
@@ -325,91 +371,173 @@ export default function AdminPage() {
                     </div>
                 )}
 
-                <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden relative">
-                    {(loadingMore || isApprovingAll) && <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center z-10"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>}
-
-                    <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center flex-wrap gap-4">
-                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                            {userInfo?.role === 'admin'
-                                ? (adminView === 'pending' ? `Pending (${totalQuestions})` : `All (${totalQuestions})`)
-                                : `Your Submissions (${totalQuestions})`
-                            }
-                        </h2>
-                        {userInfo?.role === 'admin' && adminView === 'pending' && totalQuestions > 0 && (
-                            <button
-                                onClick={handleApproveAll}
-                                disabled={isApprovingAll || loadingMore}
-                                className="inline-flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isApprovingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                                Approve All Pending
-                            </button>
-                        )}
-                    </div>
-
-                    {questions.length === 0 && !loadingData && !queryError ? (
-                        <p className="p-6 text-center text-gray-500 dark:text-gray-400">
-                            {adminView === 'pending' && userInfo?.role === 'admin' ? 'No questions are pending verification.' : 'No questions found for this view.'}
-                        </p>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full min-w-[640px]">
-                                <thead className="bg-gray-50 dark:bg-gray-800">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Q.No.</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Title</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Subject</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Topic</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                                    {questions.map((q) => (
-                                        <tr key={q.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{q.qIndex}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white">{q.title || 'No Title'}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">{q.subject || 'N/A'}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">{q.topic || 'N/A'}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${q.verified ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200'}`}>
-                                                    {q.verified ? 'Verified' : 'Pending'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <div className="flex items-center gap-2">
-                                                    {userInfo?.role === 'admin' && !q.verified && (
-                                                        <>
-                                                            <button onClick={() => handleApprove(q.id)} title="Approve" className="text-green-600 hover:text-green-900 p-2 rounded-full hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={loadingMore || isApprovingAll}><Check className="w-5 h-5" /></button>
-                                                            <button onClick={() => handleReject(q.id)} title="Reject/Delete" className="text-red-600 hover:text-red-900 p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={loadingMore || isApprovingAll}><X className="w-5 h-5" /></button>
-                                                        </>
-                                                    )}
-                                                    <Link href={`/edit-question/${q.id}`} title="Edit" className={`text-blue-600 hover:text-blue-900 p-2 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors ${loadingMore || isApprovingAll ? 'pointer-events-none opacity-50' : ''}`}><Edit className="w-5 h-5" /></Link>
-                                                    {userInfo?.role === 'admin' && (
-                                                        <button onClick={() => handleReject(q.id)} title="Delete Question" className="text-red-600 hover:text-red-900 p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={loadingMore || isApprovingAll}><X className="w-5 h-5" /></button>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                {adminView === 'contests' ? (
+                    <div className="space-y-6">
+                        <div className="mb-6">
+                            <ContestGenerator isAdminContest={true} onContestCreated={() => { alert("Contest created securely."); fetchAdminContests(); }} />
                         </div>
-                    )}
-                </div>
 
-                {totalQuestions > PAGE_SIZE && !queryError && (
-                    <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <button onClick={handlePrevPage} disabled={currentPage === 1 || loadingMore || isApprovingAll} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                            <ChevronLeft className="w-4 h-4" /> Previous
-                        </button>
-                        <span className="text-sm text-gray-700 dark:text-gray-400 order-first sm:order-none">
-                            Page {currentPage} of {totalPages}
-                        </span>
-                        <button onClick={handleNextPage} disabled={currentPage === totalPages || loadingMore || isApprovingAll || questions.length < PAGE_SIZE || !lastVisible} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                            Next <ChevronRight className="w-4 h-4" />
-                        </button>
+                        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden relative">
+                            {loadingContests && <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center z-10"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>}
+                            <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
+                                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">All Contests ({adminContests.length})</h2>
+                            </div>
+                            {adminContests.length === 0 && !loadingContests ? (
+                                <p className="p-6 text-center text-gray-500 dark:text-gray-400">No contests found.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full min-w-[640px]">
+                                        <thead className="bg-gray-50 dark:bg-gray-800">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Title</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">ID</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Created By</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                                            {adminContests.map(c => (
+                                                <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className={`px-2 py-1 rounded text-xs font-bold ${c.type === 'admin' ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'}`}>
+                                                            {c.type === 'admin' ? 'Official' : 'Mock'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white line-clamp-1 max-w-[200px]">{c.title}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{c.id.split('-').slice(0, 3).join('-')}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 max-w-[150px] truncate" title={c.createdBy || 'Unknown'}>{c.createdBy || 'Unknown'}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                        <div className="flex items-center gap-2">
+                                                            {c.type === 'admin' && c.isRated && !c.isRatingsProcessed && (
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        if (window.confirm("Are you sure? This will calculate ratings for all completed attempts and cannot be undone easily.")) {
+                                                                            try {
+                                                                                const res = await fetch('/api/admin/process-ratings', {
+                                                                                    method: 'POST',
+                                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                                    body: JSON.stringify({ contestId: c.id })
+                                                                                });
+                                                                                const data = await res.json();
+                                                                                if (data.success) {
+                                                                                    alert(`Successfully processed ratings for ${data.processedCount || 0} users.`);
+                                                                                    fetchAdminContests();
+                                                                                } else {
+                                                                                    alert(`Error: ${data.error}`);
+                                                                                }
+                                                                            } catch (e: any) {
+                                                                                alert(`Request failed: ${e.message}`);
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                    className="px-3 py-1 bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:hover:bg-purple-900 rounded-md text-xs font-semibold transition-colors"
+                                                                >
+                                                                    Process Ratings
+                                                                </button>
+                                                            )}
+                                                            <button onClick={() => handleDeleteContest(c.id)} title="Delete Contest" className="text-red-600 hover:text-red-900 p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors">
+                                                                <X className="w-5 h-5" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
                     </div>
+                ) : (
+                    <>
+                        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden relative">
+                            {(loadingMore || isApprovingAll) && <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center z-10"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>}
+
+                            <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center flex-wrap gap-4">
+                                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                                    {userInfo?.role === 'admin'
+                                        ? (adminView === 'pending' ? `Pending (${totalQuestions})` : `All (${totalQuestions})`)
+                                        : `Your Submissions (${totalQuestions})`
+                                    }
+                                </h2>
+                                {userInfo?.role === 'admin' && adminView === 'pending' && totalQuestions > 0 && (
+                                    <button
+                                        onClick={handleApproveAll}
+                                        disabled={isApprovingAll || loadingMore}
+                                        className="inline-flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isApprovingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                        Approve All Pending
+                                    </button>
+                                )}
+                            </div>
+
+                            {questions.length === 0 && !loadingData && !queryError ? (
+                                <p className="p-6 text-center text-gray-500 dark:text-gray-400">
+                                    {adminView === 'pending' && userInfo?.role === 'admin' ? 'No questions are pending verification.' : 'No questions found for this view.'}
+                                </p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full min-w-[640px]">
+                                        <thead className="bg-gray-50 dark:bg-gray-800">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Q.No.</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Title</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Subject</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Topic</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                                            {questions.map((q) => (
+                                                <tr key={q.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{q.qIndex}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white">{q.title || 'No Title'}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">{q.subject || 'N/A'}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">{q.topic || 'N/A'}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${q.verified ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200'}`}>
+                                                            {q.verified ? 'Verified' : 'Pending'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                        <div className="flex items-center gap-2">
+                                                            {userInfo?.role === 'admin' && !q.verified && (
+                                                                <>
+                                                                    <button onClick={() => handleApprove(q.id)} title="Approve" className="text-green-600 hover:text-green-900 p-2 rounded-full hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={loadingMore || isApprovingAll}><Check className="w-5 h-5" /></button>
+                                                                    <button onClick={() => handleReject(q.id)} title="Reject/Delete" className="text-red-600 hover:text-red-900 p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={loadingMore || isApprovingAll}><X className="w-5 h-5" /></button>
+                                                                </>
+                                                            )}
+                                                            <Link href={`/edit-question/${q.id}`} title="Edit" className={`text-blue-600 hover:text-blue-900 p-2 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors ${loadingMore || isApprovingAll ? 'pointer-events-none opacity-50' : ''}`}><Edit className="w-5 h-5" /></Link>
+                                                            {userInfo?.role === 'admin' && (
+                                                                <button onClick={() => handleReject(q.id)} title="Delete Question" className="text-red-600 hover:text-red-900 p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={loadingMore || isApprovingAll}><X className="w-5 h-5" /></button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+
+                        {totalQuestions > PAGE_SIZE && !queryError && (
+                            <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                                <button onClick={handlePrevPage} disabled={currentPage === 1 || loadingMore || isApprovingAll} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <ChevronLeft className="w-4 h-4" /> Previous
+                                </button>
+                                <span className="text-sm text-gray-700 dark:text-gray-400 order-first sm:order-none">
+                                    Page {currentPage} of {totalPages}
+                                </span>
+                                <button onClick={handleNextPage} disabled={currentPage === totalPages || loadingMore || isApprovingAll || questions.length < PAGE_SIZE || !lastVisible} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    Next <ChevronRight className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </div>

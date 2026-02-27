@@ -42,12 +42,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // --- PREDICTIVE AUTH: Initialize loading based on localStorage ---
   // If 'isLoggedIn' is true in localStorage, start loading as TRUE (expecting user).
   // If 'isLoggedIn' is missing/false, start loading as FALSE (show Landing Page immediately).
-  const [loading, setLoading] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('isLoggedIn') === 'true';
-    }
-    return true; // Default to true on server/first render to avoid mismatch, but useEffect will fix it fast
-  });
+  // --- PREDICTIVE AUTH: Initialize loading based on localStorage ---
+  // If 'isLoggedIn' is true in localStorage, start loading as TRUE (expecting user).
+  // If 'isLoggedIn' is missing/false, start loading as FALSE (show Landing Page immediately).
+  const [loading, setLoading] = useState(true);
 
   const router = useRouter();
 
@@ -415,7 +413,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: !!user && !!userInfo,
       loading
     }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }

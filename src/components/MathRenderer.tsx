@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
+import React, { useMemo } from 'react';
+import katex from 'katex';
 import 'katex/dist/katex.min.css';
-import renderMathInElement from 'katex/dist/contrib/auto-render';
 
 interface MathRendererProps {
     content: string;
@@ -10,37 +10,55 @@ interface MathRendererProps {
     inline?: boolean;
 }
 
-const MathRenderer: React.FC<MathRendererProps> = ({ content, className, inline = false }) => {
-    const containerRef = useRef<HTMLDivElement | HTMLSpanElement>(null);
+const renderMathInString = (text: string): string => {
+    if (!text) return '';
 
-    useEffect(() => {
-        if (containerRef.current) {
-            const renderOptions = {
-                delimiters: [
-                    { left: '$$', right: '$$', display: true },
-                    { left: '$', right: '$', display: false },
-                    { left: '[latex]', right: '[/latex]', display: true },
-                    { left: '\\(', right: '\\)', display: false },
-                    { left: '\\[', right: '\\]', display: true }
-                ],
-                throwOnError: false
-            };
+    const delimiters = [
+        { left: '$$', right: '$$', display: true },
+        { left: '\\[', right: '\\]', display: true },
+        { left: '[latex]', right: '[/latex]', display: true },
+        { left: '\\(', right: '\\)', display: false },
+        { left: '$', right: '$', display: false }
+    ];
 
+    let processedStr = text;
+
+    delimiters.forEach(({ left, right, display }) => {
+        const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`${escapeRegExp(left)}(.*?)${escapeRegExp(right)}`, 'gs');
+
+        processedStr = processedStr.replace(regex, (match, math) => {
             try {
-                renderMathInElement(containerRef.current as HTMLElement, renderOptions);
+                const decodedMathString = math
+                    .replace(/&gt;/g, '>')
+                    .replace(/&lt;/g, '<')
+                    .replace(/&amp;/g, '&')
+                    .replace(/&nbsp;/g, ' ')
+                    .replace(/&quot;/g, '"')
+                    .replace(/&#39;/g, "'");
+
+                return katex.renderToString(decodedMathString, {
+                    displayMode: display,
+                    throwOnError: false,
+                });
             } catch (error) {
                 console.warn("KaTeX rendering error:", error);
+                return match;
             }
-        }
-    }, [content]);
+        });
+    });
 
+    return processedStr;
+};
+
+const MathRenderer: React.FC<MathRendererProps> = ({ content, className, inline = false }) => {
+    const htmlContent = useMemo(() => renderMathInString(content), [content]);
     const Container = inline ? 'span' : 'div';
 
     return (
         <Container
-            ref={containerRef as any}
             className={className}
-            dangerouslySetInnerHTML={{ __html: content }}
+            dangerouslySetInnerHTML={{ __html: htmlContent }}
         />
     );
 };

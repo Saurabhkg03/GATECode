@@ -9,6 +9,7 @@ import { User } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMetadata } from '@/contexts/MetadataContext';
 import { LeaderboardSkeleton } from '@/components/Skeletons';
+import { getRankTier } from '@/utils/rating';
 
 const PAGE_SIZE = 10;
 const RATING_SCALING_FACTOR = 100;
@@ -33,8 +34,8 @@ const PodiumCard = ({ user, rank }: { user: User; rank: number }) => {
                     className={`w-20 h-20 rounded-full object-cover mb-3 ring-4 ${styles.ring}`}
                     onError={(e) => { (e.target as HTMLImageElement).src = '/user.png'; }}
                 />
-                <Link href={`/profile/${user.username}`} className="font-bold text-zinc-800 dark:text-white text-base hover:underline truncate w-full">{user.name}</Link>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate w-full">@{user.username}</p>
+                <Link href={`/profile/${user.username}`} className={`font-bold text-base hover:underline w-full truncate ${getRankTier(user.rating ?? 0).color}`}>{user.name}</Link>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate w-full">@{user.username} • <span className={getRankTier(user.rating ?? 0).color}>{getRankTier(user.rating ?? 0).title}</span></p>
                 <div className={`mt-3 w-full bg-gradient-to-r ${styles.gradient} p-2 rounded-lg`}>
                     <div className="flex justify-around items-center text-white">
                         <div className="text-center">
@@ -111,6 +112,19 @@ export default function Leaderboard() {
     const [firstVisible, setFirstVisible] = useState<DocumentSnapshot | null>(null);
     const [lastVisible, setLastVisible] = useState<DocumentSnapshot | null>(null);
     const [totalUsers, setTotalUsers] = useState(0);
+
+    // ── Opportunistic cleanup: auto-submit any stale unsubmitted attempts ──
+    useEffect(() => {
+        // Fire-and-forget — don't block the UI
+        fetch('/api/exam/cleanup', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.cleaned > 0) {
+                    console.log(`[Cleanup] Auto-submitted ${data.cleaned} stale contest attempt(s).`);
+                }
+            })
+            .catch(err => console.warn('[Cleanup] Cleanup check failed:', err));
+    }, []);
 
     const fetchLeaderboard = useCallback(async (page: number, direction: 'next' | 'prev' | 'first' = 'first', cursorDoc: DocumentSnapshot | null = null) => {
         if (!selectedBranch) {
@@ -259,8 +273,11 @@ export default function Leaderboard() {
                                             onError={(e) => { (e.target as HTMLImageElement).src = '/user.png'; }}
                                         />
                                         <div className="overflow-hidden">
-                                            <Link href={`/profile/${user.username}`} className="font-medium text-zinc-800 dark:text-white hover:underline truncate text-sm block">{user.name}</Link>
-                                            <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">@{user.username}</p>
+                                            <div className="flex items-center gap-2">
+                                                <Link href={`/profile/${user.username}`} className={`font-medium hover:underline truncate text-sm block ${getRankTier(user.rating ?? 0).color}`}>{user.name}</Link>
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-bold ${getRankTier(user.rating ?? 0).bg} ${getRankTier(user.rating ?? 0).color}`}>{getRankTier(user.rating ?? 0).title}</span>
+                                            </div>
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">@{user.username}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-end gap-3 sm:gap-4 md:gap-6 text-right flex-shrink-0 pl-2">

@@ -55,22 +55,22 @@ export interface User {
   avatar?: string;
   role?: 'admin' | 'moderator' | 'user';
   needsSetup?: boolean;
-  
+
   // --- NEW: Branch-keyed objects ---
   // e.g., { ece: 1500, cse: 1450 }
   ratings: Record<string, number>;
-  
+
   // e.g., { ece: { attempted: 10, ... }, cse: { attempted: 5, ... } }
   branchStats: Record<string, UserStats>;
-  
+
   // e.g., { ece: { '2024-01-01': 5, ... }, cse: { ... } }
   branchActivityCalendar: Record<string, Record<string, number>>;
-  
+
   // e.g., { ece: { currentStreak: 5, ... }, cse: { ... } }
   branchStreakData: Record<string, UserStreakData>;
 
 
-  // --- DEPRECATED: Old global stats (we'll migrate away from these) ---
+  // DEPRECATED: Old global stats (we'll migrate away from these)
   stats?: {
     attempted: number;
     correct: number;
@@ -82,7 +82,9 @@ export interface User {
     currentStreak: number;
     lastSubmissionDate: string;
   };
-  rating?: number; 
+  rating?: number;
+  ratingHistory?: any[]; // Array of { contestId, oldRating, newRating, ... }
+  highestRating?: number;
 }
 
 // Represents a document in 'users/{uid}/submissions'

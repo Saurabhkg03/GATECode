@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, Target, Trophy, User } from 'lucide-react';
+import { LayoutGrid, Target, Trophy, User, Timer } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import React, { memo } from 'react';
 import Link from 'next/link';
@@ -70,6 +70,7 @@ export const BottomNavbar = memo(function BottomNavbar() {
       <nav className="flex items-center justify-between p-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl border border-white/20 dark:border-zinc-800/50 rounded-full shadow-xl shadow-zinc-200/50 dark:shadow-black/50 ring-1 ring-black/5 dark:ring-white/10 pointer-events-auto max-w-sm w-full h-16">
         <BottomNavLink to="/" label="Home" icon={LayoutGrid} />
         <BottomNavLink to="/practice" label="Practice" icon={Target} />
+        <BottomNavLink to="/contests" label="Contests" icon={Timer} />
         <BottomNavLink to="/leaderboard" label="Leader" icon={Trophy} />
         <BottomNavLink to={profileLink} label="Profile" icon={User} />
       </nav>

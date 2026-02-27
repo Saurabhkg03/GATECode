@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Moon, Sun, LogOut, User, Shield, Settings, ChevronDown, Flame, BookCopy } from 'lucide-react';
+import { Moon, Sun, LogOut, User, Shield, Settings, ChevronDown, Flame, BookCopy, Star } from 'lucide-react';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -98,7 +98,7 @@ export function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border-b border-zinc-200 dark:border-zinc-800 supports-[backdrop-filter]:bg-white/60">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 gap-2">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 font-bold text-zinc-900 dark:text-white shrink-0">
@@ -111,6 +111,7 @@ export function Navbar() {
           <div className="hidden md:flex items-center gap-1 bg-zinc-100/50 dark:bg-zinc-900/50 p-1 rounded-full border border-zinc-200/50 dark:border-zinc-800/50">
             <NavLinkItem to="/" label="Home" />
             <NavLinkItem to="/practice" label="Practice" />
+            <NavLinkItem to="/contests" label="Contests" />
             <NavLinkItem to="/leaderboard" label="Leaderboard" />
             {(userInfo?.role === 'admin' || userInfo?.role === 'moderator') && (
               <NavLinkItem to="/admin" label="Admin" icon={<Shield className="w-3.5 h-3.5" />} />
@@ -173,6 +174,13 @@ export function Navbar() {
                     <Link href={userInfo.username ? `/profile/${userInfo.username}` : '#'}>
                       <User className="mr-2.5 h-4 w-4" />
                       <span className="font-medium">Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-zinc-200/50 dark:bg-zinc-800/50 my-1" />
+                  <DropdownMenuItem asChild className="rounded-lg focus:bg-amber-50 dark:focus:bg-amber-900/20 focus:text-amber-600 dark:focus:text-amber-400 cursor-pointer p-2.5 transition-colors">
+                    <Link href="/bookmarks">
+                      <Star className="mr-2.5 h-4 w-4" />
+                      <span className="font-medium">Saved Questions</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild className="rounded-lg focus:bg-zinc-100 dark:focus:bg-zinc-800 cursor-pointer p-2.5 transition-colors">
