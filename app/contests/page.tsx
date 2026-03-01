@@ -12,6 +12,9 @@ import {
     deleteDoc,
     doc,
     where,
+    startAfter,
+    DocumentData,
+    QueryDocumentSnapshot
 } from "firebase/firestore";
 import { Contest } from "@/types/exam";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,6 +53,13 @@ import {
 } from "lucide-react";
 
 type TabType = "official" | "community" | "mine";
+const ITEMS_PER_PAGE = 12;
+
+const GATE_BRANCHES = [
+    "AE", "AG", "AR", "BM", "BT", "CE", "CH", "CS", "CY", "DA", "EC", "EE",
+    "ES", "EY", "GG", "IN", "MA", "ME", "MN", "MT", "NM", "PE", "PH", "PI",
+    "ST", "TF", "XE", "XH", "XL"
+];
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -321,27 +331,92 @@ const ContestsPage = () => {
     const [registeredIds, setRegisteredIds] = useState<Set<string>>(new Set());
     const [attemptMap, setAttemptMap] = useState<Record<string, { isSubmitted: boolean; timeLeftSeconds: number }>>({});
 
+    const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedBranch, setSelectedBranch] = useState("All");
     const [selectedDifficulty, setSelectedDifficulty] = useState("All");
     const [selectedDuration, setSelectedDuration] = useState("All");
 
-    const fetchContests = async () => {
+    const fetchContests = async (isLoadMore = false) => {
         try {
-            setLoading(true);
-            const q = query(collection(db, "contests"), orderBy("id", "desc"), limit(100));
+            if (isLoadMore) {
+                setLoadingMore(true);
+            } else {
+                setLoading(true);
+                setLastDoc(null);
+            }
+
+            let conditions = [];
+
+            // Tab filtering
+            if (activeTab === "official") {
+                conditions.push(where("type", "==", "admin"));
+            } else if (activeTab === "mine") {
+                if (userInfo?.uid) {
+                    conditions.push(where("createdBy", "==", userInfo.uid));
+                }
+            } else if (activeTab === "community") {
+                conditions.push(where("isPublic", "==", true));
+                conditions.push(where("type", "==", "mock"));
+            }
+
+            // Dropdown Filters
+            if (selectedBranch !== "All") {
+                conditions.push(where("branch", "==", selectedBranch));
+            }
+            if (selectedDifficulty !== "All") {
+                conditions.push(where("difficulty", "==", selectedDifficulty));
+            }
+
+            let q;
+            if (isLoadMore && lastDoc) {
+                q = query(
+                    collection(db, "contests"),
+                    ...conditions,
+                    orderBy("id", "desc"),
+                    startAfter(lastDoc),
+                    limit(ITEMS_PER_PAGE)
+                );
+            } else {
+                q = query(
+                    collection(db, "contests"),
+                    ...conditions,
+                    orderBy("id", "desc"),
+                    limit(ITEMS_PER_PAGE)
+                );
+            }
+
             const snap = await getDocs(q);
             const list: Contest[] = [];
             snap.forEach((d) => list.push({ id: d.id, ...d.data() } as Contest));
-            setContests(list);
+
+            if (!snap.empty) {
+                setLastDoc(snap.docs[snap.docs.length - 1]);
+            }
+            setHasMore(snap.docs.length === ITEMS_PER_PAGE);
+
+            if (isLoadMore) {
+                setContests((prev) => [...prev, ...list]);
+            } else {
+                setContests(list);
+            }
         } catch (e) {
             console.error("Error fetching contests:", e);
         } finally {
             setLoading(false);
+            setLoadingMore(false);
         }
     };
 
-    useEffect(() => { fetchContests(); }, []);
+    // Re-fetch contests when tab or filters change
+    useEffect(() => {
+        // Skip fetching 'mine' tab if userInfo is not loaded
+        if (activeTab === 'mine' && !userInfo?.uid) return;
+        fetchContests();
+    }, [activeTab, selectedBranch, selectedDifficulty, userInfo?.uid]);
 
     // ── Load user's registered contest IDs & attempts ────────────────────────────────
     useEffect(() => {
@@ -394,9 +469,9 @@ const ContestsPage = () => {
     };
 
     // Derived state for filters
-    const availableBranches = Array.from(new Set(contests.filter(c => !!c.branch).map(c => c.branch as string))).sort();
+    const availableBranches = GATE_BRANCHES;
 
-    // Filter logic
+    // Local filter logic for what's not efficiently possible in Firestore
     const filteredContests = contests.filter((c) => {
         // Search
         if (searchQuery) {
@@ -405,10 +480,6 @@ const ContestsPage = () => {
             const matchesDesc = c.description?.toLowerCase().includes(queryLowercase);
             if (!matchesTitle && !matchesDesc) return false;
         }
-        // Branch
-        if (selectedBranch !== "All" && c.branch !== selectedBranch) return false;
-        // Difficulty
-        if (selectedDifficulty !== "All" && c.difficulty !== selectedDifficulty) return false;
         // Duration
         if (selectedDuration !== "All") {
             if (selectedDuration === "Short (< 30m)" && c.durationMinutes >= 30) return false;
@@ -418,20 +489,17 @@ const ContestsPage = () => {
         return true;
     });
 
-    // Partition contests using filtered slice
-    const adminContests = filteredContests.filter((c) => c.type === "admin");
-    const communityContests = filteredContests.filter((c) => c.type !== "admin" && c.isPublic);
-    const myContests = filteredContests.filter((c) => c.createdBy === userInfo?.uid);
+    // We no longer partition massive data locally since we are query-based. 
+    // filteredContests now exactly applies to the active tab's logic mostly.
 
+    // We can partition status (live/upcoming/past) locally on the current active tab's subset.
     const partitionByStatus = (list: Contest[]) => ({
         upcoming: list.filter(isUpcoming),
         live: list.filter(isLive),
         past: list.filter(isPast),
     });
 
-    const adminParts = partitionByStatus(adminContests);
-    const communityParts = partitionByStatus(communityContests);
-    const myParts = partitionByStatus(myContests);
+    const partitionedContests = partitionByStatus(filteredContests);
 
     const cardType = (c: Contest, tab: TabType): "admin" | "mock" | "mine" =>
         tab === "mine" ? "mine" : c.type === "admin" ? "admin" : "mock";
@@ -605,23 +673,38 @@ const ContestsPage = () => {
                                     <ScheduledContestCard type="biweekly" isRegistered={registeredIds.has(biweeklyInfo.id)} />
                                 </div>
                                 {/* Scheduled admin contests */}
-                                {adminParts.upcoming.length > 0 && renderGrid(adminParts.upcoming, "official")}
+                                {partitionedContests.upcoming.length > 0 && renderGrid(partitionedContests.upcoming, "official")}
                             </div>
 
                             {/* Live */}
-                            {adminParts.live.length > 0 && (
+                            {partitionedContests.live.length > 0 && (
                                 <div className="space-y-4">
-                                    <SectionHeading icon={<Radio className="w-5 h-5 text-green-500" />} label="Live Now" count={adminParts.live.length} />
-                                    {renderGrid(adminParts.live, "official")}
+                                    <SectionHeading icon={<Radio className="w-5 h-5 text-green-500" />} label="Live Now" count={partitionedContests.live.length} />
+                                    {renderGrid(partitionedContests.live, "official")}
                                 </div>
                             )}
 
                             {/* Past */}
                             <div className="space-y-4">
-                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="Past &amp; Practice" count={adminParts.past.length} />
+                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="Past &amp; Practice" count={partitionedContests.past.length} />
                                 {loading ? (
                                     <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent" /></div>
-                                ) : adminParts.past.length === 0 ? renderEmpty("official") : renderGrid(adminParts.past, "official")}
+                                ) : partitionedContests.past.length === 0 ? renderEmpty("official") : (
+                                    <>
+                                        {renderGrid(partitionedContests.past, "official")}
+                                        {hasMore && (
+                                            <div className="mt-8 flex justify-center">
+                                                <button
+                                                    onClick={() => fetchContests(true)}
+                                                    disabled={loadingMore}
+                                                    className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                                                >
+                                                    {loadingMore ? "Loading..." : "Load More Mocks"}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}
@@ -629,23 +712,38 @@ const ContestsPage = () => {
                     {/* ── COMMUNITY TAB ── */}
                     {activeTab === "community" && (
                         <div className="space-y-8">
-                            {communityParts.live.length > 0 && (
+                            {partitionedContests.live.length > 0 && (
                                 <div className="space-y-4">
-                                    <SectionHeading icon={<Zap className="w-5 h-5 text-green-500" />} label="Live Now" count={communityParts.live.length} />
-                                    {renderGrid(communityParts.live, "community")}
+                                    <SectionHeading icon={<Zap className="w-5 h-5 text-green-500" />} label="Live Now" count={partitionedContests.live.length} />
+                                    {renderGrid(partitionedContests.live, "community")}
                                 </div>
                             )}
-                            {communityParts.upcoming.length > 0 && (
+                            {partitionedContests.upcoming.length > 0 && (
                                 <div className="space-y-4">
-                                    <SectionHeading icon={<Timer className="w-5 h-5 text-amber-500" />} label="Upcoming" count={communityParts.upcoming.length} />
-                                    {renderGrid(communityParts.upcoming, "community")}
+                                    <SectionHeading icon={<Timer className="w-5 h-5 text-amber-500" />} label="Upcoming" count={partitionedContests.upcoming.length} />
+                                    {renderGrid(partitionedContests.upcoming, "community")}
                                 </div>
                             )}
                             <div className="space-y-4">
-                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="All Community Mocks" count={communityParts.past.length} />
+                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="All Community Mocks" count={partitionedContests.past.length} />
                                 {loading ? (
                                     <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent" /></div>
-                                ) : communityContests.length === 0 ? renderEmpty("community") : renderGrid(communityContests, "community")}
+                                ) : partitionedContests.past.length === 0 ? renderEmpty("community") : (
+                                    <>
+                                        {renderGrid(partitionedContests.past, "community")}
+                                        {hasMore && (
+                                            <div className="mt-8 flex justify-center">
+                                                <button
+                                                    onClick={() => fetchContests(true)}
+                                                    disabled={loadingMore}
+                                                    className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                                                >
+                                                    {loadingMore ? "Loading..." : "Load More Mocks"}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}
@@ -653,23 +751,38 @@ const ContestsPage = () => {
                     {/* ── MY MOCKS TAB ── */}
                     {activeTab === "mine" && (
                         <div className="space-y-8">
-                            {myParts.live.length > 0 && (
+                            {partitionedContests.live.length > 0 && (
                                 <div className="space-y-4">
-                                    <SectionHeading icon={<Zap className="w-5 h-5 text-green-500" />} label="Live Now" count={myParts.live.length} />
-                                    {renderGrid(myParts.live, "mine")}
+                                    <SectionHeading icon={<Zap className="w-5 h-5 text-green-500" />} label="Live Now" count={partitionedContests.live.length} />
+                                    {renderGrid(partitionedContests.live, "mine")}
                                 </div>
                             )}
-                            {myParts.upcoming.length > 0 && (
+                            {partitionedContests.upcoming.length > 0 && (
                                 <div className="space-y-4">
-                                    <SectionHeading icon={<Timer className="w-5 h-5 text-amber-500" />} label="Upcoming" count={myParts.upcoming.length} />
-                                    {renderGrid(myParts.upcoming, "mine")}
+                                    <SectionHeading icon={<Timer className="w-5 h-5 text-amber-500" />} label="Upcoming" count={partitionedContests.upcoming.length} />
+                                    {renderGrid(partitionedContests.upcoming, "mine")}
                                 </div>
                             )}
                             <div className="space-y-4">
-                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="All My Mocks" count={myContests.length} />
+                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="All My Mocks" count={filteredContests.length} />
                                 {loading ? (
                                     <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent" /></div>
-                                ) : myContests.length === 0 ? renderEmpty("mine") : renderGrid(myContests, "mine")}
+                                ) : filteredContests.length === 0 ? renderEmpty("mine") : (
+                                    <>
+                                        {renderGrid(filteredContests, "mine")}
+                                        {hasMore && (
+                                            <div className="mt-8 flex justify-center">
+                                                <button
+                                                    onClick={() => fetchContests(true)}
+                                                    disabled={loadingMore}
+                                                    className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                                                >
+                                                    {loadingMore ? "Loading..." : "Load More Mocks"}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}

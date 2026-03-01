@@ -43,6 +43,7 @@ const StatCard = ({ icon: Icon, value, label, colorClass }: { icon: React.Elemen
 const ActivityCalendar = ({ calendarData, availableYears }: { calendarData: Record<string, number>; availableYears: number[] }) => {
     const currentYear = new Date().getFullYear();
     const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+    const [selectedDateStat, setSelectedDateStat] = useState<{ count: number, date: Date, x: number, y: number } | null>(null);
 
     const displayYears = useMemo(() => {
         const yearsSet = new Set(availableYears);
@@ -57,6 +58,19 @@ const ActivityCalendar = ({ calendarData, availableYears }: { calendarData: Reco
             setSelectedYear(displayYears[0] || currentYear);
         }
     }, [displayYears, selectedYear, currentYear]);
+
+    useEffect(() => {
+        const handleClickOutside = () => setSelectedDateStat(null);
+        const handleScroll = () => setSelectedDateStat(null);
+
+        document.addEventListener('click', handleClickOutside);
+        window.addEventListener('scroll', handleScroll, { passive: true });
+
+        return () => {
+            document.removeEventListener('click', handleClickOutside);
+            window.removeEventListener('scroll', handleScroll);
+        };
+    }, []);
 
 
     const { yearlySubmissions, calendarData: calendarGrid, monthLabels } = useMemo(() => {
@@ -193,8 +207,25 @@ const ActivityCalendar = ({ calendarData, availableYears }: { calendarData: Reco
                                     {week.map((day: { date: Date; count: number } | null, dayIndex: number) => (
                                         <div
                                             key={day ? day.date.toISOString() : `empty-${weekIndex}-${dayIndex}`}
-                                            className={`w-2.5 h-2.5 rounded-sm ${day ? getIntensity(day.count) : 'bg-zinc-100 dark:bg-zinc-800 opacity-40'}`}
-                                            title={day ? `${day.count} submission(s) on ${day.date.toLocaleDateString()}` : undefined}
+                                            className={`w-2.5 h-2.5 rounded-sm transition-transform hover:scale-110 ${day ? `${getIntensity(day.count)} cursor-pointer` : 'bg-zinc-100 dark:bg-zinc-800 opacity-40'}`}
+                                            onMouseEnter={(e) => {
+                                                if (day) {
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    setSelectedDateStat({ count: day.count, date: day.date, x: rect.left + rect.width / 2, y: rect.top });
+                                                }
+                                            }}
+                                            onMouseLeave={() => setSelectedDateStat(null)}
+                                            onClick={(e) => {
+                                                if (day) {
+                                                    e.stopPropagation();
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    if (selectedDateStat && selectedDateStat.date.getTime() === day.date.getTime()) {
+                                                        setSelectedDateStat(null);
+                                                    } else {
+                                                        setSelectedDateStat({ count: day.count, date: day.date, x: rect.left + rect.width / 2, y: rect.top });
+                                                    }
+                                                }
+                                            }}
                                         />
                                     ))}
                                 </div>
@@ -211,6 +242,16 @@ const ActivityCalendar = ({ calendarData, availableYears }: { calendarData: Reco
                     <span>More</span>
                 </div>
             </div>
+
+            {selectedDateStat && (
+                <div
+                    className="fixed z-50 mb-2 px-3 py-2 text-xs text-white bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 rounded-md shadow-lg whitespace-nowrap pointer-events-none font-medium transform -translate-x-1/2 -translate-y-full transition-opacity duration-200"
+                    style={{ left: selectedDateStat.x, top: selectedDateStat.y - 4 }}
+                >
+                    {selectedDateStat.count} submission{selectedDateStat.count !== 1 ? 's' : ''} on {selectedDateStat.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-x-4 border-x-transparent border-t-4 border-t-zinc-800 dark:border-t-zinc-100 border-b-0"></div>
+                </div>
+            )}
         </div>
     );
 };
@@ -223,7 +264,7 @@ export default function ProfileClient({ username }: { username: string }) {
     const [loadingUser, setLoadingUser] = useState(true);
     const [userFound, setUserFound] = useState(true);
 
-    const [recentSubmissions, setRecentSubmissions] = useState<(Submission & { question?: Question })[]>([]);
+    const [recentSubmissions, setRecentSubmissions] = useState<Submission[]>([]);
     const [loadingSubmissions, setLoadingSubmissions] = useState(true);
     const [submissionsLastDoc, setSubmissionsLastDoc] = useState<DocumentSnapshot<DocumentData> | null>(null);
     const [hasMoreSubmissions, setHasMoreSubmissions] = useState(false);
@@ -254,31 +295,7 @@ export default function ProfileClient({ username }: { username: string }) {
             setSubmissionsLastDoc(lastDoc || null);
             setHasMoreSubmissions(submissionsData.length === SUBMISSIONS_PAGE_SIZE);
 
-            const questionIds = [...new Set(submissionsData.map(s => s.qid))];
-            const fetchedQuestions = new Map<string, Question>();
-
-            if (questionIds.length > 0) {
-                const chunks: string[][] = [];
-                for (let i = 0; i < questionIds.length; i += 30) {
-                    chunks.push(questionIds.slice(i, i + 30));
-                }
-
-                for (const chunk of chunks) {
-                    if (chunk.length === 0) continue;
-                    const qQuery = query(collection(db, collectionPath), where(documentId(), 'in', chunk));
-                    const qSnapshot = await getDocs(qQuery);
-                    qSnapshot.forEach(doc => {
-                        fetchedQuestions.set(doc.id, { id: doc.id, ...doc.data() } as Question);
-                    });
-                }
-            }
-
-            const submissionsWithData = submissionsData.map(submission => ({
-                ...submission,
-                question: fetchedQuestions.get(submission.qid)
-            }));
-
-            setRecentSubmissions(prev => isFirstPage ? submissionsWithData : [...prev, ...submissionsWithData]);
+            setRecentSubmissions(prev => isFirstPage ? submissionsData : [...prev, ...submissionsData]);
 
         } catch (error) {
             console.error("[Profile] Error fetching submissions:", error);
@@ -551,7 +568,7 @@ export default function ProfileClient({ username }: { username: string }) {
                                         <div key={activity.timestamp + activity.qid} className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors gap-2">
                                             <div>
                                                 <Link href={`/question/${activity.qid}`} className="font-semibold text-blue-500 dark:text-blue-400 hover:underline">
-                                                    {activity.question?.title || `Question ${activity.qid.substring(0, 6)}...`}
+                                                    {activity.questionTitle || `Question ${activity.qid.substring(0, 6)}...`}
                                                 </Link>
                                                 <p className="text-sm text-zinc-500 dark:text-zinc-400">
                                                     {activity.timestamp ? new Date(activity.timestamp).toLocaleString() : 'N/A'}

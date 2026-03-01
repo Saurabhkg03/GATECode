@@ -97,6 +97,7 @@ export interface Submission {
   natAnswer?: string;
   timeTaken?: number;
   branch: string; // --- NEW: Record which branch this submission was for ---
+  questionTitle?: string; // --- NEW: Denormalized question title for UI rendering ---
 }
 
 // Represents a document in 'users/{uid}/userQuestionData'

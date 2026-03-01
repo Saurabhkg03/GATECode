@@ -3,11 +3,11 @@
 import { useState, useMemo, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, Filter, CheckCircle, Circle, ArrowDownUp, ChevronRight, RotateCcw, List, Plus, Folder, Trash2, X, Loader2, Bookmark as BookmarkIcon, Check as CheckIcon } from 'lucide-react';
+import { Filter, CheckCircle, Circle, ArrowDownUp, ChevronRight, RotateCcw, List, Plus, Folder, Trash2, X, Loader2, Bookmark as BookmarkIcon, Check as CheckIcon } from 'lucide-react';
 import { useMetadata } from '@/contexts/MetadataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc, serverTimestamp, deleteDoc, writeBatch, arrayRemove, onSnapshot, limit, startAfter } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc, serverTimestamp, deleteDoc, writeBatch, arrayRemove, onSnapshot, limit, startAfter, QueryConstraint, DocumentSnapshot, documentId } from 'firebase/firestore';
 import { Question, Submission, QuestionList } from '@/data/mockData';
 import { PracticeSkeleton } from '@/components/Skeletons';
 import QuestionCard from '@/components/QuestionCard';
@@ -128,12 +128,10 @@ function PracticeContent() {
     // ------------------------------------
 
     // Filter states
-    const [searchQuery, setSearchQuery] = useState('');
     const [questionTypeFilter, setQuestionTypeFilter] = useState<string>('all');
     const [topicFilter, setTopicFilter] = useState<string>('all');
     const [subjectFilter, setSubjectFilter] = useState<string>(searchParams.get('subject') || 'all');
     const [yearFilter, setYearFilter] = useState<string>('all');
-    const [tagFilter, setTagFilter] = useState<string>('all');
     const [sortOrder, setSortOrder] = useState<string>('qIndex-asc');
     const [selectedListId, setSelectedListId] = useState<string | null>(null);
 
@@ -141,23 +139,107 @@ function PracticeContent() {
     const [isMobileListsOpen, setIsMobileListsOpen] = useState(false);
     const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
-    // Fetch questions using React Query
-    const { data: allQuestions = [], isLoading: isLoadingQuestions } = useQuery({
-        queryKey: ['allQuestions', questionCollectionPath, user?.uid],
+    // List fetching logic
+    const { data: listQuestionIds } = useQuery({
+        queryKey: ['listIds', selectedListId, user?.uid],
         queryFn: async () => {
-            if (!questionCollectionPath) return [];
-            let q;
-            if (user) {
-                q = query(collection(db, questionCollectionPath));
+            if (!selectedListId || !user) return [];
+            if (selectedListId === 'favorites') {
+                const listDoc = await getDoc(doc(db, `users/${user.uid}/questionLists`, 'favorites'));
+                return listDoc.exists() ? (listDoc.data() as QuestionList).questionIds || [] : [];
             } else {
-                q = query(collection(db, questionCollectionPath), limit(10));
+                const listDoc = await getDoc(doc(db, `users/${user.uid}/questionLists`, selectedListId));
+                return listDoc.exists() ? (listDoc.data() as QuestionList).questionIds || [] : [];
             }
-            const snapshot = await getDocs(q);
-            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Question));
         },
-        enabled: !!questionCollectionPath,
-        staleTime: 1000 * 60 * 5,
+        enabled: !!selectedListId && !!user,
     });
+
+    const [questions, setQuestions] = useState<Question[]>([]);
+    const [lastVisible, setLastVisible] = useState<DocumentSnapshot | null>(null);
+    const [hasMore, setHasMore] = useState(true);
+    const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+
+    const fetchQuestions = async (isLoadMore = false) => {
+        if (!questionCollectionPath) return;
+        if (selectedListId !== null && !listQuestionIds) return;
+
+        try {
+            if (isLoadMore) setLoadingMore(true);
+            else setIsLoadingQuestions(true);
+
+            if (selectedListId !== null) {
+                const currentLength = isLoadMore ? questions.length : 0;
+                const nextIds = (listQuestionIds || []).slice(currentLength, currentLength + CLIENT_PAGE_SIZE);
+
+                if (nextIds.length === 0) {
+                    setHasMore(false);
+                } else {
+                    const listConstraints: QueryConstraint[] = [where(documentId(), 'in', nextIds)];
+                    const listQuery = query(collection(db, questionCollectionPath), ...listConstraints);
+                    const snapshot = await getDocs(listQuery);
+                    const qData = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Question));
+
+                    setQuestions(prev => isLoadMore ? [...prev, ...qData] : qData);
+                    setHasMore((listQuestionIds?.length || 0) > currentLength + nextIds.length);
+                }
+            } else {
+                const constraints: QueryConstraint[] = [];
+                // Admin/Moderator sees all, others see verified
+                if (userInfo && userInfo.role !== 'admin' && userInfo.role !== 'moderator') {
+                    constraints.push(where('verified', '==', true));
+                }
+
+                if (questionTypeFilter !== 'all') constraints.push(where('question_type', '==', questionTypeFilter));
+                if (subjectFilter !== 'all') constraints.push(where('subject', '==', subjectFilter));
+                if (topicFilter !== 'all') constraints.push(where('topic', '==', topicFilter));
+                if (yearFilter !== 'all') constraints.push(where('year', '==', yearFilter));
+
+                if (sortOrder === 'year-desc') constraints.push(orderBy('year', 'desc'));
+                else if (sortOrder === 'year-asc') constraints.push(orderBy('year', 'asc'));
+                else if (sortOrder === 'qIndex-desc') constraints.push(orderBy('qIndex', 'desc'));
+                else constraints.push(orderBy('qIndex', 'asc'));
+
+                if (isLoadMore && lastVisible) {
+                    constraints.push(startAfter(lastVisible));
+                }
+
+                // Guest limitation: if they are guest, we only let them fetch the first 10, no "load more"
+                if (!user && isLoadMore) {
+                    setHasMore(false);
+                    return;
+                }
+
+                constraints.push(limit(CLIENT_PAGE_SIZE));
+
+                const finalQuery = query(collection(db, questionCollectionPath), ...constraints);
+                const snapshot = await getDocs(finalQuery);
+
+                const qData = snapshot.docs.map(document => ({ id: document.id, ...document.data() } as Question));
+                setQuestions(prev => isLoadMore ? [...prev, ...qData] : qData);
+
+                if (snapshot.docs.length > 0) {
+                    setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+                }
+                setHasMore(snapshot.docs.length === CLIENT_PAGE_SIZE && user !== null);
+            }
+        } catch (error) {
+            console.error("Error fetching questions:", error);
+        } finally {
+            if (isLoadMore) setLoadingMore(false);
+            else setIsLoadingQuestions(false);
+        }
+    };
+
+    // Auto-fetch when filters/dependencies change
+    useEffect(() => {
+        setQuestions([]);
+        setLastVisible(null);
+        setHasMore(true);
+        fetchQuestions(false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [questionCollectionPath, userInfo, questionTypeFilter, subjectFilter, topicFilter, yearFilter, sortOrder, selectedListId, listQuestionIds]);
 
     const [submissions, setSubmissions] = useState<Submission[]>([]);
 
@@ -192,91 +274,21 @@ function PracticeContent() {
         [submissions]
     );
 
-    // List fetching logic
-    const { data: listQuestionIds } = useQuery({
-        queryKey: ['listIds', selectedListId, user?.uid],
-        queryFn: async () => {
-            if (!selectedListId || !user) return [];
-            if (selectedListId === 'favorites') {
-                const listDoc = await getDoc(doc(db, `users/${user.uid}/questionLists`, 'favorites'));
-                return listDoc.exists() ? (listDoc.data() as QuestionList).questionIds || [] : [];
-            } else {
-                const listDoc = await getDoc(doc(db, `users/${user.uid}/questionLists`, selectedListId));
-                return listDoc.exists() ? (listDoc.data() as QuestionList).questionIds || [] : [];
-            }
-        },
-        enabled: !!selectedListId && !!user,
-    });
 
-    // Filtering Logic
-    const filteredQuestions = useMemo(() => {
-        let qs = [...allQuestions];
-        if (userInfo && userInfo.role !== 'admin' && userInfo.role !== 'moderator') {
-            qs = qs.filter(q => q.verified);
-        }
-        if (selectedListId !== null) {
-            if (!listQuestionIds) return [];
-            const idsSet = new Set(listQuestionIds);
-            qs = qs.filter(q => idsSet.has(q.id));
-        }
-        if (questionTypeFilter !== 'all') qs = qs.filter(q => q.question_type === questionTypeFilter);
-        if (subjectFilter !== 'all') qs = qs.filter(q => q.subject === subjectFilter);
-        if (topicFilter !== 'all') qs = qs.filter(q => q.topic === topicFilter);
-        if (yearFilter !== 'all') qs = qs.filter(q => q.year === yearFilter);
-        if (tagFilter !== 'all') qs = qs.filter(q => q.tags?.includes(tagFilter));
-        if (searchQuery) {
-            const lower = searchQuery.toLowerCase();
-            qs = qs.filter(q =>
-                q.id?.toLowerCase().includes(lower) ||
-                q.topic?.toLowerCase().includes(lower) ||
-                q.subject?.toLowerCase().includes(lower) ||
-                q.title?.toLowerCase().includes(lower) ||
-                q.qIndex?.toString().includes(lower)
-            );
-        }
-        qs.sort((a, b) => {
-            const aIndex = a.qIndex || 0;
-            const bIndex = b.qIndex || 0;
-            switch (sortOrder) {
-                case 'year-desc': return (b.year || '').localeCompare(a.year || '');
-                case 'year-asc': return (a.year || '').localeCompare(b.year || '');
-                case 'qIndex-desc': return bIndex - aIndex;
-                case 'qIndex-asc': default: return aIndex - bIndex;
-            }
-        });
-        return qs;
-    }, [allQuestions, userInfo, selectedListId, listQuestionIds, questionTypeFilter, subjectFilter, topicFilter, yearFilter, tagFilter, searchQuery, sortOrder]);
 
-    // Client-side Pagination
-    const [currentPage, setCurrentPage] = useState(1);
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchQuery, questionTypeFilter, topicFilter, subjectFilter, yearFilter, tagFilter, selectedListId]);
-
-    const totalQuestions = filteredQuestions.length;
-    const paginatedQuestions = useMemo(() => {
-        const start = (currentPage - 1) * CLIENT_PAGE_SIZE;
-        return filteredQuestions.slice(start, start + CLIENT_PAGE_SIZE);
-    }, [filteredQuestions, currentPage]);
-
-    const totalPages = Math.ceil(totalQuestions / CLIENT_PAGE_SIZE);
-
-    const handleNextPage = () => { if (currentPage < totalPages) setCurrentPage(p => p + 1); };
-    const handlePrevPage = () => { if (currentPage > 1) setCurrentPage(p => p - 1); };
+    // Client-side mapping is now simplified since sorting and pagination is done on the server
 
     const handleResetFilters = () => {
-        setSearchQuery('');
         setQuestionTypeFilter('all');
         setTopicFilter('all');
         setSubjectFilter('all');
         setYearFilter('all');
-        setTagFilter('all');
         setSortOrder('qIndex-asc');
         if (selectedListId !== null) setSelectedListId(null);
     };
 
     const filtersDisabled = selectedListId !== null;
-    const filtersAreActive = (questionTypeFilter !== 'all' || subjectFilter !== 'all' || topicFilter !== 'all' || yearFilter !== 'all' || tagFilter !== 'all' || searchQuery !== '');
+    const filtersAreActive = (questionTypeFilter !== 'all' || subjectFilter !== 'all' || topicFilter !== 'all' || yearFilter !== 'all');
 
     if (authLoading || metadataLoading) return <PracticeSkeleton />;
     const branchName = availableBranches[selectedBranch] || 'Practice';
@@ -315,16 +327,6 @@ function PracticeContent() {
     // Helper: Shared filter UI
     const renderFilters = () => (
         <div className="flex flex-col gap-4">
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-zinc-400 pointer-events-none" />
-                <input
-                    type="text"
-                    placeholder="Search by number, title, subject..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
-                />
-            </div>
             <div className="flex flex-wrap items-center gap-2 text-sm">
                 <Filter className="w-5 h-5 text-zinc-400 flex-shrink-0 hidden sm:inline-block" />
                 <select disabled={filtersDisabled} value={questionTypeFilter} onChange={(e) => setQuestionTypeFilter(e.target.value)} className="w-full sm:w-auto px-2 py-1 border border-zinc-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white">
@@ -345,20 +347,16 @@ function PracticeContent() {
                     <option value="all">Year</option>
                     {years.map((year: string) => <option key={year} value={year}>{year}</option>)}
                 </select>
-                <select disabled={filtersDisabled} value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} className="w-full sm:w-auto px-2 py-1 border border-zinc-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white">
-                    <option value="all">Tag</option>
-                    {tags.map((tag: string) => <option key={tag} value={tag}>{tag}</option>)}
-                </select>
                 <div className="flex items-center gap-1 border border-zinc-300 dark:border-zinc-700 rounded-md px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white">
                     <ArrowDownUp className="w-4 h-4 text-zinc-400" />
-                    <select disabled={filtersDisabled} value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="bg-transparent border-none focus:ring-0 text-sm appearance-none cursor-pointer">
+                    <select disabled={filtersDisabled} value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="bg-transparent dark:bg-zinc-800 dark:text-white border-none focus:ring-0 text-sm appearance-none cursor-pointer">
                         <option value="qIndex-asc">Number (Asc)</option>
                         <option value="qIndex-desc">Number (Desc)</option>
                         <option value="year-desc">Year (Newest)</option>
                         <option value="year-asc">Year (Oldest)</option>
                     </select>
                 </div>
-                {(filtersAreActive || sortOrder !== 'qIndex-asc' || searchQuery) && (
+                {(filtersAreActive || sortOrder !== 'qIndex-asc') && (
                     <button onClick={handleResetFilters} className="px-3 py-1 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-md text-sm flex items-center gap-1">
                         <RotateCcw className="w-3 h-3" /> Reset
                     </button>
@@ -405,12 +403,12 @@ function PracticeContent() {
                                 Practice Questions ({branchName})
                             </h1>
                             <p className="text-zinc-600 dark:text-zinc-400">
-                                {isLoadingQuestions ? 'Loading...' : (
-                                    (totalQuestions > 0)
+                                {isLoadingQuestions && questions.length === 0 ? 'Loading...' : (
+                                    (questions.length > 0)
                                         ? (
                                             <>
-                                                Showing {(currentPage - 1) * CLIENT_PAGE_SIZE + 1}-{Math.min(currentPage * CLIENT_PAGE_SIZE, totalQuestions)} of {totalQuestions} questions
-                                                {!user && totalQuestions === 10 && (
+                                                Showing {questions.length} questions
+                                                {!user && questions.length === 10 && (
                                                     <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
                                                         Preview Mode
                                                     </span>
@@ -497,14 +495,14 @@ function PracticeContent() {
 
                         {/* Questions Grid */}
                         <div className="grid grid-cols-1 gap-4">
-                            {isLoadingQuestions ? (
+                            {isLoadingQuestions && questions.length === 0 ? (
                                 <div className="text-center py-20 text-zinc-500">Loading questions...</div>
-                            ) : paginatedQuestions.length === 0 ? (
+                            ) : questions.length === 0 ? (
                                 <div className="text-center py-20 text-zinc-500 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700">
                                     No questions match your filters.
                                 </div>
                             ) : (
-                                paginatedQuestions.map((q) => (
+                                questions.map((q) => (
                                     <QuestionCard
                                         key={q.id}
                                         question={q}
@@ -514,24 +512,20 @@ function PracticeContent() {
                             )}
                         </div>
 
-                        <div className="mt-8 flex items-center justify-between">
-                            <button
-                                onClick={handlePrevPage}
-                                disabled={currentPage === 1 || isLoadingQuestions}
-                                className="px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Previous
-                            </button>
-                            <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                                Page {currentPage} of {totalPages || 1}
-                            </span>
-                            <button
-                                onClick={handleNextPage}
-                                disabled={currentPage === totalPages || totalPages === 0 || isLoadingQuestions}
-                                className="px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Next
-                            </button>
+                        <div className="mt-8 flex items-center justify-center">
+                            {hasMore && (
+                                <button
+                                    onClick={() => fetchQuestions(true)}
+                                    disabled={loadingMore || isLoadingQuestions}
+                                    className="px-6 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm flex items-center gap-2"
+                                >
+                                    {loadingMore ? (
+                                        <><Loader2 className="w-4 h-4 animate-spin" /> Loading more...</>
+                                    ) : (
+                                        'Load More Questions'
+                                    )}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
