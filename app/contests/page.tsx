@@ -112,9 +112,9 @@ const ContestCard = ({
 
     return (
         <div className="group flex flex-col justify-between bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-gray-200 dark:border-zinc-800 hover:border-blue-500/50 dark:hover:border-blue-500/50 transition-all duration-300 shadow-sm hover:shadow-md h-full relative overflow-hidden">
-            {type === "admin" && <div className="absolute top-0 right-0 w-28 h-28 bg-red-500/5 dark:bg-red-500/8 rounded-bl-full -z-10 blur-2xl" />}
-            {live && <div className="absolute top-0 right-0 w-36 h-36 bg-green-400/10 rounded-bl-full -z-10 blur-2xl" />}
-            {upcoming && <div className="absolute top-0 right-0 w-36 h-36 bg-amber-400/10 rounded-bl-full -z-10 blur-2xl" />}
+            {type === "admin" && <div className="absolute top-0 right-0 w-32 h-32 bg-[radial-gradient(circle_at_top_right,rgba(239,68,68,0.08),transparent_70%)] dark:bg-[radial-gradient(circle_at_top_right,rgba(239,68,68,0.1),transparent_70%)] rounded-bl-full -z-10" />}
+            {live && <div className="absolute top-0 right-0 w-36 h-36 bg-[radial-gradient(circle_at_top_right,rgba(74,222,128,0.1),transparent_70%)] rounded-bl-full -z-10" />}
+            {upcoming && <div className="absolute top-0 right-0 w-36 h-36 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.1),transparent_70%)] rounded-bl-full -z-10" />}
 
             <div>
                 {/* Badges row */}
@@ -265,7 +265,7 @@ const ScheduledContestCard = ({
             <div className={`absolute inset-0 ${isWeekly ? "bg-gradient-to-br from-amber-400 via-orange-500 to-red-500" : "bg-gradient-to-br from-indigo-500 via-violet-600 to-purple-700"}`} />
             <div className={`absolute inset-0 ${isWeekly ? "bg-[radial-gradient(ellipse_at_28%_38%,rgba(255,255,255,0.20),transparent_62%)]" : "bg-[radial-gradient(ellipse_at_72%_28%,rgba(255,255,255,0.16),transparent_60%)]"}`} />
             {/* Deco */}
-            <div className={`absolute ${isWeekly ? "-bottom-10 -right-10" : "-bottom-10 -left-10"} w-48 h-48 rounded-full bg-white/10 blur-md`} />
+            <div className={`absolute ${isWeekly ? "-bottom-10 -right-10" : "-bottom-10 -left-10"} w-56 h-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.15),transparent_70%)]`} />
             <div className={`absolute top-3 ${isWeekly ? "right-10" : "left-10"} w-16 h-16 rounded-full border border-white/15`} />
             {/* Art — 1 bolt for weekly, 2 bolts for biweekly */}
             {isWeekly ? (
@@ -548,7 +548,7 @@ const ContestsPage = () => {
             {/* Page header */}
             <div className="relative pt-10 pb-5 px-4 sm:px-6 lg:px-8 text-center overflow-hidden">
                 <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-36 bg-gradient-to-b from-indigo-500/8 to-transparent rounded-full blur-3xl" />
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-48 bg-[radial-gradient(ellipse_at_top,rgba(99,102,241,0.15),transparent_70%)] rounded-full" />
                 </div>
                 <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900 dark:text-white mb-1.5 relative z-10">Contest</h1>
                 <p className="text-gray-500 dark:text-zinc-400 text-sm relative z-10">Contest every week. Compete and see your ranking!</p>

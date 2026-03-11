@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/firebase';
-import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebaseAdmin';
 import { Contest, Question, Section } from '@/types/exam';
 import { sampleQuestions } from '@/data/sampleQuestions';
 
@@ -24,14 +23,18 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
+        if (!adminDb) {
+            return NextResponse.json({ error: 'Firebase Admin not initialized' }, { status: 500 });
+        }
+
         const sourceCollection = `questions_${branch}`;
 
-        let qCol = collection(db, sourceCollection);
-        let qSnapshot = await getDocs(qCol);
+        let qCol = adminDb.collection(sourceCollection);
+        let qSnapshot = await qCol.get();
 
         if (qSnapshot.empty) {
-            qCol = collection(db, `${sourceCollection}/questions`);
-            qSnapshot = await getDocs(qCol);
+            qCol = adminDb.collection(`${sourceCollection}/questions`);
+            qSnapshot = await qCol.get();
         }
 
         const allQuestions: Question[] = [];
@@ -158,7 +161,7 @@ export async function POST(req: NextRequest) {
             ...(endTimeISO && { endTime: endTimeISO }),
         };
 
-        await setDoc(doc(db, 'contests', newContestId), newContest);
+        await adminDb.collection('contests').doc(newContestId).set(newContest);
 
         return NextResponse.json({
             success: true,

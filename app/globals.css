@@ -146,17 +146,14 @@
   }
 
   .glass-card {
-    @apply backdrop-blur-lg rounded-2xl shadow-lg;
-    background-color: hsl(var(--background) / 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    @apply rounded-2xl shadow-lg;
+    background-color: hsl(var(--card));
+    border: 1px solid rgba(0, 0, 0, 0.05);
   }
 
   .dark .glass-card {
-    background-color: hsl(var(--background) / 0.4);
-    /* Assuming background is dark in dark mode */
-    /* Assuming background is dark in dark mode */
-    border-color: rgba(39, 39, 42, 0.6);
-    /* zinc-800 roughly */
+    background-color: hsl(var(--card));
+    border-color: rgba(255, 255, 255, 0.05);
   }
 
   .prose-custom {

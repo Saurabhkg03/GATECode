@@ -144,15 +144,13 @@ function PracticeContent() {
         queryKey: ['listIds', selectedListId, user?.uid],
         queryFn: async () => {
             if (!selectedListId || !user) return [];
-            if (selectedListId === 'favorites') {
-                const listDoc = await getDoc(doc(db, `users/${user.uid}/questionLists`, 'favorites'));
-                return listDoc.exists() ? (listDoc.data() as QuestionList).questionIds || [] : [];
-            } else {
-                const listDoc = await getDoc(doc(db, `users/${user.uid}/questionLists`, selectedListId));
-                return listDoc.exists() ? (listDoc.data() as QuestionList).questionIds || [] : [];
-            }
+            const listDoc = await getDoc(doc(db, `users/${user.uid}/questionLists`, selectedListId));
+            if (!listDoc.exists()) return [];
+            return (listDoc.data() as QuestionList).questionIds || [];
         },
         enabled: !!selectedListId && !!user,
+        staleTime: 0, // Always refetch when coming back — list may have been changed from the question page
+        refetchOnWindowFocus: true,
     });
 
     const [questions, setQuestions] = useState<Question[]>([]);
@@ -170,19 +168,22 @@ function PracticeContent() {
             else setIsLoadingQuestions(true);
 
             if (selectedListId !== null) {
+                const ids = listQuestionIds || [];
                 const currentLength = isLoadMore ? questions.length : 0;
-                const nextIds = (listQuestionIds || []).slice(currentLength, currentLength + CLIENT_PAGE_SIZE);
+                const nextIds = ids.slice(currentLength, currentLength + CLIENT_PAGE_SIZE);
 
                 if (nextIds.length === 0) {
+                    if (!isLoadMore) setQuestions([]);
                     setHasMore(false);
                 } else {
+                    // Firestore 'in' supports max 10 items; batch if needed (our page size is 10 so should be fine)
                     const listConstraints: QueryConstraint[] = [where(documentId(), 'in', nextIds)];
                     const listQuery = query(collection(db, questionCollectionPath), ...listConstraints);
                     const snapshot = await getDocs(listQuery);
                     const qData = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Question));
 
                     setQuestions(prev => isLoadMore ? [...prev, ...qData] : qData);
-                    setHasMore((listQuestionIds?.length || 0) > currentLength + nextIds.length);
+                    setHasMore(ids.length > currentLength + nextIds.length);
                 }
             } else {
                 const constraints: QueryConstraint[] = [];
