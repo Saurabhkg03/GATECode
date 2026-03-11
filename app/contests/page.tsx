@@ -12,6 +12,9 @@ import {
     deleteDoc,
     doc,
     where,
+    startAfter,
+    DocumentData,
+    QueryDocumentSnapshot
 } from "firebase/firestore";
 import { Contest } from "@/types/exam";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,6 +53,13 @@ import {
 } from "lucide-react";
 
 type TabType = "official" | "community" | "mine";
+const ITEMS_PER_PAGE = 12;
+
+const GATE_BRANCHES = [
+    "AE", "AG", "AR", "BM", "BT", "CE", "CH", "CS", "CY", "DA", "EC", "EE",
+    "ES", "EY", "GG", "IN", "MA", "ME", "MN", "MT", "NM", "PE", "PH", "PI",
+    "ST", "TF", "XE", "XH", "XL"
+];
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -102,9 +112,9 @@ const ContestCard = ({
 
     return (
         <div className="group flex flex-col justify-between bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-gray-200 dark:border-zinc-800 hover:border-blue-500/50 dark:hover:border-blue-500/50 transition-all duration-300 shadow-sm hover:shadow-md h-full relative overflow-hidden">
-            {type === "admin" && <div className="absolute top-0 right-0 w-28 h-28 bg-red-500/5 dark:bg-red-500/8 rounded-bl-full -z-10 blur-2xl" />}
-            {live && <div className="absolute top-0 right-0 w-36 h-36 bg-green-400/10 rounded-bl-full -z-10 blur-2xl" />}
-            {upcoming && <div className="absolute top-0 right-0 w-36 h-36 bg-amber-400/10 rounded-bl-full -z-10 blur-2xl" />}
+            {type === "admin" && <div className="absolute top-0 right-0 w-32 h-32 bg-[radial-gradient(circle_at_top_right,rgba(239,68,68,0.08),transparent_70%)] dark:bg-[radial-gradient(circle_at_top_right,rgba(239,68,68,0.1),transparent_70%)] rounded-bl-full -z-10" />}
+            {live && <div className="absolute top-0 right-0 w-36 h-36 bg-[radial-gradient(circle_at_top_right,rgba(74,222,128,0.1),transparent_70%)] rounded-bl-full -z-10" />}
+            {upcoming && <div className="absolute top-0 right-0 w-36 h-36 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.1),transparent_70%)] rounded-bl-full -z-10" />}
 
             <div>
                 {/* Badges row */}
@@ -255,7 +265,7 @@ const ScheduledContestCard = ({
             <div className={`absolute inset-0 ${isWeekly ? "bg-gradient-to-br from-amber-400 via-orange-500 to-red-500" : "bg-gradient-to-br from-indigo-500 via-violet-600 to-purple-700"}`} />
             <div className={`absolute inset-0 ${isWeekly ? "bg-[radial-gradient(ellipse_at_28%_38%,rgba(255,255,255,0.20),transparent_62%)]" : "bg-[radial-gradient(ellipse_at_72%_28%,rgba(255,255,255,0.16),transparent_60%)]"}`} />
             {/* Deco */}
-            <div className={`absolute ${isWeekly ? "-bottom-10 -right-10" : "-bottom-10 -left-10"} w-48 h-48 rounded-full bg-white/10 blur-md`} />
+            <div className={`absolute ${isWeekly ? "-bottom-10 -right-10" : "-bottom-10 -left-10"} w-56 h-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.15),transparent_70%)]`} />
             <div className={`absolute top-3 ${isWeekly ? "right-10" : "left-10"} w-16 h-16 rounded-full border border-white/15`} />
             {/* Art — 1 bolt for weekly, 2 bolts for biweekly */}
             {isWeekly ? (
@@ -321,27 +331,92 @@ const ContestsPage = () => {
     const [registeredIds, setRegisteredIds] = useState<Set<string>>(new Set());
     const [attemptMap, setAttemptMap] = useState<Record<string, { isSubmitted: boolean; timeLeftSeconds: number }>>({});
 
+    const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedBranch, setSelectedBranch] = useState("All");
     const [selectedDifficulty, setSelectedDifficulty] = useState("All");
     const [selectedDuration, setSelectedDuration] = useState("All");
 
-    const fetchContests = async () => {
+    const fetchContests = async (isLoadMore = false) => {
         try {
-            setLoading(true);
-            const q = query(collection(db, "contests"), orderBy("id", "desc"), limit(100));
+            if (isLoadMore) {
+                setLoadingMore(true);
+            } else {
+                setLoading(true);
+                setLastDoc(null);
+            }
+
+            let conditions = [];
+
+            // Tab filtering
+            if (activeTab === "official") {
+                conditions.push(where("type", "==", "admin"));
+            } else if (activeTab === "mine") {
+                if (userInfo?.uid) {
+                    conditions.push(where("createdBy", "==", userInfo.uid));
+                }
+            } else if (activeTab === "community") {
+                conditions.push(where("isPublic", "==", true));
+                conditions.push(where("type", "==", "mock"));
+            }
+
+            // Dropdown Filters
+            if (selectedBranch !== "All") {
+                conditions.push(where("branch", "==", selectedBranch));
+            }
+            if (selectedDifficulty !== "All") {
+                conditions.push(where("difficulty", "==", selectedDifficulty));
+            }
+
+            let q;
+            if (isLoadMore && lastDoc) {
+                q = query(
+                    collection(db, "contests"),
+                    ...conditions,
+                    orderBy("id", "desc"),
+                    startAfter(lastDoc),
+                    limit(ITEMS_PER_PAGE)
+                );
+            } else {
+                q = query(
+                    collection(db, "contests"),
+                    ...conditions,
+                    orderBy("id", "desc"),
+                    limit(ITEMS_PER_PAGE)
+                );
+            }
+
             const snap = await getDocs(q);
             const list: Contest[] = [];
             snap.forEach((d) => list.push({ id: d.id, ...d.data() } as Contest));
-            setContests(list);
+
+            if (!snap.empty) {
+                setLastDoc(snap.docs[snap.docs.length - 1]);
+            }
+            setHasMore(snap.docs.length === ITEMS_PER_PAGE);
+
+            if (isLoadMore) {
+                setContests((prev) => [...prev, ...list]);
+            } else {
+                setContests(list);
+            }
         } catch (e) {
             console.error("Error fetching contests:", e);
         } finally {
             setLoading(false);
+            setLoadingMore(false);
         }
     };
 
-    useEffect(() => { fetchContests(); }, []);
+    // Re-fetch contests when tab or filters change
+    useEffect(() => {
+        // Skip fetching 'mine' tab if userInfo is not loaded
+        if (activeTab === 'mine' && !userInfo?.uid) return;
+        fetchContests();
+    }, [activeTab, selectedBranch, selectedDifficulty, userInfo?.uid]);
 
     // ── Load user's registered contest IDs & attempts ────────────────────────────────
     useEffect(() => {
@@ -394,9 +469,9 @@ const ContestsPage = () => {
     };
 
     // Derived state for filters
-    const availableBranches = Array.from(new Set(contests.filter(c => !!c.branch).map(c => c.branch as string))).sort();
+    const availableBranches = GATE_BRANCHES;
 
-    // Filter logic
+    // Local filter logic for what's not efficiently possible in Firestore
     const filteredContests = contests.filter((c) => {
         // Search
         if (searchQuery) {
@@ -405,10 +480,6 @@ const ContestsPage = () => {
             const matchesDesc = c.description?.toLowerCase().includes(queryLowercase);
             if (!matchesTitle && !matchesDesc) return false;
         }
-        // Branch
-        if (selectedBranch !== "All" && c.branch !== selectedBranch) return false;
-        // Difficulty
-        if (selectedDifficulty !== "All" && c.difficulty !== selectedDifficulty) return false;
         // Duration
         if (selectedDuration !== "All") {
             if (selectedDuration === "Short (< 30m)" && c.durationMinutes >= 30) return false;
@@ -418,20 +489,17 @@ const ContestsPage = () => {
         return true;
     });
 
-    // Partition contests using filtered slice
-    const adminContests = filteredContests.filter((c) => c.type === "admin");
-    const communityContests = filteredContests.filter((c) => c.type !== "admin" && c.isPublic);
-    const myContests = filteredContests.filter((c) => c.createdBy === userInfo?.uid);
+    // We no longer partition massive data locally since we are query-based. 
+    // filteredContests now exactly applies to the active tab's logic mostly.
 
+    // We can partition status (live/upcoming/past) locally on the current active tab's subset.
     const partitionByStatus = (list: Contest[]) => ({
         upcoming: list.filter(isUpcoming),
         live: list.filter(isLive),
         past: list.filter(isPast),
     });
 
-    const adminParts = partitionByStatus(adminContests);
-    const communityParts = partitionByStatus(communityContests);
-    const myParts = partitionByStatus(myContests);
+    const partitionedContests = partitionByStatus(filteredContests);
 
     const cardType = (c: Contest, tab: TabType): "admin" | "mock" | "mine" =>
         tab === "mine" ? "mine" : c.type === "admin" ? "admin" : "mock";
@@ -480,7 +548,7 @@ const ContestsPage = () => {
             {/* Page header */}
             <div className="relative pt-10 pb-5 px-4 sm:px-6 lg:px-8 text-center overflow-hidden">
                 <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-36 bg-gradient-to-b from-indigo-500/8 to-transparent rounded-full blur-3xl" />
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-48 bg-[radial-gradient(ellipse_at_top,rgba(99,102,241,0.15),transparent_70%)] rounded-full" />
                 </div>
                 <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900 dark:text-white mb-1.5 relative z-10">Contest</h1>
                 <p className="text-gray-500 dark:text-zinc-400 text-sm relative z-10">Contest every week. Compete and see your ranking!</p>
@@ -605,23 +673,38 @@ const ContestsPage = () => {
                                     <ScheduledContestCard type="biweekly" isRegistered={registeredIds.has(biweeklyInfo.id)} />
                                 </div>
                                 {/* Scheduled admin contests */}
-                                {adminParts.upcoming.length > 0 && renderGrid(adminParts.upcoming, "official")}
+                                {partitionedContests.upcoming.length > 0 && renderGrid(partitionedContests.upcoming, "official")}
                             </div>
 
                             {/* Live */}
-                            {adminParts.live.length > 0 && (
+                            {partitionedContests.live.length > 0 && (
                                 <div className="space-y-4">
-                                    <SectionHeading icon={<Radio className="w-5 h-5 text-green-500" />} label="Live Now" count={adminParts.live.length} />
-                                    {renderGrid(adminParts.live, "official")}
+                                    <SectionHeading icon={<Radio className="w-5 h-5 text-green-500" />} label="Live Now" count={partitionedContests.live.length} />
+                                    {renderGrid(partitionedContests.live, "official")}
                                 </div>
                             )}
 
                             {/* Past */}
                             <div className="space-y-4">
-                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="Past &amp; Practice" count={adminParts.past.length} />
+                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="Past &amp; Practice" count={partitionedContests.past.length} />
                                 {loading ? (
                                     <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent" /></div>
-                                ) : adminParts.past.length === 0 ? renderEmpty("official") : renderGrid(adminParts.past, "official")}
+                                ) : partitionedContests.past.length === 0 ? renderEmpty("official") : (
+                                    <>
+                                        {renderGrid(partitionedContests.past, "official")}
+                                        {hasMore && (
+                                            <div className="mt-8 flex justify-center">
+                                                <button
+                                                    onClick={() => fetchContests(true)}
+                                                    disabled={loadingMore}
+                                                    className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                                                >
+                                                    {loadingMore ? "Loading..." : "Load More Mocks"}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}
@@ -629,23 +712,38 @@ const ContestsPage = () => {
                     {/* ── COMMUNITY TAB ── */}
                     {activeTab === "community" && (
                         <div className="space-y-8">
-                            {communityParts.live.length > 0 && (
+                            {partitionedContests.live.length > 0 && (
                                 <div className="space-y-4">
-                                    <SectionHeading icon={<Zap className="w-5 h-5 text-green-500" />} label="Live Now" count={communityParts.live.length} />
-                                    {renderGrid(communityParts.live, "community")}
+                                    <SectionHeading icon={<Zap className="w-5 h-5 text-green-500" />} label="Live Now" count={partitionedContests.live.length} />
+                                    {renderGrid(partitionedContests.live, "community")}
                                 </div>
                             )}
-                            {communityParts.upcoming.length > 0 && (
+                            {partitionedContests.upcoming.length > 0 && (
                                 <div className="space-y-4">
-                                    <SectionHeading icon={<Timer className="w-5 h-5 text-amber-500" />} label="Upcoming" count={communityParts.upcoming.length} />
-                                    {renderGrid(communityParts.upcoming, "community")}
+                                    <SectionHeading icon={<Timer className="w-5 h-5 text-amber-500" />} label="Upcoming" count={partitionedContests.upcoming.length} />
+                                    {renderGrid(partitionedContests.upcoming, "community")}
                                 </div>
                             )}
                             <div className="space-y-4">
-                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="All Community Mocks" count={communityParts.past.length} />
+                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="All Community Mocks" count={partitionedContests.past.length} />
                                 {loading ? (
                                     <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent" /></div>
-                                ) : communityContests.length === 0 ? renderEmpty("community") : renderGrid(communityContests, "community")}
+                                ) : partitionedContests.past.length === 0 ? renderEmpty("community") : (
+                                    <>
+                                        {renderGrid(partitionedContests.past, "community")}
+                                        {hasMore && (
+                                            <div className="mt-8 flex justify-center">
+                                                <button
+                                                    onClick={() => fetchContests(true)}
+                                                    disabled={loadingMore}
+                                                    className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                                                >
+                                                    {loadingMore ? "Loading..." : "Load More Mocks"}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}
@@ -653,23 +751,38 @@ const ContestsPage = () => {
                     {/* ── MY MOCKS TAB ── */}
                     {activeTab === "mine" && (
                         <div className="space-y-8">
-                            {myParts.live.length > 0 && (
+                            {partitionedContests.live.length > 0 && (
                                 <div className="space-y-4">
-                                    <SectionHeading icon={<Zap className="w-5 h-5 text-green-500" />} label="Live Now" count={myParts.live.length} />
-                                    {renderGrid(myParts.live, "mine")}
+                                    <SectionHeading icon={<Zap className="w-5 h-5 text-green-500" />} label="Live Now" count={partitionedContests.live.length} />
+                                    {renderGrid(partitionedContests.live, "mine")}
                                 </div>
                             )}
-                            {myParts.upcoming.length > 0 && (
+                            {partitionedContests.upcoming.length > 0 && (
                                 <div className="space-y-4">
-                                    <SectionHeading icon={<Timer className="w-5 h-5 text-amber-500" />} label="Upcoming" count={myParts.upcoming.length} />
-                                    {renderGrid(myParts.upcoming, "mine")}
+                                    <SectionHeading icon={<Timer className="w-5 h-5 text-amber-500" />} label="Upcoming" count={partitionedContests.upcoming.length} />
+                                    {renderGrid(partitionedContests.upcoming, "mine")}
                                 </div>
                             )}
                             <div className="space-y-4">
-                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="All My Mocks" count={myContests.length} />
+                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="All My Mocks" count={filteredContests.length} />
                                 {loading ? (
                                     <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent" /></div>
-                                ) : myContests.length === 0 ? renderEmpty("mine") : renderGrid(myContests, "mine")}
+                                ) : filteredContests.length === 0 ? renderEmpty("mine") : (
+                                    <>
+                                        {renderGrid(filteredContests, "mine")}
+                                        {hasMore && (
+                                            <div className="mt-8 flex justify-center">
+                                                <button
+                                                    onClick={() => fetchContests(true)}
+                                                    disabled={loadingMore}
+                                                    className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                                                >
+                                                    {loadingMore ? "Loading..." : "Load More Mocks"}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}

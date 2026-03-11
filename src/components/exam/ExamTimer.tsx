@@ -1,40 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Timer } from 'lucide-react';
 import { useExam } from '@/contexts/ExamContext';
 
-interface ExamTimerProps {
-    contestId: string;
-    uid: string;
-}
-
-export default function ExamTimer({ contestId, uid }: ExamTimerProps) {
+export default function ExamTimer() {
     const { state } = useExam();
-    const [timeLeft, setTimeLeft] = useState(state.timeLeft);
 
-    useEffect(() => {
-        if (state.isLoading || state.isSubmitted || !state.contest) return;
-
-        const TARGET_TIME_KEY = `exam_target_time_${contestId}_${uid}`;
-
-        const tick = () => {
-            const targetStr = typeof window !== 'undefined' ? localStorage.getItem(TARGET_TIME_KEY) : null;
-            if (!targetStr) return;
-            const targetEndTime = parseInt(targetStr, 10);
-            if (targetEndTime <= 0) return;
-            const now = Date.now();
-            const diff = targetEndTime - now;
-            const secondsLeft = Math.max(0, Math.floor(diff / 1000));
-            setTimeLeft(secondsLeft);
-        };
-
-        // Initial tick
-        tick();
-
-        const timer = setInterval(tick, 1000);
-        return () => clearInterval(timer);
-    }, [state.isLoading, state.isSubmitted, state.contest, contestId, uid]);
+    // Read directly from the context, which ticks every second
+    const timeLeft = state.timeLeft;
 
     const formatTime = (seconds: number) => {
         const h = Math.floor(seconds / 3600);
@@ -43,7 +17,7 @@ export default function ExamTimer({ contestId, uid }: ExamTimerProps) {
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     };
 
-    const isWarning = timeLeft < 300;
+    const isWarning = timeLeft > 0 && timeLeft < 300; // Under 5 mins
 
     return (
         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-md border transition-colors ${isWarning ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-900/50 animate-pulse' : 'bg-gray-100 dark:bg-zinc-800 dark:border-zinc-700'}`}>

@@ -469,7 +469,8 @@ export default function QuestionClient({ id }: { id: string }) {
             selectedOptions: selectedOptions,
             natAnswer: natAnswer || '',
             timeTaken: timeElapsed > 0 ? timeElapsed : 0,
-            branch: selectedBranch
+            branch: selectedBranch,
+            questionTitle: question.title || "Untitled Question"
         };
 
         try {

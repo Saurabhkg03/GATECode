@@ -1,11 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { db } from '@/firebase';
-import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
-import { Contest, Question, Section } from '@/types/exam';
 import { Loader2, Wand2, AlertTriangle, CheckCircle, Calendar, Clock } from 'lucide-react';
-import { sampleQuestions } from '@/data/sampleQuestions';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface ContestGeneratorProps {
@@ -31,155 +27,42 @@ const ContestGenerator: React.FC<ContestGeneratorProps> = ({ onContestCreated, i
         return now.toISOString().slice(0, 16);
     };
 
-    const shuffle = <T,>(array: T[]) => array.sort(() => Math.random() - 0.5);
-
     const generateContest = async () => {
         setLoading(true);
-        const sourceCollection = `questions_${branch}`;
-        setStatus(`Fetching question bank from '${sourceCollection}'...`);
+        setStatus('Initializing contest generation on the server...');
 
         try {
-            let qCol = collection(db, sourceCollection);
-            let qSnapshot = await getDocs(qCol);
-
-            if (qSnapshot.empty) {
-                qCol = collection(db, `${sourceCollection}/questions`);
-                qSnapshot = await getDocs(qCol);
-            }
-
-            const allQuestions: Question[] = [];
-            qSnapshot.forEach(docSnap => {
-                const data = docSnap.data();
-                if (data.question_html || data.title) {
-                    allQuestions.push({
-                        id: docSnap.id,
-                        ...data,
-                        branch: data.branch || branch,
-                        marks: Number(data.marks) || 1,
-                        negative_marks: Number(data.negative_marks) || (Number(data.marks) === 2 ? 0.66 : 0.33)
-                    } as Question);
-                }
+            const response = await fetch('/api/contests/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    branch,
+                    contestTitle,
+                    isPublic,
+                    enableSchedule,
+                    scheduledDateTime,
+                    endDateTime,
+                    isAdminContest,
+                    uid: userInfo?.uid || 'anonymous'
+                }),
             });
 
-            const relevantSamples = sampleQuestions.filter(q => {
-                const br = (q.branch || '').toLowerCase();
-                return br === branch.toLowerCase() || br === 'general' || br === 'ga' || br === 'all';
-            });
+            const data = await response.json();
 
-            const fetchedQuestionIds = new Set(allQuestions.map(q => q.id));
-            let injectedCount = 0;
-
-            relevantSamples.forEach(sample => {
-                if (!fetchedQuestionIds.has(sample.id)) {
-                    allQuestions.push(sample as Question);
-                    fetchedQuestionIds.add(sample.id);
-                    injectedCount++;
-                }
-            });
-
-            if (injectedCount > 0) {
-                setStatus(prev => prev + `\nInjected ${injectedCount} sample questions.`);
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to generate contest.');
             }
 
-            const totalFound = allQuestions.length;
-            setStatus(prev => prev + `\nTotal Pool Size: ${totalFound} (Real + Sample).`);
-
-            if (totalFound < 5) {
-                throw new Error(`Insufficient questions even with samples. Found ${totalFound}, need at least 5.`);
+            setStatus('Server processing complete.\n' + data.messages.join('\n'));
+            setStatus(prev => prev + `\n\n✅ Success! Created "${data.title}".`);
+            setStatus(prev => prev + `\n   - Total Questions: ${data.totalQs} / 65`);
+            if (data.startTimeISO) {
+                setStatus(prev => prev + `\n   - Starts: ${new Date(data.startTimeISO).toLocaleString()}`);
             }
-
-            const gaQuestions = allQuestions.filter(q => {
-                const sub = (q.subject || '').toLowerCase();
-                const br = (q.branch || '').toLowerCase();
-                return sub.includes('aptitude') || sub.includes('verbal') || sub.includes('reasoning') || br === 'general' || br === 'ga';
-            });
-
-            const techQuestions = allQuestions.filter(q =>
-                !gaQuestions.includes(q) &&
-                (q.branch?.toLowerCase() === branch.toLowerCase() || q.branch === 'all' || !q.branch)
-            );
-
-            setStatus(prev => prev + `\nPool Breakdown: GA=${gaQuestions.length}, Tech=${techQuestions.length}`);
-
-            const selectQuestions = (pool: Question[], target1: number, target2: number) => {
-                const q1 = shuffle(pool.filter(q => q.marks === 1));
-                const q2 = shuffle(pool.filter(q => q.marks === 2));
-                const selected1 = q1.slice(0, target1);
-                const selected2 = q2.slice(0, target2);
-                const usedIds = new Set([...selected1, ...selected2].map(q => q.id));
-                const deficit1 = target1 - selected1.length;
-                const deficit2 = target2 - selected2.length;
-                const totalNeeded = deficit1 + deficit2;
-                let fill: Question[] = [];
-                if (totalNeeded > 0) {
-                    const remainingPool = shuffle(pool.filter(q => !usedIds.has(q.id)));
-                    fill = remainingPool.slice(0, totalNeeded);
-                }
-                return {
-                    selected: [...selected1, ...selected2, ...fill],
-                    totalFound: selected1.length + selected2.length + fill.length,
-                    totalTarget: target1 + target2
-                };
-            };
-
-            const gaResult = selectQuestions(gaQuestions, 5, 5);
-            const techResult = selectQuestions(techQuestions, 25, 30);
-
-            const gaMissing = gaResult.totalTarget - gaResult.totalFound;
-            const techMissing = techResult.totalTarget - techResult.totalFound;
-            const totalMissing = gaMissing + techMissing;
-
-            if (totalMissing > 0) {
-                setStatus(prev => prev + `\n⚠️ Warning: Shortage of ${totalMissing} questions.\nGA Found: ${gaResult.totalFound}/10, Tech Found: ${techResult.totalFound}/55`);
-            } else {
-                setStatus(prev => prev + `\n✅ Full exam generated.`);
-            }
-
-            const finalSections: Section[] = [
-                { name: 'General Aptitude', questions: shuffle(gaResult.selected) },
-                { name: 'Technical', questions: shuffle(techResult.selected) }
-            ];
-
-            const totalQs = finalSections[0].questions.length + finalSections[1].questions.length;
-            const prefix = isAdminContest ? 'admin' : 'mock';
-            const newContestId = `${Date.now()}-${prefix}-${branch}`;
-            const defaultTitle = `GATE ${branch.toUpperCase()} ${isAdminContest ? 'Live Competition' : 'Mock Practice'} (Real)`;
-            const title = contestTitle || defaultTitle;
-
-            // Build the scheduled start time ISO string if provided
-            let startTimeISO: string | undefined = undefined;
-            let endTimeISO: string | undefined = undefined;
-            if (enableSchedule && scheduledDateTime) {
-                startTimeISO = new Date(scheduledDateTime).toISOString();
-            }
-            if (enableSchedule && endDateTime) {
-                endTimeISO = new Date(endDateTime).toISOString();
-            }
-
-            const newContest: Contest = {
-                id: newContestId,
-                title: title,
-                type: isAdminContest ? 'admin' : 'mock',
-                branch: branch,
-                createdBy: userInfo?.uid || 'anonymous',
-                isPublic: isAdminContest ? true : isPublic,
-                durationMinutes: 180,
-                totalMarks: 100,
-                sections: finalSections,
-                description: `Generated from '${sourceCollection}'. Contains ${totalQs} real questions.`,
-                ...(startTimeISO && { startTime: startTimeISO }),
-                ...(endTimeISO && { endTime: endTimeISO }),
-            };
-
-            await setDoc(doc(db, 'contests', newContestId), newContest);
-
-            setStatus(prev => prev + `\n\n✅ Success! Created "${title}".`);
-            setStatus(prev => prev + `\n   - Total Questions: ${totalQs} / 65`);
-            if (startTimeISO) {
-                setStatus(prev => prev + `\n   - Starts: ${new Date(startTimeISO).toLocaleString()}`);
-            }
-            if (endTimeISO) {
-                setStatus(prev => prev + `\n   - Ends:   ${new Date(endTimeISO).toLocaleString()}`);
+            if (data.endTimeISO) {
+                setStatus(prev => prev + `\n   - Ends:   ${new Date(data.endTimeISO).toLocaleString()}`);
             }
 
             if (onContestCreated) {

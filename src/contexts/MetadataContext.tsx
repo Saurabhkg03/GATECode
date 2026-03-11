@@ -90,6 +90,8 @@ export function MetadataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem(BRANCH_CACHE_KEY, selectedBranch);
+    // Also set as a cookie for Server Components to read
+    document.cookie = `selectedBranch=${selectedBranch}; path=/; max-age=31536000; SameSite=Lax`;
   }, [selectedBranch]);
 
   useEffect(() => {

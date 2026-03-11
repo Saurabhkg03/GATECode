@@ -53,17 +53,61 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: true, warning: 'Submission was late. Only previously synced answers were recorded.' });
         }
 
+        // --- Fetch Contest to Validate Server-Side ---
+        const contestRef = doc(db, 'contests', contestId);
+        const contestSnap = await getDoc(contestRef);
+        let contestData: any = null;
+
+        if (contestSnap.exists()) {
+            contestData = contestSnap.data();
+            const questionMap = new Map();
+            if (contestData.sections) {
+                contestData.sections.forEach((sec: any) => {
+                    sec.questions.forEach((q: any) => {
+                        questionMap.set(q.id, {
+                            type: q.question_type,
+                            options: q.options,
+                            natMin: parseFloat(q.nat_answer_min),
+                            natMax: parseFloat(q.nat_answer_max)
+                        });
+                    });
+                });
+            }
+
+            // Trust the server, not the client
+            Object.values(responses || {}).forEach((resp: any) => {
+                const qData = questionMap.get(resp.questionId);
+                if (qData) {
+                    let isCorrect = false;
+                    if (qData.type === 'mcq') {
+                        const correctOption = qData.options?.find((o: any) => o.is_correct);
+                        isCorrect = !!(correctOption && resp.selectedOptions?.[0] === correctOption.label);
+                    } else if (qData.type === 'msq') {
+                        const correctLabels = qData.options?.filter((o: any) => o.is_correct).map((o: any) => o.label).sort();
+                        const userVal = [...(resp.selectedOptions || [])].sort();
+                        isCorrect = !!(correctLabels && userVal && correctLabels.length === userVal.length &&
+                            correctLabels.every((val: string, index: number) => val === userVal[index]));
+                    } else if (qData.type === 'nat') {
+                        const val = parseFloat(resp.natAnswer || '');
+                        if (!isNaN(val) && !isNaN(qData.natMin) && !isNaN(qData.natMax) && val >= qData.natMin && val <= qData.natMax) {
+                            isCorrect = true;
+                        }
+                    }
+                    resp.isCorrect = isCorrect;
+                } else {
+                    resp.isCorrect = false;
+                }
+            });
+        }
+
         // --- Update User Stats if not Practice ---
-        if (!attemptData.isPractice) {
+        if (!attemptData.isPractice && contestData) {
             try {
                 const userRef = doc(db, 'users', uid);
                 const userSnap = await getDoc(userRef);
-                const contestRef = doc(db, 'contests', contestId);
-                const contestSnap = await getDoc(contestRef);
 
-                if (userSnap.exists() && contestSnap.exists()) {
+                if (userSnap.exists()) {
                     const userData = userSnap.data();
-                    const contestData = contestSnap.data();
                     const branch = contestData.branch || 'General'; // Default to General if not specified
 
                     // Calculate score for this attempt
@@ -72,7 +116,7 @@ export async function POST(req: NextRequest) {
 
                     // responses is an object: { qid: { selectedOptions, natAnswer, status, ... } }
                     Object.values(responses || {}).forEach((resp: any) => {
-                        if (resp.status === 'answered' || resp.status === 'marked') {
+                        if (resp.status === 'answered' || resp.status === 'answered_marked_for_review') {
                             totalAttempted++;
                             if (resp.isCorrect) {
                                 correctCount++;

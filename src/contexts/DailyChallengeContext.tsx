@@ -13,56 +13,58 @@ const DailyChallengeContext = createContext<DailyChallengeContextType | undefine
 export function DailyChallengeProvider({ children }: { children: ReactNode }) {
   const [dailyChallengeId, setDailyChallengeId] = useState<string | null>(null);
 
-  const { metadata, loading: metadataLoading, selectedBranch } = useMetadata();
+  const { selectedBranch } = useMetadata();
   const [loadingChallenge, setLoadingChallenge] = useState(true);
 
   useEffect(() => {
-    if (metadataLoading || !metadata) {
-      console.log(`[DailyChallenge] Waiting for metadata for branch ${selectedBranch}...`);
+    let isMounted = true;
+
+    async function fetchChallenge() {
+      if (!selectedBranch) return;
+
+      console.log(`[DailyChallenge] Fetching challenge for ${selectedBranch}...`);
       setLoadingChallenge(true);
-      return;
-    }
 
-    console.log(`[DailyChallenge] Metadata loaded for ${selectedBranch}. Calculating challenge...`);
-    setLoadingChallenge(true);
+      try {
+        const res = await fetch(`/api/daily-challenge?branch=${selectedBranch}`);
+        if (!res.ok) {
+          throw new Error(`Failed to fetch daily challenge: ${res.status}`);
+        }
 
-    try {
-      const questionIds = metadata.allQuestionIds || [];
+        const data = await res.json();
 
-      if (questionIds.length > 0) {
-        // Calculate the day of the year (1-366)
-        const now = new Date();
-        const start = new Date(now.getFullYear(), 0, 0);
-        const diff =
-          now.getTime() -
-          start.getTime() +
-          (start.getTimezoneOffset() - now.getTimezoneOffset()) * 60 * 1000;
-        const oneDay = 1000 * 60 * 60 * 24;
-        const dayOfYear = Math.floor(diff / oneDay);
-
-        // Use modulo to get a consistent index based on the day
-        const challengeIndex = (dayOfYear - 1) % questionIds.length;
-
-        console.log(
-          `[DailyChallenge] Branch: ${selectedBranch}, Day ${dayOfYear}, Index ${challengeIndex}, ID: ${questionIds[challengeIndex]}`
+        if (isMounted) {
+          if (data.dailyChallengeId) {
+            console.log(
+              `[DailyChallenge] Branch: ${selectedBranch}, Day ${data.dayOfYear || 'unknown'}, Index ${data.index || 'unknown'}, ID: ${data.dailyChallengeId}`
+            );
+            setDailyChallengeId(data.dailyChallengeId);
+          } else {
+            console.warn(`[DailyChallenge] API returned no challenge ID for ${selectedBranch}.`);
+            setDailyChallengeId(null);
+          }
+        }
+      } catch (error) {
+        console.error(
+          `[DailyChallenge] Error fetching daily challenge for ${selectedBranch}:`,
+          error
         );
-        setDailyChallengeId(questionIds[challengeIndex]);
-      } else {
-        console.warn(
-          `[DailyChallenge] Metadata loaded for ${selectedBranch}, but 'allQuestionIds' array is empty.`
-        );
-        setDailyChallengeId(null);
+        if (isMounted) {
+          setDailyChallengeId(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingChallenge(false);
+        }
       }
-    } catch (error) {
-      console.error(
-        `[DailyChallenge] Error calculating daily challenge for ${selectedBranch}:`,
-        error
-      );
-      setDailyChallengeId(null);
-    } finally {
-      setLoadingChallenge(false);
     }
-  }, [metadata, metadataLoading, selectedBranch]);
+
+    fetchChallenge();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedBranch]);
 
   return (
     <DailyChallengeContext.Provider
