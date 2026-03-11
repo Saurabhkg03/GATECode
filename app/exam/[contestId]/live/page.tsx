@@ -330,10 +330,8 @@ const LiveExamUI = () => {
                         </span>
                     )}
                 </div>
-
                 <div className="flex items-center gap-6">
-                    {user && <ExamTimer contestId={contest.id} uid={user.uid} />}
-
+                    {user && <ExamTimer />}
 
                     <div className="hidden sm:flex items-center gap-2">
                         {/* Question Paper Button */}
