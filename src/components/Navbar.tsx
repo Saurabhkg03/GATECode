@@ -97,7 +97,7 @@ export function Navbar() {
   const { dailyChallengeId, loadingChallenge } = useDailyChallenge();
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border-b border-zinc-200 dark:border-zinc-800 supports-[backdrop-filter]:bg-white/60">
+    <nav className="sticky top-0 z-50 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border-b border-zinc-200 dark:border-zinc-800 shadow-sm supports-[backdrop-filter]:bg-white/60">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 gap-2">
           {/* Logo */}
