@@ -810,7 +810,7 @@ export default function QuestionClient({ id }: { id: string }) {
                                             </div>
 
                                             {/* Toolbar */}
-                                            <div className="flex items-center gap-2 self-start md:self-auto bg-zinc-100 dark:bg-zinc-800/50 p-1 rounded-xl">
+                                            <div className="flex items-center justify-between gap-2 w-full md:w-auto bg-zinc-100 dark:bg-zinc-800/50 p-1 rounded-xl">
 
                                                 {/* Timer */}
                                                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/50 dark:border-zinc-700/50">
@@ -836,26 +836,30 @@ export default function QuestionClient({ id }: { id: string }) {
                                                 </div>
 
                                                 {/* Actions */}
-                                                <button
-                                                    onClick={handleToggleFavorite}
-                                                    disabled={!isAuthenticated}
-                                                    className={`p-2 rounded-lg transition-all ${isFavorite
-                                                        ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                                        : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-white dark:hover:bg-zinc-800'
-                                                        } disabled:opacity-50`}
-                                                    title="Favorite"
-                                                >
-                                                    <Bookmark className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
-                                                </button>
+                                                <div className="flex items-center gap-1 px-1.5 py-1.5 rounded-lg bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/50 dark:border-zinc-700/50">
+                                                    <button
+                                                        onClick={handleToggleFavorite}
+                                                        disabled={!isAuthenticated}
+                                                        className={`p-1.5 rounded-md transition-all ${isFavorite
+                                                            ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                                            : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700/50'
+                                                            } disabled:opacity-50`}
+                                                        title="Favorite"
+                                                    >
+                                                        <Bookmark className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+                                                    </button>
 
-                                                <button
-                                                    onClick={() => setShowListModal(true)}
-                                                    disabled={!isAuthenticated}
-                                                    className="p-2 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-white dark:hover:bg-zinc-800 transition-all disabled:opacity-50"
-                                                    title="Save to List"
-                                                >
-                                                    <ListPlus className="w-4 h-4" />
-                                                </button>
+                                                    <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5"></div>
+
+                                                    <button
+                                                        onClick={() => setShowListModal(true)}
+                                                        disabled={!isAuthenticated}
+                                                        className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-all disabled:opacity-50"
+                                                        title="Save to List"
+                                                    >
+                                                        <ListPlus className="w-4 h-4" />
+                                                    </button>
+                                                </div>
 
                                             </div>
                                         </div>
