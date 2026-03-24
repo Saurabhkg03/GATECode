@@ -788,7 +788,7 @@ export default function QuestionClient({ id }: { id: string }) {
 
                     {/* Layout Split Container */}
                     <ErrorBoundary>
-                        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
+                        <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 items-start">
 
                             {/* LEFT PANE: Header & Question Description */}
                             <div className="w-full lg:w-1/2 flex flex-col bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden flex-shrink-0 lg:sticky lg:top-6 lg:self-start">
@@ -918,7 +918,7 @@ export default function QuestionClient({ id }: { id: string }) {
                             </div> {/* End Left Pane */}
 
                             {/* RIGHT PANE: Options, Action Buttons & Notes */}
-                            <div className="w-full lg:w-1/2 flex flex-col bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden mt-6 lg:mt-0 lg:sticky lg:top-6 lg:self-start">
+                            <div className="w-full lg:w-1/2 flex flex-col bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden lg:sticky lg:top-6 lg:self-start">
                                 <div className="p-5 md:p-6 flex-1 flex flex-col">
                                     <div className="flex-1 mb-6">
                                         {/* Options Area */}

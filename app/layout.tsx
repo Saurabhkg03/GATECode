@@ -14,6 +14,10 @@ export const metadata = {
     description: "Master GATE with GATECode",
 };
 
+export const viewport = {
+    themeColor: "#09090b",
+};
+
 export default function RootLayout({
     children,
 }: Readonly<{
