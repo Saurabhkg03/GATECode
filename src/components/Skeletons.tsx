@@ -14,7 +14,7 @@ export const HomeSkeleton = () => (
       <SkeletonBase className="h-16 w-48 mx-auto mt-8 rounded-xl" />
     </div>
 
-    <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 md:p-8 border border-zinc-200 dark:border-zinc-800">
+    <div className="bg-card rounded-2xl p-6 md:p-8 border border-border">
       <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
         <SkeletonBase className="w-16 h-16 rounded-2xl flex-shrink-0" />
         <div className="flex-1 space-y-2 text-center md:text-left">
@@ -30,7 +30,7 @@ export const HomeSkeleton = () => (
         <SkeletonBase className="h-8 w-64 mb-6" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-zinc-200 dark:border-zinc-800">
+            <div key={i} className="bg-card rounded-xl p-6 border border-border">
               <div className="flex items-center gap-4">
                 <SkeletonBase className="w-12 h-12 rounded-lg" />
                 <div className="flex-1 space-y-2">
@@ -42,7 +42,7 @@ export const HomeSkeleton = () => (
           ))}
         </div>
       </div>
-      <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 space-y-4 border border-zinc-200 dark:border-zinc-800">
+      <div className="bg-card rounded-xl p-6 space-y-4 border border-border">
         <SkeletonBase className="h-7 w-48 mb-4" />
         {[...Array(5)].map((_, i) => (
           <div key={i} className="flex items-center gap-4">
@@ -89,7 +89,7 @@ const DesktopPracticeListItemSkeleton = () => (
 
 export const PracticeSkeleton = () => (
   <div className="max-w-full mx-auto flex flex-col md:flex-row">
-    <div className="w-full md:w-64 lg:w-72 flex-shrink-0 p-4 space-y-4 md:border-r border-zinc-200 dark:border-zinc-800">
+    <div className="w-full md:w-64 lg:w-72 flex-shrink-0 p-4 space-y-4 md:border-r border-border">
       <div className="flex justify-between items-center mb-2">
         <SkeletonBase className="h-4 w-24" />
         <SkeletonBase className="h-6 w-6 rounded-md" />
@@ -103,22 +103,56 @@ export const PracticeSkeleton = () => (
 
     <div className="flex-1 min-w-0">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <SkeletonBase className="h-8 w-1/3 mb-2" />
-          <SkeletonBase className="h-4 w-1/4" />
-        </div>
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 md:p-6 mb-6">
-          <div className="space-y-4">
-            <SkeletonBase className="h-10 w-full rounded-lg" />
-            <div className="flex flex-wrap items-center gap-2">
-              {[...Array(6)].map((_, i) => (
-                <SkeletonBase key={i} className="h-8 w-24 rounded-md" />
-              ))}
+        {/* Header area matching the gradient banner */}
+        <div className="mb-4 rounded-2xl bg-secondary/50 border border-border p-4 sm:p-8">
+          <div className="flex items-center gap-4 sm:gap-5">
+            <SkeletonBase className="w-12 h-12 rounded-xl flex-shrink-0" />
+            <div className="flex-1 min-w-0 space-y-2">
+              <SkeletonBase className="h-7 w-2/3" />
+              <SkeletonBase className="h-4 w-1/3" />
             </div>
           </div>
         </div>
 
-        <DashboardSkeleton />
+        {/* Topic filter bar */}
+        <div className="mb-2">
+          <div className="flex gap-2 overflow-hidden">
+            {[...Array(6)].map((_, i) => (
+              <SkeletonBase key={i} className="h-9 w-24 rounded-lg flex-shrink-0" />
+            ))}
+          </div>
+        </div>
+
+        {/* Filters row */}
+        <div className="hidden md:block bg-card rounded-xl border border-border p-4 mb-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {[...Array(5)].map((_, i) => (
+              <SkeletonBase key={i} className="h-8 w-28 rounded-lg" />
+            ))}
+          </div>
+        </div>
+
+        {/* Column headers */}
+        <div className="hidden sm:flex items-center gap-4 px-4 py-4 border-b border-border">
+          <SkeletonBase className="w-8 h-4 rounded" />
+          <SkeletonBase className="flex-1 h-4 rounded" />
+          <SkeletonBase className="w-24 h-4 rounded" />
+          <SkeletonBase className="hidden md:block w-20 h-4 rounded" />
+          <SkeletonBase className="hidden lg:block w-16 h-4 rounded" />
+        </div>
+
+        {/* Question list items */}
+        <div className="flex flex-col">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-4 py-3 sm:py-5 border-b border-border/50">
+              <SkeletonBase className="w-4 h-4 rounded-full flex-shrink-0" />
+              <SkeletonBase className="flex-1 h-4 rounded" />
+              <SkeletonBase className="hidden sm:block w-16 h-4 rounded" />
+              <SkeletonBase className="hidden md:block w-12 h-4 rounded" />
+              <SkeletonBase className="hidden lg:block w-10 h-4 rounded" />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   </div>
@@ -126,7 +160,7 @@ export const PracticeSkeleton = () => (
 
 // --- Question Detail Page Skeleton ---
 export const QuestionDetailSkeleton = () => (
-  <div className="min-h-screen bg-zinc-50 dark:bg-black pb-20 md:pb-8 flex flex-col">
+  <div className="min-h-screen bg-background pb-20 md:pb-8 flex flex-col">
     <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6 flex-1 flex flex-col min-h-0">
 
       <div className="flex justify-between items-center mb-4 shrink-0">
@@ -138,8 +172,8 @@ export const QuestionDetailSkeleton = () => (
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 flex-1 min-h-[600px] lg:min-h-0 lg:h-[calc(100vh-140px)]">
 
         {/* Left Pane */}
-        <div className="flex-1 lg:w-1/2 flex flex-col bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
-          <div className="p-5 md:p-6 border-b border-zinc-100 dark:border-zinc-800/50 shrink-0">
+        <div className="flex-1 lg:w-1/2 flex flex-col bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
+          <div className="p-5 md:p-6 border-b border-border/50 shrink-0">
             <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-4">
               <SkeletonBase className="h-8 w-3/4 rounded-lg" />
               <div className="flex gap-2">
@@ -165,22 +199,22 @@ export const QuestionDetailSkeleton = () => (
         </div>
 
         {/* Right Pane */}
-        <div className="flex-1 lg:w-1/2 flex flex-col bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden mt-6 lg:mt-0 lg:h-full">
+        <div className="flex-1 lg:w-1/2 flex flex-col bg-card border border-border rounded-2xl shadow-sm overflow-hidden mt-6 lg:mt-0 lg:h-full">
           <div className="p-5 md:p-6 flex-1 flex flex-col">
             <div className="flex-1 space-y-4 lg:space-y-6">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-border">
                   <SkeletonBase className="w-6 h-6 rounded-lg flex-shrink-0" />
                   <SkeletonBase className="h-6 w-1/2 rounded" />
                 </div>
               ))}
             </div>
-            <div className="pt-6 shrink-0 mt-auto border-t border-zinc-100 dark:border-zinc-800">
+            <div className="pt-6 shrink-0 mt-auto border-t border-border">
               <SkeletonBase className="h-14 w-full rounded-xl" />
             </div>
           </div>
 
-          <div className="bg-zinc-50 dark:bg-black/20 p-5 shrink-0 border-t border-zinc-200 dark:border-zinc-800">
+          <div className="bg-secondary/30 p-5 shrink-0 border-t border-border">
             <SkeletonBase className="h-5 w-32 mb-4" />
             <SkeletonBase className="h-28 w-full rounded-xl" />
           </div>
@@ -202,7 +236,7 @@ export const LeaderboardSkeleton = () => (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 items-end">
       {[2, 1, 3].map((rank) => (
         <div key={rank} className={cn("w-full", rank === 1 ? "md:-mt-8 order-1 md:order-2" : rank === 2 ? "order-2 md:order-1" : "order-3")}>
-          <div className="w-full bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-200 dark:border-zinc-800 flex flex-row md:flex-col items-center gap-5">
+          <div className="w-full bg-card rounded-2xl p-5 border border-border flex flex-row md:flex-col items-center gap-5">
             <SkeletonBase className="w-20 h-20 md:w-24 md:h-24 rounded-full shrink-0" />
             <div className="flex-1 space-y-2 w-full">
               <SkeletonBase className="h-6 w-3/4 md:w-32 md:mx-auto" />
@@ -214,9 +248,9 @@ export const LeaderboardSkeleton = () => (
       ))}
     </div>
 
-    <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+    <div className="bg-card rounded-2xl border border-border overflow-hidden">
       {[...Array(7)].map((_, i) => (
-        <div key={i} className="flex items-center p-4 border-b border-zinc-100 dark:border-zinc-800/50 last:border-0">
+        <div key={i} className="flex items-center p-4 border-b border-border/50 last:border-0">
           <SkeletonBase className="w-6 h-6 rounded mr-4" />
           <SkeletonBase className="w-10 h-10 rounded-full mr-4" />
           <div className="flex-1 space-y-2">
@@ -238,7 +272,7 @@ export const ProfileSkeleton = () => (
   <div className="max-w-7xl mx-auto px-4 py-8">
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-1 space-y-6">
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 flex flex-row md:flex-col items-center text-left md:text-center gap-5">
+        <div className="bg-card rounded-2xl p-6 border border-border flex flex-row md:flex-col items-center text-left md:text-center gap-5">
           <SkeletonBase className="w-20 h-20 md:w-28 md:h-28 rounded-full shrink-0" />
           <div className="flex-1 space-y-2">
             <SkeletonBase className="h-7 w-3/4 md:w-48 md:mx-auto" />
@@ -247,7 +281,7 @@ export const ProfileSkeleton = () => (
           </div>
         </div>
 
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800">
+        <div className="bg-card rounded-2xl p-6 border border-border">
           <SkeletonBase className="h-6 w-32 mb-6" />
           <div className="space-y-4">
             {[...Array(5)].map((_, i) => (
@@ -261,14 +295,14 @@ export const ProfileSkeleton = () => (
       </div>
 
       <div className="lg:col-span-2 space-y-6">
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800">
+        <div className="bg-card rounded-2xl p-6 border border-border">
           <SkeletonBase className="h-6 w-32 mb-4" />
           <SkeletonBase className="h-48 w-full rounded-xl" />
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800">
+            <div key={i} className="bg-card rounded-xl p-4 border border-border">
               <SkeletonBase className="w-10 h-10 rounded-lg mb-3" />
               <SkeletonBase className="h-6 w-16 mb-1" />
               <SkeletonBase className="h-3 w-20" />
@@ -276,12 +310,12 @@ export const ProfileSkeleton = () => (
           ))}
         </div>
 
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-          <div className="p-6 border-b border-zinc-100 dark:border-zinc-800/50">
+        <div className="bg-card rounded-2xl border border-border overflow-hidden">
+          <div className="p-6 border-b border-border/50">
             <SkeletonBase className="h-6 w-48" />
           </div>
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="p-6 border-b border-zinc-100 dark:border-zinc-800/50 last:border-0 flex justify-between items-center">
+            <div key={i} className="p-6 border-b border-border/50 last:border-0 flex justify-between items-center">
               <div className="space-y-2">
                 <SkeletonBase className="h-5 w-64" />
                 <SkeletonBase className="h-3 w-32" />
@@ -297,38 +331,40 @@ export const ProfileSkeleton = () => (
 
 // --- Settings Skeleton ---
 export const SettingsSkeleton = () => (
-  <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-    <div className="flex items-center gap-4 mb-8">
-      <SkeletonBase className="w-10 h-10 rounded-full" />
-      <SkeletonBase className="h-8 w-48 rounded" />
-    </div>
+  <div className="min-h-screen bg-background p-4 md:p-8">
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div className="flex items-center gap-4 mb-8">
+        <SkeletonBase className="w-10 h-10 rounded-full" />
+        <SkeletonBase className="h-8 w-48 rounded" />
+      </div>
 
-    <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-      <div className="p-8 space-y-8">
-        <div className="flex flex-col items-center">
-          <SkeletonBase className="w-24 h-24 rounded-full" />
-          <SkeletonBase className="h-4 w-40 mt-3" />
-        </div>
+      <div className="bg-card rounded-2xl border border-border overflow-hidden">
+        <div className="p-8 space-y-8">
+          <div className="flex flex-col items-center">
+            <SkeletonBase className="w-24 h-24 rounded-full" />
+            <SkeletonBase className="h-4 w-40 mt-3" />
+          </div>
 
-        <div className="space-y-6">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="space-y-2">
-              <SkeletonBase className="h-4 w-24" />
-              <SkeletonBase className="h-10 w-full rounded-lg" />
-            </div>
-          ))}
-          <SkeletonBase className="h-12 w-full rounded-xl mt-4" />
+          <div className="space-y-6">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="space-y-2">
+                <SkeletonBase className="h-4 w-24" />
+                <SkeletonBase className="h-10 w-full rounded-lg" />
+              </div>
+            ))}
+            <SkeletonBase className="h-12 w-full rounded-xl mt-4" />
+          </div>
         </div>
       </div>
-    </div>
 
-    <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-red-200 dark:border-red-900/50 overflow-hidden">
-      <div className="p-4 bg-red-50 dark:bg-red-900/10 border-b border-red-100 dark:border-red-900/50">
-        <SkeletonBase className="h-6 w-32" />
-      </div>
-      <div className="p-6">
-        <SkeletonBase className="h-4 w-full mb-4" />
-        <SkeletonBase className="h-10 w-48 rounded-lg" />
+      <div className="bg-card rounded-2xl border border-destructive/20 overflow-hidden">
+        <div className="p-4 bg-destructive/5 border-b border-destructive/20">
+          <SkeletonBase className="h-6 w-32" />
+        </div>
+        <div className="p-6">
+          <SkeletonBase className="h-4 w-full mb-4" />
+          <SkeletonBase className="h-10 w-48 rounded-lg" />
+        </div>
       </div>
     </div>
   </div>
@@ -344,22 +380,22 @@ export const AdminPanelSkeleton = () => (
 
     <SkeletonBase className="h-12 w-48 rounded-xl" />
 
-    <div className="border-b border-zinc-200 dark:border-zinc-800 flex gap-8">
+    <div className="border-b border-border flex gap-8">
       <SkeletonBase className="h-12 w-32" />
       <SkeletonBase className="h-12 w-32" />
     </div>
 
-    <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-      <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex justify-between">
+    <div className="bg-card rounded-2xl border border-border overflow-hidden">
+      <div className="p-4 border-b border-border flex justify-between">
         <SkeletonBase className="h-8 w-32" />
         <SkeletonBase className="h-10 w-48 rounded-lg" />
       </div>
       <div className="p-0">
-        <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 grid grid-cols-6 gap-4">
+        <div className="bg-secondary/50 p-4 grid grid-cols-6 gap-4">
           {[...Array(6)].map((_, i) => <SkeletonBase key={i} className="h-4 w-20" />)}
         </div>
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="p-4 grid grid-cols-6 gap-4 border-b border-zinc-100 dark:border-zinc-800 last:border-0 items-center">
+          <div key={i} className="p-4 grid grid-cols-6 gap-4 border-b border-border last:border-0 items-center">
             {[...Array(5)].map((_, j) => <SkeletonBase key={j} className="h-5 w-full rounded" />)}
             <div className="flex gap-2"><SkeletonBase className="h-8 w-8 rounded-full" /><SkeletonBase className="h-8 w-8 rounded-full" /></div>
           </div>
@@ -375,7 +411,7 @@ export const AddQuestionSkeleton = () => (
     <SkeletonBase className="h-6 w-32 mb-6" />
     <SkeletonBase className="h-10 w-64 mb-6" />
 
-    <div className="bg-white dark:bg-zinc-900 p-8 rounded-2xl border border-zinc-200 dark:border-zinc-800 space-y-8">
+    <div className="bg-card p-8 rounded-2xl border border-border space-y-8">
       <div className="space-y-2">
         <SkeletonBase className="h-4 w-16" />
         <SkeletonBase className="h-10 w-full rounded-lg" />
@@ -413,35 +449,88 @@ export const AddQuestionSkeleton = () => (
 
 // --- QuestionCard Skeleton ---
 export const QuestionCardSkeleton = () => (
-  <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
-    <div className="flex items-start gap-4">
-      <SkeletonBase className="w-5 h-5 rounded-full flex-shrink-0" />
-      <div className="flex-1 min-w-0 space-y-2">
-        {/* Badges */}
-        <div className="flex items-center gap-2">
-          <SkeletonBase className="h-5 w-12 rounded" />
-          <SkeletonBase className="h-5 w-10 rounded" />
-          <SkeletonBase className="h-5 w-14 rounded" />
-        </div>
-        {/* Title */}
-        <SkeletonBase className="h-5 w-3/4 rounded" />
-        {/* Footer */}
-        <div className="flex items-center gap-2 pt-1">
-          <SkeletonBase className="h-4 w-24 rounded-full" />
-          <SkeletonBase className="h-4 w-24 rounded" />
-        </div>
-      </div>
-      {/* Chevron */}
-      <SkeletonBase className="w-5 h-5 rounded flex-shrink-0 self-center" />
-    </div>
+  <div className="flex items-center gap-4 px-4 py-3 sm:py-5 border-b border-border/50">
+    {/* Status */}
+    <SkeletonBase className="w-4 h-4 rounded-full flex-shrink-0" />
+    {/* Title */}
+    <SkeletonBase className="flex-1 h-4 rounded" />
+    {/* Accuracy */}
+    <SkeletonBase className="hidden sm:block w-16 h-4 rounded flex-shrink-0" />
+    {/* Type */}
+    <SkeletonBase className="hidden md:block w-12 h-4 rounded flex-shrink-0" />
+    {/* Year */}
+    <SkeletonBase className="hidden lg:block w-10 h-4 rounded flex-shrink-0" />
   </div>
 );
 
 // --- Dashboard Skeleton (Grid of QuestionCards) ---
 export const DashboardSkeleton = () => (
-  <div className="grid grid-cols-1 gap-4">
+  <div className="flex flex-col">
     {[...Array(6)].map((_, i) => (
       <QuestionCardSkeleton key={i} />
     ))}
+  </div>
+);
+
+// --- Contests Page Skeleton ---
+export const ContestsSkeleton = () => (
+  <div className="min-h-screen bg-background transition-colors">
+    {/* Page header */}
+    <div className="relative pt-10 pb-5 px-4 sm:px-6 lg:px-8 text-center">
+      <SkeletonBase className="h-10 md:h-12 w-48 mx-auto mb-2" />
+      <SkeletonBase className="h-4 w-64 mx-auto" />
+    </div>
+
+    <div className="px-4 sm:px-6 lg:px-8 pb-12">
+      <div className="max-w-7xl mx-auto space-y-7">
+        {/* Tab bar */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="inline-flex bg-secondary/50 border border-border p-1 rounded-xl gap-1">
+            <SkeletonBase className="h-10 w-24 rounded-lg" />
+            <SkeletonBase className="h-10 w-28 rounded-lg" />
+            <SkeletonBase className="h-10 w-24 rounded-lg" />
+          </div>
+          <SkeletonBase className="hidden sm:block h-10 w-44 rounded-xl" />
+        </div>
+
+        {/* Filter bar */}
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <SkeletonBase className="h-10 w-full rounded-xl" />
+        </div>
+
+        {/* Section heading */}
+        <div className="flex items-center gap-3 border-b border-border pb-4">
+          <SkeletonBase className="h-6 w-48" />
+        </div>
+
+        {/* Scheduled contest cards */}
+        <div className="flex flex-col sm:flex-row gap-5">
+          <SkeletonBase className="flex-1 h-[180px] rounded-2xl" />
+          <SkeletonBase className="flex-1 h-[180px] rounded-2xl" />
+        </div>
+
+        {/* Contest grid */}
+        <div className="flex items-center gap-3 border-b border-border pb-4 mt-6">
+          <SkeletonBase className="h-6 w-64" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-card rounded-[24px] p-6 border border-border">
+              <div className="flex gap-2 mb-5">
+                <SkeletonBase className="h-6 w-16 rounded-full" />
+                <SkeletonBase className="h-6 w-10 rounded-full" />
+              </div>
+              <SkeletonBase className="h-6 w-3/4 mb-2" />
+              <SkeletonBase className="h-4 w-full mb-5" />
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <SkeletonBase className="h-4 w-20" />
+                <SkeletonBase className="h-4 w-24" />
+              </div>
+              <SkeletonBase className="h-12 w-full rounded-2xl" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   </div>
 );

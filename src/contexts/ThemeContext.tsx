@@ -11,18 +11,25 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('light');
-
-  useEffect(() => {
+/**
+ * Read the stored theme synchronously from localStorage.
+ * Falls back to 'dark' if nothing is stored (prevents white flash).
+ */
+function getInitialTheme(): Theme {
+  if (typeof window === 'undefined') return 'dark';
+  try {
     const stored = localStorage.getItem('theme');
-    if (stored) {
-      setTheme(stored as Theme);
-    }
-  }, []);
+    if (stored === 'light' || stored === 'dark') return stored;
+  } catch {
+    // localStorage may be unavailable (private browsing, etc.)
+  }
+  return 'dark';
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
   useEffect(() => {
-    // Only access window/document on the client
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
