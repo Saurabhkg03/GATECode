@@ -64,13 +64,13 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-zinc-50 dark:bg-zinc-950">
-            <div className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-8 border border-zinc-200 dark:border-zinc-800">
-                <div className="flex flex-col items-center mb-8">
-                    <Link href="/" className="mb-4">
+        <div className="min-h-[calc(100dvh-4rem)] md:min-h-[calc(100vh-4rem)] flex flex-col md:items-center md:justify-center p-0 md:p-4 bg-white dark:bg-zinc-900 md:bg-zinc-50 md:dark:bg-zinc-950 transition-colors duration-300">
+            <div className="w-full max-w-md bg-white dark:bg-zinc-900 sm:rounded-2xl sm:shadow-xl p-6 sm:p-8 sm:border border-zinc-200 dark:border-zinc-800 transition-all duration-300">
+                <div className="flex flex-col items-center mb-4 sm:mb-8">
+                    <Link href="/" className="mb-1 sm:mb-4">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src="/logo.png" alt="GATECode" className="w-12 h-12 rounded-xl" />
+                        <img src="/logo.png" alt="GATECode" className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl" />
                     </Link>
                     <h1 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">
                         {mode === 'login' && 'Welcome Back'}
@@ -96,7 +96,7 @@ export default function Login() {
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
                     {mode === 'signup' && (
                         <>
                             <div className="space-y-1">
@@ -214,7 +214,7 @@ export default function Login() {
 
                 {mode !== 'forgot' && (
                     <>
-                        <div className="relative my-6">
+                        <div className="relative my-4 sm:my-6">
                             <div className="absolute inset-0 flex items-center">
                                 <div className="w-full border-t border-zinc-200 dark:border-zinc-800"></div>
                             </div>
@@ -251,7 +251,7 @@ export default function Login() {
                     </>
                 )}
 
-                <div className="mt-8 text-center text-sm">
+                <div className="mt-4 sm:mt-8 text-center text-sm">
                     {mode === 'login' ? (
                         <p className="text-zinc-600 dark:text-zinc-400">
                             Don&apos;t have an account?{' '}

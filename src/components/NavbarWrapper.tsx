@@ -10,7 +10,7 @@ export default function NavbarWrapper() {
     const isLoginPage = pathname === "/login";
     const isExamPage = pathname?.startsWith("/exam");
 
-    if (isLoginPage || isExamPage) return null;
+    if (isExamPage) return null;
 
     return (
         <>
