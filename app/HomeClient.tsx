@@ -420,13 +420,13 @@ export default function HomeClient({
                   key={index}
                   className="flex items-center gap-4 animate-pulse"
                 >
-                  <div className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-700"></div>
-                  <div className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-700"></div>
+                  <div className="w-8 h-8 rounded-full bg-muted"></div>
+                  <div className="w-10 h-10 rounded-full bg-muted"></div>
                   <div className="flex-1 space-y-2">
-                    <div className="h-4 rounded bg-zinc-200 dark:bg-zinc-700 w-3/4"></div>
-                    <div className="h-3 rounded bg-zinc-200 dark:bg-zinc-700 w-1/2"></div>
+                    <div className="h-4 rounded bg-muted w-3/4"></div>
+                    <div className="h-3 rounded bg-muted w-1/2"></div>
                   </div>
-                  <div className="h-4 rounded bg-zinc-200 dark:bg-zinc-700 w-1/4"></div>
+                  <div className="h-4 rounded bg-muted w-1/4"></div>
                 </div>
               ))
             ) : leaderboardPreview.length === 0 ? (
@@ -500,7 +500,7 @@ export default function HomeClient({
             <div className="flex-1 space-y-3">
               {loadingMistakes ? (
                 <div className="animate-pulse space-y-3">
-                  {[1, 2, 3].map(i => <div key={i} className="h-16 bg-zinc-100 dark:bg-zinc-800 rounded-xl" />)}
+                  {[1, 2, 3].map(i => <div key={i} className="h-16 bg-muted rounded-xl" />)}
                 </div>
               ) : recentMistakes && recentMistakes.length > 0 ? (
                 recentMistakes.map((m: any) => (
@@ -535,7 +535,7 @@ export default function HomeClient({
             <div className="flex-1 space-y-3">
               {loadingRecentQuestions ? (
                 <div className="animate-pulse space-y-3">
-                  {[1, 2, 3].map(i => <div key={i} className="h-16 bg-zinc-100 dark:bg-zinc-800 rounded-xl" />)}
+                  {[1, 2, 3].map(i => <div key={i} className="h-16 bg-muted rounded-xl" />)}
                 </div>
               ) : recentQuestions && recentQuestions.length > 0 ? (
                 recentQuestions.slice(0, 4).map((q: any) => (

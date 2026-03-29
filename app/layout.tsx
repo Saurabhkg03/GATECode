@@ -25,6 +25,18 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en" suppressHydrationWarning>
+            <head>
+                {/* 
+                  Inline theme script — runs synchronously before first paint.
+                  Reads the stored theme from localStorage and applies the 'dark' 
+                  class to <html> immediately, preventing the white flash.
+                */}
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='light'){document.documentElement.classList.add('light')}else{document.documentElement.classList.add('dark')}}catch(e){document.documentElement.classList.add('dark')}})();`,
+                    }}
+                />
+            </head>
             <body className={`${inter.className} min-h-screen bg-zinc-50 dark:bg-zinc-950 font-sans text-foreground antialiased`} suppressHydrationWarning>
                 <ClientProviders>
                     <ErrorBoundary>

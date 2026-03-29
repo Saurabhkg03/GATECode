@@ -264,7 +264,7 @@ export default function Leaderboard() {
                 )}
 
                 <div className="glass-card overflow-hidden relative mt-4">
-                    {loadingMore && <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center z-10"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>}
+                    {loadingMore && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>}
                     <div>
                         {listUsers.map((user, index) => {
                             const rankOffset = currentPage === 1 ? topThreePodium.length : 0;
