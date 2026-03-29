@@ -43,9 +43,17 @@ service cloud.firestore {
 
     // 2. Questions (Dynamic Collections like questions_ece, questions_cse, AND main 'questions')
     match /{collectionName}/{questionId} {
-      // FIX: Allow read for generic 'questions', 'questions_*', AND 'gate_questions_*'
+      // Allow read for generic 'questions', 'questions_*', AND 'gate_questions_*'
       allow read: if collectionName == 'questions' || collectionName.matches('questions_.*') || collectionName.matches('gate_questions_.*');
-      allow write: if (collectionName == 'questions' || collectionName.matches('questions_.*') || collectionName.matches('gate_questions_.*')) && isSignedIn() && isAdmin();
+      
+      // Full access for admins
+      allow create, delete: if (collectionName == 'questions' || collectionName.matches('questions_.*') || collectionName.matches('gate_questions_.*')) && isSignedIn() && isAdmin();
+      
+      // Controlled update for accuracy stats
+      allow update: if (collectionName == 'questions' || collectionName.matches('questions_.*') || collectionName.matches('gate_questions_.*')) && isSignedIn() && (
+        isAdmin() || 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attempts', 'correctCount', 'accuracy'])
+      );
     }
 
     // 3. Metadata (Read-only for public, Write for admins)

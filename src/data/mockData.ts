@@ -23,6 +23,7 @@ export interface Question {
   tags: string[];
   accuracy?: number;
   attempts?: number;
+  correctCount?: number; // Global: how many users got this right
   question_type: 'mcq' | 'nat' | 'msq';
   nat_answer_min?: string | null; // For NAT ranges
   nat_answer_max?: string | null; // For NAT ranges

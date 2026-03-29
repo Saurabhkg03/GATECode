@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { CheckCircle, Circle, ChevronRight } from 'lucide-react';
+import { CheckCircle, Circle } from 'lucide-react';
 import { Question } from '@/data/mockData';
 
 // Dynamic import for Code Splitting
@@ -17,10 +17,10 @@ interface QuestionCardProps {
 export default function QuestionCard({ question, isSolved }: QuestionCardProps) {
     const getQuestionTypeColor = (type: string | undefined) => {
         switch (type) {
-            case 'mcq': return 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50';
-            case 'msq': return 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50';
-            case 'nat': return 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50';
-            default: return 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50';
+            case 'mcq': return 'text-blue-600 dark:text-blue-400';
+            case 'msq': return 'text-purple-600 dark:text-purple-400';
+            case 'nat': return 'text-indigo-600 dark:text-indigo-400';
+            default: return 'text-zinc-500';
         }
     };
 
@@ -29,53 +29,65 @@ export default function QuestionCard({ question, isSolved }: QuestionCardProps) 
             href={`/question/${question.id}`}
             className="block group"
         >
-            <div className={`bg-white dark:bg-zinc-900 rounded-xl border p-4 transition-all duration-200 hover:shadow-md ${isSolved
-                ? 'border-green-200 dark:border-green-900/30 bg-green-50/10 dark:bg-green-900/5'
-                : 'border-zinc-200 dark:border-zinc-800 hover:border-blue-400 dark:hover:border-blue-500'
+            <div className={`flex items-center gap-4 px-4 py-3 sm:py-5 transition-colors duration-150 border-b border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 ${isSolved
+                ? 'bg-zinc-50/10 dark:bg-zinc-900/10'
+                : 'bg-transparent'
                 }`}>
-                <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 pt-1">
-                        {isSolved ? (
-                            <CheckCircle className="w-5 h-5 text-green-500" />
-                        ) : (
-                            <Circle className="w-5 h-5 text-zinc-300 dark:text-zinc-600 group-hover:text-blue-500" />
-                        )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <span className="font-mono text-xs font-medium text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
-                                #{question.qIndex ?? '???'}
+                
+                {/* 1. Status Column */}
+                <div className="flex-shrink-0 w-8 flex justify-center">
+                    {isSolved ? (
+                        <CheckCircle className="w-4 h-4 text-green-500" />
+                    ) : (
+                        <Circle className="w-4 h-4 text-zinc-300 dark:text-zinc-600 group-hover:text-blue-500" />
+                    )}
+                </div>
+
+                {/* 2. Title Column */}
+                <div className="flex-1 min-w-0 mr-4">
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-1">
+                        <LatexRenderer content={`${question.qIndex ?? '???'}. ${question.title || "Untitled Question"}`} inline={true} />
+                    </h3>
+                </div>
+
+                {/* 3. Acceptance/Accuracy Column (hidden on mobile) */}
+                <div className="hidden sm:flex flex-shrink-0 w-24 text-base justify-end text-zinc-500 dark:text-zinc-400 tabular-nums">
+                    {(!question.attempts || question.attempts === 0)
+                        ? '—'
+                        : `${question.accuracy?.toFixed(1)}%`
+                    }
+                </div>
+
+                {/* 4. Type Column (hidden on small screens) */}
+                <div className="hidden md:flex flex-shrink-0 w-20 text-xs font-bold uppercase justify-center">
+                    <span className={getQuestionTypeColor(question.question_type)}>
+                        {question.question_type}
+                    </span>
+                </div>
+
+                {/* 5. Year Column (hidden on small screens) */}
+                <div className="hidden lg:flex flex-shrink-0 w-16 text-xs text-zinc-500 justify-center">
+                    {question.year || '—'}
+                </div>
+
+                {/* 6. Tags/Subject Column (Combined) */}
+                <div className="hidden xl:flex flex-shrink-0 w-64 text-[10px] gap-1.5 justify-end items-center overflow-hidden">
+                    <span className="truncate text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800/80 px-2 py-0.5 rounded border border-zinc-200/50 dark:border-zinc-700/50">
+                        {question.subject}
+                    </span>
+                    {question.tags && question.tags
+                        .filter(tag => {
+                            const t = tag.toLowerCase();
+                            const branch = question.branch?.toLowerCase() || '';
+                            return t !== branch && !t.startsWith('gate') && t !== question.subject.toLowerCase() && t !== question.topic?.toLowerCase();
+                        })
+                        .slice(0, 2)
+                        .map((tag: string, idx: number) => (
+                            <span key={idx} className="truncate text-zinc-400 dark:text-zinc-500 border border-zinc-200/30 dark:border-zinc-700/30 px-1.5 py-0.5 rounded">
+                                {tag}
                             </span>
-                            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${getQuestionTypeColor(question.question_type)}`}>
-                                {question.question_type}
-                            </span>
-                            {question.year && (
-                                <span className="text-[10px] font-semibold text-zinc-500 border border-zinc-200 dark:border-zinc-700 px-1.5 py-0.5 rounded">
-                                    {question.year}
-                                </span>
-                            )}
-                            {question.tags && question.tags.map((tag: string, idx: number) => (
-                                <span key={idx} className="text-[10px] text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded hidden sm:inline-block">
-                                    {tag}
-                                </span>
-                            ))}
-                        </div>
-                        <h3 className="font-medium text-zinc-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2">
-                            <LatexRenderer content={question.title || "Untitled Question"} inline={true} />
-                        </h3>
-                        <div className="flex items-center gap-2 mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                            <span className="bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full truncate max-w-[150px]">
-                                {question.subject}
-                            </span>
-                            <span>•</span>
-                            <span className="truncate max-w-[150px]">
-                                {question.topic}
-                            </span>
-                        </div>
-                    </div>
-                    <div className="flex-shrink-0 self-center">
-                        <ChevronRight className="w-5 h-5 text-zinc-300 dark:text-zinc-600 group-hover:text-blue-500" />
-                    </div>
+                        ))
+                    }
                 </div>
             </div>
         </Link>

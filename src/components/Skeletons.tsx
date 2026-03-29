@@ -201,12 +201,14 @@ export const LeaderboardSkeleton = () => (
 
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 items-end">
       {[2, 1, 3].map((rank) => (
-        <div key={rank} className={cn("flex flex-col items-center", rank === 1 ? "md:-mt-8 order-1 md:order-2" : rank === 2 ? "order-2 md:order-1" : "order-3")}>
-          <div className="w-full bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 flex flex-col items-center">
-            <SkeletonBase className="w-20 h-20 rounded-full mb-4" />
-            <SkeletonBase className="h-6 w-32 mb-2" />
-            <SkeletonBase className="h-4 w-24 mb-4" />
-            <SkeletonBase className="h-14 w-full rounded-xl" />
+        <div key={rank} className={cn("w-full", rank === 1 ? "md:-mt-8 order-1 md:order-2" : rank === 2 ? "order-2 md:order-1" : "order-3")}>
+          <div className="w-full bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-200 dark:border-zinc-800 flex flex-row md:flex-col items-center gap-5">
+            <SkeletonBase className="w-20 h-20 md:w-24 md:h-24 rounded-full shrink-0" />
+            <div className="flex-1 space-y-2 w-full">
+              <SkeletonBase className="h-6 w-3/4 md:w-32 md:mx-auto" />
+              <SkeletonBase className="h-4 w-1/2 md:w-24 md:mx-auto" />
+              <SkeletonBase className="h-12 md:h-14 w-full rounded-xl mt-2" />
+            </div>
           </div>
         </div>
       ))}
@@ -236,11 +238,13 @@ export const ProfileSkeleton = () => (
   <div className="max-w-7xl mx-auto px-4 py-8">
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-1 space-y-6">
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 flex flex-col items-center">
-          <SkeletonBase className="w-28 h-28 rounded-full mb-4" />
-          <SkeletonBase className="h-8 w-48 mb-2" />
-          <SkeletonBase className="h-4 w-32 mb-4" />
-          <SkeletonBase className="h-4 w-40" />
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 flex flex-row md:flex-col items-center text-left md:text-center gap-5">
+          <SkeletonBase className="w-20 h-20 md:w-28 md:h-28 rounded-full shrink-0" />
+          <div className="flex-1 space-y-2">
+            <SkeletonBase className="h-7 w-3/4 md:w-48 md:mx-auto" />
+            <SkeletonBase className="h-4 w-1/2 md:w-32 md:mx-auto" />
+            <SkeletonBase className="h-4 w-2/3 md:w-40 md:mx-auto" />
+          </div>
         </div>
 
         <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800">

@@ -80,6 +80,11 @@ export default function ContestDescriptionPage() {
     setTimeout(() => setToastMsg(null), 3500);
   }, []);
 
+  // ── scroll to top ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [contestId]);
+
   // ── fetch contest + registration status ──────────────────────────────────
   useEffect(() => {
     const fetchContest = async () => {
@@ -92,7 +97,7 @@ export default function ContestDescriptionPage() {
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-          setContest(docSnap.data() as Contest);
+          setContest({ id: contestId, ...docSnap.data() } as Contest);
         } else {
           // Parse scheduled weekly/biweekly from ID
           const cleanId = contestId.replace(/-ece$|-cse$|-me$|-ee$/, "");

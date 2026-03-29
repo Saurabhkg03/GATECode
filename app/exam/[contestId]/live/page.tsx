@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { ExamProvider, useExam } from '@/contexts/ExamContext';
@@ -18,10 +18,17 @@ import ExamTimer from '@/components/exam/ExamTimer';
 const LiveExamUI = () => {
     const { user } = useAuth();
     const { state, dispatch, submitExam, triggerSync } = useExam();
+    // Ref to track intentional submission — prevents the browser "Leave site?" popup
+    const isIntentionalSubmit = useRef(false);
     const {
         questions, sections, currentQuestionIndex, responses,
         timeLeft, isLoading, contest, isSubmitting, isSubmitted, isTimeUp, isSyncing
     } = state;
+
+    // Keep ref in sync with isSubmitting state (set before page navigates away)
+    useEffect(() => {
+        if (isSubmitting) isIntentionalSubmit.current = true;
+    }, [isSubmitting]);
 
     const [selectedSectionIndex, setSelectedSectionIndex] = useState(0);
     const [isPaletteOpen, setIsPaletteOpen] = useState(false); // Mobile toggle
@@ -48,7 +55,9 @@ const LiveExamUI = () => {
         if (isSubmitted) return;
 
         // 1. Prevent refresh/tab close (Browser standard)
+        // Skip the prompt if the student deliberately clicked "Final Submit"
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isIntentionalSubmit.current) return; // allow navigation silently
             e.preventDefault();
             e.returnValue = ''; // Required for most browsers
         };

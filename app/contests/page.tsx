@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { db } from "@/firebase";
 import {
     collection,
@@ -69,27 +70,41 @@ const now = () => Date.now();
 const isUpcoming = (c: Contest) =>
     !!c.startTime && new Date(c.startTime).getTime() > now();
 
-/** contest has started but not yet over */
+/** contest has started but not yet ended */
 const isLive = (c: Contest) => {
-    if (!c.startTime) return false;
+    // No startTime = admin on-demand contest — always live/available
+    if (!c.startTime) return true;
     const start = new Date(c.startTime).getTime();
-    if (start > now()) return false; // hasn't started
+    if (start > now()) return false; // hasn't started yet → upcoming
     if (c.endTime) return new Date(c.endTime).getTime() > now();
-    // fallback: started within durationMinutes ago
+    // fallback: use durationMinutes if no endTime
     return start + c.durationMinutes * 60_000 > now();
 };
 
 /** contest has ended */
 const isPast = (c: Contest) => {
-    if (!c.startTime) return true; // no schedule ⇒ treat as always available/past
+    // No startTime = admin on-demand contest — never ends
+    if (!c.startTime) return false;
     const start = new Date(c.startTime).getTime();
+    // hasn't started yet → not past
     if (start > now()) return false;
     if (c.endTime) return new Date(c.endTime).getTime() <= now();
+    // fallback: use durationMinutes
     return start + c.durationMinutes * 60_000 <= now();
 };
 
-// (ScheduledDetailModal removed — weekly/biweekly cards now navigate to /contests/[id])
+/**
+ * Mutually-exclusive status classification.
+ * Priority order: upcoming > live > past.
+ * A contest can only ever be in ONE of these three categories.
+ */
+const getContestStatus = (c: Contest): "upcoming" | "live" | "past" => {
+    if (isUpcoming(c)) return "upcoming";
+    if (isLive(c)) return "live";
+    return "past";
+};
 
+// (ScheduledDetailModal removed — weekly/biweekly cards now navigate to /contests/[id])
 // ─── Small contest card (for grid) ───────────────────────────────────────────
 
 const ContestCard = ({
@@ -105,126 +120,126 @@ const ContestCard = ({
     isRegistered?: boolean;
     attempt?: { isSubmitted: boolean; timeLeftSeconds: number };
 }) => {
+    const router = useRouter();
     const upcoming = isUpcoming(contest);
     const live = isLive(contest);
+    const past = isPast(contest);
     const startDate = contest.startTime ? new Date(contest.startTime) : null;
     const endDate = contest.endTime ? new Date(contest.endTime) : null;
 
-    return (
-        <div className="group flex flex-col justify-between bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-gray-200 dark:border-zinc-800 hover:border-blue-500/50 dark:hover:border-blue-500/50 transition-all duration-300 shadow-sm hover:shadow-md h-full relative overflow-hidden">
-            {type === "admin" && <div className="absolute top-0 right-0 w-32 h-32 bg-[radial-gradient(circle_at_top_right,rgba(239,68,68,0.08),transparent_70%)] dark:bg-[radial-gradient(circle_at_top_right,rgba(239,68,68,0.1),transparent_70%)] rounded-bl-full -z-10" />}
-            {live && <div className="absolute top-0 right-0 w-36 h-36 bg-[radial-gradient(circle_at_top_right,rgba(74,222,128,0.1),transparent_70%)] rounded-bl-full -z-10" />}
-            {upcoming && <div className="absolute top-0 right-0 w-36 h-36 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.1),transparent_70%)] rounded-bl-full -z-10" />}
+    const handleClick = () => {
+        router.push(`/contests/${contest.id}`);
+    };
 
-            <div>
+    return (
+        <div
+            onClick={handleClick}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleClick();
+                }
+            }}
+            role="link"
+            tabIndex={0}
+            className={`group flex flex-col justify-between rounded-[24px] p-6 border transition-all duration-300 h-full relative overflow-hidden cursor-pointer ${
+                type === "admin" 
+                    ? "bg-slate-50 dark:bg-zinc-900 border-amber-200/50 dark:border-amber-500/10 hover:shadow-xl hover:shadow-amber-500/5" 
+                    : "bg-white dark:bg-zinc-900 border-slate-200/60 dark:border-zinc-800/50 hover:shadow-xl hover:shadow-blue-500/5"
+            } ${isPast(contest) ? "opacity-85 grayscale-[0.3]" : "shadow-sm"} ${live ? "ring-1 ring-emerald-500/30" : ""}`}
+        >
+            <div className="relative z-10">
                 {/* Badges row */}
-                <div className="flex justify-between items-start mb-4">
-                    <div className="flex gap-1.5 flex-wrap">
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest border ${type === "admin" ? "bg-red-50 text-red-600 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20" : "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20"}`}>
-                            {type === "admin" ? "Official" : "Practice"}
-                        </span>
-                        {type === "mine" && (
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest border ${contest.isPublic ? "bg-green-50 text-green-600 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20" : "bg-gray-50 text-gray-500 border-gray-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700"}`}>
-                                {contest.isPublic ? "Public" : "Private"}
-                            </span>
-                        )}
-                        {isRegistered && (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest border bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3" /> Registered
+                <div className="flex justify-between items-start mb-5">
+                    <div className="flex gap-2 flex-wrap">
+                        {type === "admin" && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-500/20">
+                                <Sparkles className="w-3 h-3" /> Official
                             </span>
                         )}
                         {contest.branch && (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest border bg-gray-100 text-gray-600 border-gray-300 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-zinc-400">
                                 {contest.branch}
                             </span>
                         )}
-                        {contest.difficulty && (
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest border ${contest.difficulty === 'Easy' ? 'bg-green-50 text-green-600 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20' :
-                                contest.difficulty === 'Medium' ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20' :
-                                    'bg-red-50 text-red-600 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20'
-                                }`}>
-                                {contest.difficulty}
-                            </span>
-                        )}
                         {live && (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest border bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20 flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Live
-                            </span>
-                        )}
-                        {upcoming && (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest border bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-400/10 dark:text-amber-400 dark:border-amber-400/20 flex items-center gap-1">
-                                <Timer className="w-3 h-3" /> Soon
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-500/20">
+                                <span className="relative flex h-1.5 w-1.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                                </span> Live
                             </span>
                         )}
                     </div>
-                    {type === "mine" && onDelete && (
-                        <button onClick={() => onDelete(contest.id)} className="text-gray-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400 transition-colors ml-1">
-                            <Trash2 className="w-4 h-4" />
-                        </button>
-                    )}
                 </div>
 
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1.5 leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 leading-tight">
                     {contest.title}
                 </h3>
-                <p className="text-xs text-gray-500 dark:text-zinc-400 mb-3 line-clamp-2">
-                    {contest.description || "Challenge yourself with this exam and improve your skills."}
+                <p className="text-[13px] leading-relaxed text-slate-500 dark:text-zinc-400/90 mb-5 line-clamp-2">
+                    {contest.description || "Take this challenge to benchmark your preparation."}
                 </p>
 
-                {/* Countdown for upcoming */}
                 {upcoming && startDate && (
-                    <div className="mb-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 px-3 py-2">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-1"><Clock className="w-3 h-3" /> Starts In</p>
+                    <div className="mb-5 rounded-2xl bg-amber-500/5 border border-amber-500/10 p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400/80 mb-2 flex items-center gap-2">
+                            <Timer className="w-3.5 h-3.5" /> Starts In
+                        </p>
                         <CountdownTimer targetDate={startDate} compact={true} onComplete={() => { }} />
                     </div>
                 )}
 
-                {/* Stats */}
-                <div className="flex flex-wrap gap-3 mb-4 text-xs font-medium text-gray-500 dark:text-zinc-400">
-                    <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{contest.durationMinutes}m</span>
-                    <span className="flex items-center gap-1"><BrainCircuit className="w-3.5 h-3.5" />{contest.totalMarks || 100}M</span>
-                    <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{contest.sections?.length || 2} Sec</span>
-                    {startDate && (
-                        <span className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5" />
-                            {startDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                        </span>
-                    )}
-                    {endDate && (
-                        <span className="flex items-center gap-1 text-red-500 dark:text-red-400">
-                            <Timer className="w-3.5 h-3.5" />
-                            Ends {endDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                    )}
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 gap-y-3 gap-x-4 mb-6">
+                    <div className="flex items-center gap-2.5 text-[11px] font-semibold text-slate-500 dark:text-zinc-500">
+                        <Clock className="w-3.5 h-3.5" /> {contest.durationMinutes} min
+                    </div>
+                    <div className="flex items-center gap-2.5 text-[11px] font-semibold text-slate-500 dark:text-zinc-500">
+                        <Trophy className="w-3.5 h-3.5" /> {contest.totalMarks || 100} Marks
+                    </div>
                 </div>
             </div>
 
-            {upcoming ? (
-                <div className="w-full py-2.5 rounded-xl font-bold text-xs text-center flex items-center justify-center gap-2 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/30 cursor-not-allowed select-none">
-                    <Lock className="w-3.5 h-3.5" /> Locked Until Start
-                </div>
-            ) : attempt && !attempt.isSubmitted && attempt.timeLeftSeconds > 0 ? (
-                <Link
-                    href={`/exam/${contest.id}/live`}
-                    className="w-full py-2.5 rounded-xl font-bold text-xs text-center transition-all duration-300 flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)] animate-[pulse_2s_ease-in-out_infinite] border border-amber-600 dark:border-amber-500"
-                >
-                    <Timer className="w-3.5 h-3.5" /> Resume Attempt ({Math.ceil(attempt.timeLeftSeconds / 60)}m left)
-                </Link>
-            ) : attempt?.isSubmitted ? (
-                <Link
-                    href={`/exam/${contest.id}/intro`}
-                    className="w-full py-2.5 rounded-xl font-bold text-xs text-center transition-all duration-300 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700 border border-gray-200 dark:border-zinc-700"
-                >
-                    <Check className="w-3.5 h-3.5 text-green-500" /> View Results
-                </Link>
-            ) : (
-                <Link
-                    href={`/contests/${contest.id}`}
-                    className={`w-full py-2.5 rounded-xl font-bold text-xs text-center transition-all duration-300 flex items-center justify-center gap-2 ${type === "admin" ? "bg-gray-900 text-white hover:bg-black dark:bg-white dark:text-black dark:hover:bg-gray-100" : "bg-gray-100 text-gray-900 hover:bg-gray-200 dark:bg-zinc-800 dark:text-white dark:hover:bg-zinc-700"}`}
-                >
-                    {live ? <><Radio className="w-3.5 h-3.5 text-green-400" /> Join Live</> : <>Start Contest <ChevronRight className="w-3.5 h-3.5" /></>}
-                </Link>
-            )}
+            <div className="relative z-10 pt-4 border-t border-slate-50 dark:border-zinc-800">
+                {upcoming ? (
+                    <div className="w-full py-3.5 rounded-2xl font-bold text-xs uppercase tracking-wider text-center flex items-center justify-center gap-2 bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 border border-slate-200 dark:border-zinc-700 cursor-not-allowed select-none">
+                        <Lock className="w-4 h-4" /> Locked
+                    </div>
+                ) : attempt && !attempt.isSubmitted && attempt.timeLeftSeconds > 0 ? (
+                    <Link
+                        href={`/exam/${contest.id}/live`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full py-3.5 rounded-2xl font-bold text-xs uppercase tracking-wider text-center transition-all duration-300 flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg active:scale-[0.98]"
+                    >
+                        <Timer className="w-4 h-4" /> Resume Now
+                    </Link>
+                ) : attempt?.isSubmitted ? (
+                    <Link
+                        href={`/exam/${contest.id}/intro`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full py-3.5 rounded-2xl font-bold text-xs uppercase tracking-wider text-center transition-all duration-300 flex items-center justify-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-zinc-800 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 active:scale-[0.98]"
+                    >
+                        <Check className="w-4 h-4 text-emerald-500" /> Results
+                    </Link>
+                ) : (
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="contents"
+                    >
+                        <Link
+                            href={`/contests/${contest.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className={`w-full py-3.5 rounded-2xl font-bold text-xs uppercase tracking-wider text-center transition-all duration-300 flex items-center justify-center gap-2 active:scale-[0.98] ${
+                                live
+                                    ? "bg-emerald-500 text-white shadow-lg"
+                                    : "bg-zinc-900 text-white dark:bg-white dark:text-black"
+                            }`}
+                        >
+                            {live ? <><Radio className="w-4 h-4 animate-pulse" /> Join Live</> : isPast(contest) ? <>Practice <ChevronRight className="w-4 h-4" /></> : <>Start <ChevronRight className="w-4 h-4" /></>}
+                        </Link>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
@@ -232,7 +247,7 @@ const ContestCard = ({
 // ─── Section heading ──────────────────────────────────────────────────────────
 
 const SectionHeading = ({ icon, label, count }: { icon: React.ReactNode; label: string; count?: number }) => (
-    <div className="flex items-center gap-3 border-b border-gray-200 dark:border-zinc-800 pb-3">
+    <div className="flex items-center gap-3 border-b border-gray-200 dark:border-zinc-800 pb-4">
         <h2 className="text-xl font-bold dark:text-white flex items-center gap-2">
             {icon} {label}
         </h2>
@@ -253,66 +268,75 @@ const ScheduledContestCard = ({
 }) => {
     const isWeekly = type === "weekly";
     const info = isWeekly ? getNextWeeklyContest() : getNextBiweeklyContest();
-    const locked = info.startTime.getTime() > Date.now();
+    const live = isLive({ startTime: info.startTime.toISOString(), durationMinutes: info.durationMinutes } as Contest);
 
     return (
         <Link
             href={`/contests/${info.id}`}
-            className={`flex-1 relative rounded-2xl overflow-hidden group shadow-2xl`}
-            style={{ minHeight: 210, isolation: "isolate", display: "flex" }}
+            className={`flex-1 relative rounded-2xl overflow-hidden group transition-all duration-300 hover:scale-[1.015] active:scale-[0.99] hover:brightness-105 ${
+                isWeekly
+                    ? "bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500"
+                    : "bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-700"
+            }`}
+            style={{ minHeight: 180, display: "flex" }}
         >
-            {/* BG gradient */}
-            <div className={`absolute inset-0 ${isWeekly ? "bg-gradient-to-br from-amber-400 via-orange-500 to-red-500" : "bg-gradient-to-br from-indigo-500 via-violet-600 to-purple-700"}`} />
-            <div className={`absolute inset-0 ${isWeekly ? "bg-[radial-gradient(ellipse_at_28%_38%,rgba(255,255,255,0.20),transparent_62%)]" : "bg-[radial-gradient(ellipse_at_72%_28%,rgba(255,255,255,0.16),transparent_60%)]"}`} />
-            {/* Deco */}
-            <div className={`absolute ${isWeekly ? "-bottom-10 -right-10" : "-bottom-10 -left-10"} w-56 h-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.15),transparent_70%)]`} />
-            <div className={`absolute top-3 ${isWeekly ? "right-10" : "left-10"} w-16 h-16 rounded-full border border-white/15`} />
-            {/* Art — 1 bolt for weekly, 2 bolts for biweekly */}
-            {isWeekly ? (
-                <div className="absolute bottom-8 right-4 select-none leading-none filter drop-shadow-[0_12px_32px_rgba(0,0,0,0.4)] transition-transform duration-500 group-hover:-translate-y-2 group-hover:scale-105">
-                    <span className="text-[88px]">⚡</span>
-                </div>
-            ) : (
-                <div className="absolute bottom-6 right-4 select-none leading-none filter drop-shadow-[0_12px_32px_rgba(0,0,0,0.4)] transition-transform duration-500 group-hover:-translate-y-2 group-hover:scale-105">
-                    <span className="text-[60px] block">⚡</span>
-                    <span className="text-[44px] block -mt-3 ml-7 opacity-75">⚡</span>
-                </div>
-            )}
-            {/* Countdown pill */}
-            <div className="absolute top-3 right-3 bg-black/30 backdrop-blur-md rounded-full px-2.5 py-1 flex items-center gap-1.5 border border-white/10">
-                <Timer className="w-3 h-3 text-white/75 shrink-0" />
-                <span className="text-white text-[11px] font-bold tabular-nums leading-none">
-                    <CountdownTimer targetDate={info.startTime} compact={true} onComplete={() => { }} />
-                </span>
+            {/* Decorative Zap illustration(s) */}
+            <div className="absolute right-4 inset-y-0 flex items-center gap-0 pointer-events-none select-none">
+                {!isWeekly && (
+                    <Zap
+                        className="w-24 h-24 opacity-15 group-hover:opacity-25 transition-all duration-500 text-white -mr-4 group-hover:scale-105"
+                        strokeWidth={1.5}
+                    />
+                )}
+                <Zap
+                    className="w-32 h-32 opacity-20 group-hover:opacity-30 transition-all duration-500 text-white group-hover:scale-110"
+                    strokeWidth={1.5}
+                />
             </div>
 
-
             {/* Content */}
-            <div className="relative z-10 p-5 flex flex-col justify-between w-full" style={{ minHeight: 210 }}>
-                <div>
-                    <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm text-white text-[10px] font-black uppercase tracking-[0.18em] rounded-full px-3 py-1 mb-3 border border-white/10">
-                        {isWeekly ? <><Trophy className="w-3 h-3" /> Weekly Contest</> : <><Sparkles className="w-3 h-3" /> Biweekly Contest</>}
-                    </span>
-                    <h2 className="text-xl font-extrabold text-white leading-tight drop-shadow-md">
-                        {isWeekly ? "Weekly" : "Biweekly"} Contest {info.number}
-                    </h2>
-                    <p className="text-white/70 text-[11px] font-medium mt-1">
-                        {info.startTime.toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                    <p className="text-white/55 text-[10px] mt-0.5">
-                        {info.durationMinutes} min · Ends {info.endTime.toLocaleString("en-IN", { hour: "2-digit", minute: "2-digit" })}
-                    </p>
+            <div className="relative z-10 p-6 flex flex-col justify-between w-full">
+                {/* Top row: badge + live/countdown */}
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 bg-black/25 text-white text-[10px] font-bold uppercase tracking-widest rounded-full px-3 py-1.5">
+                            {isWeekly
+                                ? <><Trophy className="w-3 h-3" /> Weekly Contest</>
+                                : <><Sparkles className="w-3 h-3" /> Biweekly Contest</>
+                            }
+                        </span>
+                        {live && (
+                            <span className="inline-flex items-center gap-1 bg-emerald-500/90 text-white text-[10px] font-black uppercase tracking-wider rounded-full px-2.5 py-1">
+                                <span className="relative flex h-1.5 w-1.5">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
+                                </span>
+                                Live
+                            </span>
+                        )}
+                    </div>
+                    {!live && (
+                        <div className="inline-flex items-center gap-1.5 bg-white text-gray-900 text-[11px] font-bold rounded-full px-3 py-1.5 tabular-nums shadow">
+                            <Clock className="w-3 h-3 shrink-0 text-gray-600" />
+                            <CountdownTimer targetDate={info.startTime} compact={true} onComplete={() => { }} />
+                        </div>
+                    )}
                 </div>
 
-                <div className="flex items-center gap-2 mt-4">
-                    <div className={`flex items-center gap-1.5 backdrop-blur-sm border border-white/15 text-white text-xs font-bold rounded-xl px-3 py-2 transition-all ${isRegistered ? "bg-emerald-500/80 group-hover:bg-emerald-500/90" : "bg-white/20 group-hover:bg-white/30"}`}>
-                        {isRegistered
-                            ? <><CheckCircle2 className="w-3.5 h-3.5" /> Registered<ChevronRight className="w-3.5 h-3.5 ml-0.5 opacity-60" /></>
-                            : <>View Details <ChevronRight className="w-3.5 h-3.5" /></>
-                        }
-                    </div>
-                    <div className="ml-auto w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/10">
-                        <Calendar className="w-4 h-4 text-white" />
+                {/* Title + date */}
+                <div className="mt-5">
+                    <h2 className="text-[22px] font-black text-white leading-tight drop-shadow">
+                        {isWeekly ? "Weekly" : "Biweekly"} Mock {info.number}
+                    </h2>
+                    <div className="mt-2 flex items-center gap-4 flex-wrap">
+                        <p className="inline-flex items-center gap-1.5 bg-black/20 text-white text-[11px] font-semibold rounded-lg px-2.5 py-1">
+                            <Calendar className="w-3 h-3 shrink-0" />
+                            {info.startTime.toLocaleString("en-IN", { day: "numeric", month: "short", weekday: "short", hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                        <p className="inline-flex items-center gap-1.5 bg-black/20 text-white text-[11px] font-semibold rounded-lg px-2.5 py-1">
+                            <Timer className="w-3 h-3 shrink-0" />
+                            {info.durationMinutes} min
+                        </p>
                     </div>
                 </div>
             </div>
@@ -340,6 +364,12 @@ const ContestsPage = () => {
     const [selectedDifficulty, setSelectedDifficulty] = useState("All");
     const [selectedDuration, setSelectedDuration] = useState("All");
     const [showMobileFilters, setShowMobileFilters] = useState(false);
+    // Re-render tick every 60s so contest states (live/upcoming/past) update automatically
+    const [, setTick] = useState(0);
+    useEffect(() => {
+        const interval = setInterval(() => setTick(t => t + 1), 60_000);
+        return () => clearInterval(interval);
+    }, []);
 
     const fetchContests = async (isLoadMore = false) => {
         try {
@@ -493,21 +523,38 @@ const ContestsPage = () => {
     // We no longer partition massive data locally since we are query-based. 
     // filteredContests now exactly applies to the active tab's logic mostly.
 
-    // We can partition status (live/upcoming/past) locally on the current active tab's subset.
-    const partitionByStatus = (list: Contest[]) => ({
-        upcoming: list.filter(isUpcoming),
-        live: list.filter(isLive),
-        past: list.filter(isPast),
-    });
+    // Mutually-exclusive partition using priority: upcoming > live > past
+    const partitionByStatus = (list: Contest[]) => {
+        const upcoming: Contest[] = [];
+        const live: Contest[] = [];
+        const past: Contest[] = [];
+        for (const c of list) {
+            const status = getContestStatus(c);
+            if (status === "upcoming") upcoming.push(c);
+            else if (status === "live") live.push(c);
+            else past.push(c);
+        }
+        return { upcoming, live, past };
+    };
 
     const partitionedContests = partitionByStatus(filteredContests);
+
+    // Identify past weekly/biweekly for special section
+    const pastOfficialWeeklyBiweekly = activeTab === "official" ? partitionedContests.past.filter(c => 
+        c.type === "admin" && (c.id.startsWith("weekly-") || c.id.startsWith("biweekly-") || c.title.toLowerCase().includes("weekly") || c.title.toLowerCase().includes("biweekly"))
+    ) : [];
+    
+    // Other past official contests
+    const pastOfficialOthers = activeTab === "official" ? partitionedContests.past.filter(c => 
+        !(c.type === "admin" && (c.id.startsWith("weekly-") || c.id.startsWith("biweekly-") || c.title.toLowerCase().includes("weekly") || c.title.toLowerCase().includes("biweekly")))
+    ) : [];
 
     const cardType = (c: Contest, tab: TabType): "admin" | "mock" | "mine" =>
         tab === "mine" ? "mine" : c.type === "admin" ? "admin" : "mock";
 
-    const renderGrid = (list: Contest[], tab: TabType) =>
+    const renderGrid = (list: Contest[], tab: TabType, columnsClass = "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4") =>
         list.length === 0 ? null : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div className={`grid ${columnsClass} gap-5`}>
                 {list.map((c) => (
                     <ContestCard
                         key={c.id}
@@ -703,25 +750,44 @@ const ContestsPage = () => {
                             {/* Live */}
                             {partitionedContests.live.length > 0 && (
                                 <div className="space-y-4">
-                                    <SectionHeading icon={<Radio className="w-5 h-5 text-green-500" />} label="Live Now" count={partitionedContests.live.length} />
+                                    <SectionHeading icon={<Radio className="w-5 h-5 text-green-500 animate-pulse" />} label="Live Now" count={partitionedContests.live.length} />
                                     {renderGrid(partitionedContests.live, "official")}
                                 </div>
                             )}
 
-                            {/* Past */}
-                            <div className="space-y-4">
-                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="Past &amp; Practice" count={partitionedContests.past.length} />
+                            {/* Past Weekly / Biweekly Section */}
+                            {pastOfficialWeeklyBiweekly.length > 0 && (
+                                <div className="space-y-4 pt-4">
+                                    <SectionHeading icon={<History className="w-5 h-5 text-amber-500" />} label="Previous Weekly &amp; Biweekly Contests" count={pastOfficialWeeklyBiweekly.length} />
+                                    <div className="flex overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 gap-5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                                        {pastOfficialWeeklyBiweekly.map((c) => (
+                                            <div key={c.id} className="min-w-[300px] w-[300px] sm:min-w-[340px] sm:w-[340px] snap-center shrink-0">
+                                                <ContestCard
+                                                    contest={c}
+                                                    type={cardType(c, "official")}
+                                                    isRegistered={registeredIds.has(c.id)}
+                                                    attempt={attemptMap[c.id]}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Past General */}
+                            <div className="space-y-4 pt-4">
+                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="Past Official Exams (Practice Mode)" count={pastOfficialOthers.length} />
                                 {loading ? (
                                     <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent" /></div>
-                                ) : partitionedContests.past.length === 0 ? renderEmpty("official") : (
+                                ) : pastOfficialOthers.length === 0 ? renderEmpty("official") : (
                                     <>
-                                        {renderGrid(partitionedContests.past, "official")}
+                                        {renderGrid(pastOfficialOthers, "official")}
                                         {hasMore && (
                                             <div className="mt-8 flex justify-center">
                                                 <button
                                                     onClick={() => fetchContests(true)}
                                                     disabled={loadingMore}
-                                                    className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                                                    className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50 shadow-sm"
                                                 >
                                                     {loadingMore ? "Loading..." : "Load More Mocks"}
                                                 </button>

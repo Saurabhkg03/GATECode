@@ -328,11 +328,11 @@ export default function JsonImportModal({ isOpen, onClose, onSuccess }: JsonImpo
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-200 dark:border-gray-800 flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-white dark:bg-zinc-950 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 flex flex-col max-h-[90vh]">
 
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+                <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-zinc-800">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                         <FileJson className="w-5 h-5 text-blue-500" />
                         Import Question Data
@@ -359,7 +359,7 @@ export default function JsonImportModal({ isOpen, onClose, onSuccess }: JsonImpo
                                 <select
                                     value={selectedBranch}
                                     onChange={(e) => setSelectedBranch(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-zinc-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                                 >
                                     <option value="" disabled>Select a branch...</option>
                                     {branches.map(branch => (
@@ -389,7 +389,7 @@ export default function JsonImportModal({ isOpen, onClose, onSuccess }: JsonImpo
                                 <div className="flex justify-end">
                                     <button
                                         onClick={handleImport}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-bold transition-all shadow-lg hover:shadow-blue-500/20 flex items-center gap-2"
                                     >
                                         Start Import
                                     </button>

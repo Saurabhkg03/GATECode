@@ -3,14 +3,15 @@
 import { useState, useMemo, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Filter, CheckCircle, Circle, ArrowDownUp, ChevronRight, RotateCcw, List, Plus, Folder, Trash2, X, Loader2, Bookmark as BookmarkIcon, Check as CheckIcon } from 'lucide-react';
+import { Filter, CheckCircle, Circle, ArrowDownUp, ChevronRight, RotateCcw, List, Plus, Folder, Trash2, X, Loader2, Bookmark as BookmarkIcon, Check as CheckIcon, BookOpen, Search, Sparkles } from 'lucide-react';
 import { useMetadata } from '@/contexts/MetadataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc, serverTimestamp, deleteDoc, writeBatch, arrayRemove, onSnapshot, limit, startAfter, QueryConstraint, DocumentSnapshot, documentId } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc, serverTimestamp, deleteDoc, writeBatch, arrayRemove, onSnapshot, limit, startAfter, getCountFromServer, QueryConstraint, DocumentSnapshot, documentId } from 'firebase/firestore';
 import { Question, Submission, QuestionList } from '@/data/mockData';
 import { PracticeSkeleton } from '@/components/Skeletons';
 import QuestionCard from '@/components/QuestionCard';
+import TopicFilterBar from '@/components/TopicFilterBar';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const PAGE_SIZE = 10;
@@ -154,36 +155,44 @@ function PracticeContent() {
     });
 
     const [questions, setQuestions] = useState<Question[]>([]);
-    const [lastVisible, setLastVisible] = useState<DocumentSnapshot | null>(null);
-    const [hasMore, setHasMore] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalQuestions, setTotalQuestions] = useState(0);
     const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
-    const [loadingMore, setLoadingMore] = useState(false);
+    
+    // Ultra-Low Read Memory Caching for Pagination
+    const [pageCache, setPageCache] = useState<Record<number, Question[]>>({});
+    const [pageCursors, setPageCursors] = useState<Record<number, DocumentSnapshot>>({});
+    const [maxReachedPage, setMaxReachedPage] = useState(1);
 
-    const fetchQuestions = async (isLoadMore = false) => {
+    const fetchQuestions = async (pageToFetch = 1) => {
         if (!questionCollectionPath) return;
         if (selectedListId !== null && !listQuestionIds) return;
 
         try {
-            if (isLoadMore) setLoadingMore(true);
-            else setIsLoadingQuestions(true);
+            setIsLoadingQuestions(true);
 
             if (selectedListId !== null) {
                 const ids = listQuestionIds || [];
-                const currentLength = isLoadMore ? questions.length : 0;
-                const nextIds = ids.slice(currentLength, currentLength + CLIENT_PAGE_SIZE);
+                const total = ids.length;
+                setTotalQuestions(total);
+                setTotalPages(Math.max(1, Math.ceil(total / CLIENT_PAGE_SIZE)));
+                
+                const startIndex = (pageToFetch - 1) * CLIENT_PAGE_SIZE;
+                const nextIds = ids.slice(startIndex, startIndex + CLIENT_PAGE_SIZE);
 
                 if (nextIds.length === 0) {
-                    if (!isLoadMore) setQuestions([]);
-                    setHasMore(false);
+                    setQuestions([]);
                 } else {
-                    // Firestore 'in' supports max 10 items; batch if needed (our page size is 10 so should be fine)
                     const listConstraints: QueryConstraint[] = [where(documentId(), 'in', nextIds)];
                     const listQuery = query(collection(db, questionCollectionPath), ...listConstraints);
                     const snapshot = await getDocs(listQuery);
-                    const qData = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Question));
+                    
+                    // Maintain original selected order
+                    const qDataUnsorted = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Question));
+                    const qData = nextIds.map(id => qDataUnsorted.find(q => q.id === id)).filter(Boolean) as Question[];
 
-                    setQuestions(prev => isLoadMore ? [...prev, ...qData] : qData);
-                    setHasMore(ids.length > currentLength + nextIds.length);
+                    setQuestions(qData);
                 }
             } else {
                 const constraints: QueryConstraint[] = [];
@@ -197,19 +206,45 @@ function PracticeContent() {
                 if (topicFilter !== 'all') constraints.push(where('topic', '==', topicFilter));
                 if (yearFilter !== 'all') constraints.push(where('year', '==', yearFilter));
 
+                // 1. Get exact total count for pagination first!
+                const countQuery = query(collection(db, questionCollectionPath), ...constraints);
+                const countSnapshot = await getCountFromServer(countQuery);
+                const exactTotal = countSnapshot.data().count;
+                
+                setTotalQuestions(exactTotal);
+                setTotalPages(Math.max(1, Math.ceil(exactTotal / CLIENT_PAGE_SIZE)));
+
+                // --- Zero-Read Cache Check ---
+                if (pageCache[pageToFetch]) {
+                    setQuestions(pageCache[pageToFetch]);
+                    setIsLoadingQuestions(false);
+                    return;
+                }
+
+                // 2. Query Configuration
                 if (sortOrder === 'year-desc') constraints.push(orderBy('year', 'desc'));
                 else if (sortOrder === 'year-asc') constraints.push(orderBy('year', 'asc'));
                 else if (sortOrder === 'qIndex-desc') constraints.push(orderBy('qIndex', 'desc'));
                 else constraints.push(orderBy('qIndex', 'asc'));
 
-                if (isLoadMore && lastVisible) {
-                    constraints.push(startAfter(lastVisible));
+                // Guest limitation: if they are guest, we only let them fetch the first page
+                if (!user && pageToFetch > 1) {
+                    setIsLoadingQuestions(false);
+                    return;
                 }
 
-                // Guest limitation: if they are guest, we only let them fetch the first 10, no "load more"
-                if (!user && isLoadMore) {
-                    setHasMore(false);
-                    return;
+                // --- Ultra-Low-Read Cursor Navigation ---
+                if (pageToFetch > 1) {
+                    const previousCursor = pageCursors[pageToFetch - 1];
+                    if (previousCursor) {
+                        constraints.push(startAfter(previousCursor));
+                    } else {
+                        // Failsafe: If a user somehow attempts to jump to a totally uncached page 
+                        // deeper than sequential allowed (e.g. hack/edge-case).
+                        console.warn("Attempted to fetch uncached page. Read minimized.");
+                        setIsLoadingQuestions(false);
+                        return;
+                    }
                 }
 
                 constraints.push(limit(CLIENT_PAGE_SIZE));
@@ -218,27 +253,32 @@ function PracticeContent() {
                 const snapshot = await getDocs(finalQuery);
 
                 const qData = snapshot.docs.map(document => ({ id: document.id, ...document.data() } as Question));
-                setQuestions(prev => isLoadMore ? [...prev, ...qData] : qData);
-
+                
+                // Store fetched data in Cache to ensure subsequent requests are 0 reads
+                setQuestions(qData);
+                setPageCache(prev => ({ ...prev, [pageToFetch]: qData }));
+                
                 if (snapshot.docs.length > 0) {
-                    setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+                    setPageCursors(prev => ({ ...prev, [pageToFetch]: snapshot.docs[snapshot.docs.length - 1] }));
                 }
-                setHasMore(snapshot.docs.length === CLIENT_PAGE_SIZE && user !== null);
+                setMaxReachedPage(prev => Math.max(prev, pageToFetch));
             }
         } catch (error) {
             console.error("Error fetching questions:", error);
         } finally {
-            if (isLoadMore) setLoadingMore(false);
-            else setIsLoadingQuestions(false);
+            setIsLoadingQuestions(false);
         }
     };
 
     // Auto-fetch when filters/dependencies change
     useEffect(() => {
         setQuestions([]);
-        setLastVisible(null);
-        setHasMore(true);
-        fetchQuestions(false);
+        setCurrentPage(1);
+        // Clear all caches since the query parameters have fundamentally changed
+        setPageCache({});
+        setPageCursors({});
+        setMaxReachedPage(1);
+        fetchQuestions(1);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [questionCollectionPath, userInfo, questionTypeFilter, subjectFilter, topicFilter, yearFilter, sortOrder, selectedListId, listQuestionIds]);
 
@@ -274,6 +314,13 @@ function PracticeContent() {
         new Set(submissions.filter(s => s.correct).map(s => s.qid)),
         [submissions]
     );
+
+
+
+    const filteredTopics = useMemo(() => {
+        if (subjectFilter === 'all') return topics;
+        return metadata?.subjectTopicMap?.[subjectFilter] || [];
+    }, [subjectFilter, topics, metadata]);
 
 
 
@@ -398,37 +445,50 @@ function PracticeContent() {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                        <div className="mb-6">
-                            <h1 className="text-3xl font-bold text-zinc-900 dark:text-white mb-2">
-                                Practice Questions ({branchName})
-                            </h1>
-                            <p className="text-zinc-600 dark:text-zinc-400">
-                                {isLoadingQuestions && questions.length === 0 ? 'Loading...' : (
-                                    (questions.length > 0)
-                                        ? (
-                                            <>
-                                                Showing {questions.length} questions
-                                                {!user && questions.length === 10 && (
-                                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-                                                        Preview Mode
-                                                    </span>
-                                                )}
-                                            </>
-                                        )
-                                        : '0 questions found'
-                                )}
-                            </p>
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+                        <div className="mb-4 relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50/50 via-indigo-50/30 to-purple-50/50 dark:from-blue-900/10 dark:via-indigo-900/5 dark:to-purple-900/10 border border-indigo-100/50 dark:border-indigo-500/10 p-4 sm:p-8">
+                            <div className="absolute top-0 right-0 -mt-12 -mr-12 w-48 h-48 bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-3xl"></div>
+                            <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-48 h-48 bg-purple-500/10 dark:bg-purple-500/5 rounded-full blur-3xl"></div>
+                            
+                            <div className="relative flex items-center gap-4 sm:gap-5">
+                                <div className="p-2 sm:p-3 bg-white dark:bg-zinc-800/80 shadow-sm rounded-xl border border-zinc-100 dark:border-zinc-700/50 flex-shrink-0">
+                                    <BookOpen className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600 dark:text-indigo-400" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h1 className="text-xl sm:text-3xl font-bold text-zinc-900 dark:text-white mb-0.5 sm:mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                        Practice Questions <span className="text-indigo-600 dark:text-indigo-400 text-lg sm:text-3xl">({branchName})</span>
+                                    </h1>
+                                    <div className="text-[11px] sm:text-base text-zinc-600 dark:text-zinc-400 flex items-center gap-1">
+                                        <Sparkles className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                                        <span>
+                                            {isLoadingQuestions && questions.length === 0 ? 'Loading your question bank...' : (
+                                                (questions.length > 0)
+                                                    ? (
+                                                        <>
+                                                            {totalQuestions} expertly curated questions
+                                                            {!user && questions.length === 10 && (
+                                                                <span className="ml-2 inline-flex items-center px-1 py-0.5 rounded text-[10px] sm:text-xs font-medium bg-amber-100/80 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400 ring-1 ring-inset ring-amber-500/20">
+                                                                    Preview
+                                                                </span>
+                                                            )}
+                                                        </>
+                                                    )
+                                                    : '0 questions found'
+                                            )}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Mobile Collapsibles */}
                         <div className="md:hidden space-y-3 mb-6">
                             {/* My Lists Collapsible */}
                             {user?.uid && (
-                                <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-white dark:bg-zinc-900">
+                                <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-white dark:bg-zinc-900 shadow-sm">
                                     <button
                                         onClick={() => setIsMobileListsOpen(!isMobileListsOpen)}
-                                        className="w-full flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50"
+                                        className="w-full flex items-center justify-between px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/50"
                                     >
                                         <div className="flex items-center gap-2 font-medium text-zinc-900 dark:text-white text-sm">
                                             <Folder className="w-4 h-4 text-blue-500" />
@@ -470,10 +530,10 @@ function PracticeContent() {
                             )}
 
                             {/* Filters Collapsible */}
-                            <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-white dark:bg-zinc-900">
+                            <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-white dark:bg-zinc-900 shadow-sm">
                                 <button
                                     onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
-                                    className="w-full flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50"
+                                    className="w-full flex items-center justify-between px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/50"
                                 >
                                     <div className="flex items-center gap-2 font-medium text-zinc-900 dark:text-white text-sm">
                                         <Filter className="w-4 h-4 text-blue-500" />
@@ -489,45 +549,189 @@ function PracticeContent() {
                             </div>
                         </div>
 
+                        {/* Modern Topic Filter Bar (LeetCode Style) */}
+                        <div className="mb-2">
+                            <TopicFilterBar 
+                                subjects={subjects}
+                                topics={filteredTopics}
+                                subjectCounts={metadata?.subjectCounts || {}}
+                                selectedSubject={subjectFilter}
+                                selectedTopic={topicFilter}
+                                onSubjectChange={(s) => {
+                                    setSubjectFilter(s);
+                                    setTopicFilter('all'); // Reset topic when subject changes
+                                }}
+                                onTopicChange={setTopicFilter}
+                            />
+                        </div>
+
                         {/* Desktop Filters (Always Visible) */}
-                        <div className="hidden md:block bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 mb-6 shadow-sm">
-                            {renderFilters()}
-                        </div>
+                        <div className="hidden md:block bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 mb-2 shadow-sm">
+                            <div className="flex items-center">
+                                <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                                    <div className="flex items-center gap-2 mr-2">
+                                        <Filter className="w-5 h-5 text-zinc-400" />
+                                        <span className="font-semibold uppercase tracking-wider text-[10px]">Additional Filters</span>
+                                    </div>
+                                    <select disabled={filtersDisabled} value={questionTypeFilter} onChange={(e) => setQuestionTypeFilter(e.target.value)} className="px-3 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white transition-shadow">
+                                        <option value="all">Any Type</option>
+                                        {(metadata?.questionTypeCounts ? Object.keys(metadata.questionTypeCounts) : ['mcq', 'msq', 'nat']).map((type: string) => (
+                                            <option key={type} value={type}>{type.toUpperCase()}</option>
+                                        ))}
+                                    </select>
+                                    <select disabled={filtersDisabled} value={topicFilter} onChange={(e) => setTopicFilter(e.target.value)} className="px-3 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white transition-shadow">
+                                        <option value="all">Any Topic</option>
+                                        {filteredTopics.map((topic: string) => <option key={topic} value={topic}>{topic}</option>)}
+                                    </select>
+                                    <select disabled={filtersDisabled} value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className="px-3 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white transition-shadow">
+                                        <option value="all">Any Year</option>
+                                        {years.map((year: string) => <option key={year} value={year}>{year}</option>)}
+                                    </select>
+                                    <div className="flex items-center gap-2 px-3 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white transition-shadow focus-within:ring-2 focus-within:ring-blue-500">
+                                        <ArrowDownUp className="w-4 h-4 text-zinc-400" />
+                                        <select disabled={filtersDisabled} value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="bg-transparent dark:bg-zinc-800 dark:text-white border-none focus:ring-0 text-sm appearance-none cursor-pointer p-0">
+                                            <option value="qIndex-asc">Number (Asc)</option>
+                                            <option value="qIndex-desc">Number (Desc)</option>
+                                            <option value="year-desc">Year (Newest)</option>
+                                            <option value="year-asc">Year (Oldest)</option>
+                                        </select>
+                                    </div>
 
-                        {/* Questions Grid */}
-                        <div className="grid grid-cols-1 gap-4">
-                            {isLoadingQuestions && questions.length === 0 ? (
-                                <div className="text-center py-20 text-zinc-500">Loading questions...</div>
-                            ) : questions.length === 0 ? (
-                                <div className="text-center py-20 text-zinc-500 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700">
-                                    No questions match your filters.
-                                </div>
-                            ) : (
-                                questions.map((q) => (
-                                    <QuestionCard
-                                        key={q.id}
-                                        question={q}
-                                        isSolved={solvedQuestionIds.has(q.id)}
-                                    />
-                                ))
-                            )}
-                        </div>
-
-                        <div className="mt-8 flex items-center justify-center">
-                            {hasMore && (
-                                <button
-                                    onClick={() => fetchQuestions(true)}
-                                    disabled={loadingMore || isLoadingQuestions}
-                                    className="px-6 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm flex items-center gap-2"
-                                >
-                                    {loadingMore ? (
-                                        <><Loader2 className="w-4 h-4 animate-spin" /> Loading more...</>
-                                    ) : (
-                                        'Load More Questions'
+                                    {(filtersAreActive || sortOrder !== 'qIndex-asc') && (
+                                        <button onClick={handleResetFilters} className="px-4 py-1.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-lg text-sm flex items-center gap-2 transition-colors">
+                                            <RotateCcw className="w-3.5 h-3.5" /> Reset
+                                        </button>
                                     )}
-                                </button>
-                            )}
+                                </div>
+                            </div>
                         </div>
+
+                        {/* Questions List (End-to-Edge Style) */}
+                        <div className="w-full">
+                            {/* Desktop Column Headers (hidden on mobile) */}
+                            <div className="hidden sm:flex items-center gap-4 px-4 py-4 border-b border-zinc-200 dark:border-zinc-800 font-bold uppercase text-zinc-400 dark:text-zinc-500 text-xs">
+                                <div className="w-8 flex justify-center flex-shrink-0">Status</div>
+                                <div className="flex-1">Title</div>
+                                <div className="w-24 text-right flex-shrink-0">Accuracy</div>
+                                <div className="hidden md:block w-20 text-center flex-shrink-0">Type</div>
+                                <div className="hidden lg:block w-16 text-center flex-shrink-0">Year</div>
+                                <div className="hidden xl:block w-64 text-right flex-shrink-0">Topics</div>
+                            </div>
+
+                            <div className="flex flex-col">
+                                {isLoadingQuestions && questions.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-24 text-zinc-500">
+                                        <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-4" />
+                                        <p className="text-sm font-medium animate-pulse">Fetching questions...</p>
+                                    </div>
+                                ) : questions.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
+                                        <div className="w-20 h-20 bg-zinc-100 dark:bg-zinc-800/80 rounded-full flex items-center justify-center mb-6 shadow-inner border border-zinc-200/50 dark:border-zinc-700/50">
+                                            <Search className="w-10 h-10 text-zinc-400 dark:text-zinc-500" />
+                                        </div>
+                                        <h3 className="text-lg sm:text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+                                            No Questions Found
+                                        </h3>
+                                        <p className="text-zinc-500 dark:text-zinc-400 max-w-sm mb-6 text-sm">
+                                            We couldn't find any questions matching your current filters. Try adjusting your subject or topic.
+                                        </p>
+                                        <button 
+                                            onClick={handleResetFilters} 
+                                            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors shadow-sm focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 text-sm flex items-center gap-2"
+                                        >
+                                            <RotateCcw className="w-4 h-4" />
+                                            Clear Filters
+                                        </button>
+                                    </div>
+                                ) : (
+                                    questions.map((q) => (
+                                        <QuestionCard
+                                            key={q.id}
+                                            question={q}
+                                            isSolved={solvedQuestionIds.has(q.id)}
+                                        />
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Numbered Pagination UI */}
+                        {totalPages > 1 && (
+                            <div className="mt-6 sm:mt-8 flex flex-col items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => {
+                                            const newPage = Math.max(1, currentPage - 1);
+                                            setCurrentPage(newPage);
+                                            fetchQuestions(newPage);
+                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                        }}
+                                        disabled={currentPage === 1 || isLoadingQuestions}
+                                        className="px-3 py-1.5 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-zinc-600 dark:text-zinc-300"
+                                    >
+                                        Prev
+                                    </button>
+                                    
+                                    <div className="flex items-center gap-1 overflow-x-auto px-1">
+                                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+                                            // Show first, last, current, and +/- 1 neighbors
+                                            if (
+                                                page === 1 || 
+                                                page === totalPages || 
+                                                (page >= currentPage - 1 && page <= currentPage + 1)
+                                            ) {
+                                                // Page is reachable if it's cached or it's the immediate next page after the furthest we've gone
+                                                // For list/favorites mode, all pages are always reachable (selectedListId !== null)
+                                                const isReachable = selectedListId !== null || page <= maxReachedPage + 1;
+                                                
+                                                return (
+                                                    <button
+                                                        key={page}
+                                                        onClick={() => {
+                                                            if (!isReachable) return;
+                                                            setCurrentPage(page);
+                                                            fetchQuestions(page);
+                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                        }}
+                                                        disabled={isLoadingQuestions || !isReachable}
+                                                        title={!isReachable ? "Please visit the previous page first to minimize database reads." : ""}
+                                                        className={`w-8 h-8 rounded border flex items-center justify-center text-sm font-medium transition-colors ${!isReachable
+                                                            ? 'opacity-40 cursor-not-allowed border-zinc-100 dark:border-zinc-800 text-zinc-400 dark:text-zinc-600'
+                                                            : currentPage === page 
+                                                                ? 'bg-blue-600 border-blue-600 text-white' 
+                                                                : 'border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                                                        }`}
+                                                    >
+                                                        {page}
+                                                    </button>
+                                                );
+                                            }
+                                            // Show ellipsis for gaps
+                                            if (page === currentPage - 2 || page === currentPage + 2) {
+                                                return <span key={page} className="text-zinc-400 px-1">...</span>;
+                                            }
+                                            return null;
+                                        })}
+                                    </div>
+
+                                    <button
+                                        onClick={() => {
+                                            const newPage = Math.min(totalPages, currentPage + 1);
+                                            setCurrentPage(newPage);
+                                            fetchQuestions(newPage);
+                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                        }}
+                                        disabled={currentPage === totalPages || isLoadingQuestions}
+                                        className="px-3 py-1.5 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-zinc-600 dark:text-zinc-300"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                                <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                                    Showing page {currentPage} of {totalPages} ({totalQuestions} total questions)
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

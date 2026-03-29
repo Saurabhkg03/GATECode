@@ -23,28 +23,39 @@ const PodiumCard = ({ user, rank }: { user: User; rank: number }) => {
     const styles = rankStyles[rank] || {};
 
     return (
-        <div className={`flex flex-col items-center ${styles.order} ${styles.height}`}>
-            <div className={`relative w-full glass-card p-4 rounded-2xl text-center flex flex-col items-center transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${styles.shadow}`}>
-                {rank === 1 && <Crown className="absolute -top-3.5 w-7 h-7 text-yellow-400 drop-shadow-lg" fill="currentColor" />}
-                <div className={`absolute top-2 right-2 text-xl font-bold ${styles.iconColor} opacity-70`}>#{rank}</div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                    src={user.avatar || '/user.png'}
-                    alt={user.name}
-                    className={`w-20 h-20 rounded-full object-cover mb-3 ring-4 ${styles.ring}`}
-                    onError={(e) => { (e.target as HTMLImageElement).src = '/user.png'; }}
-                />
-                <Link href={`/profile/${user.username}`} className={`font-bold text-base hover:underline w-full truncate ${getRankTier(user.rating ?? 0).color}`}>{user.name}</Link>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate w-full">@{user.username} • <span className={getRankTier(user.rating ?? 0).color}>{getRankTier(user.rating ?? 0).title}</span></p>
-                <div className={`mt-3 w-full bg-gradient-to-r ${styles.gradient} p-2 rounded-lg`}>
-                    <div className="flex justify-around items-center text-white">
-                        <div className="text-center">
-                            <p className="font-bold text-lg">{user.rating ?? 0}</p>
-                            <p className="text-xs opacity-80">Rating</p>
-                        </div>
-                        <div className="text-center">
-                            <p className="font-bold text-lg">{user.stats?.correct ?? 0}</p>
-                            <p className="text-xs opacity-80">Solved</p>
+        <div className={`w-full ${styles.order} ${styles.height}`}>
+            <div className={`relative w-full glass-card p-4 rounded-2xl flex flex-row md:flex-col items-center text-left md:text-center gap-5 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${styles.shadow}`}>
+                {rank === 1 && <Crown className="absolute -top-3.5 md:-top-4 left-6 md:left-1/2 md:-translate-x-1/2 w-7 h-7 text-yellow-400 drop-shadow-lg z-10" fill="currentColor" />}
+                <div className={`absolute top-2 right-4 md:top-2 md:right-2 text-xl font-bold ${styles.iconColor} opacity-40 md:opacity-70`}>#{rank}</div>
+                
+                <div className="relative shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                        src={user.avatar || '/user.png'}
+                        alt={user.name}
+                        className={`w-20 h-20 md:w-24 md:h-24 rounded-full object-cover ring-4 ${styles.ring} shadow-md`}
+                        onError={(e) => { (e.target as HTMLImageElement).src = '/user.png'; }}
+                    />
+                </div>
+
+                <div className="flex-1 min-w-0 md:w-full">
+                    <Link href={`/profile/${user.username}`} className={`font-bold text-lg md:text-base hover:underline truncate block ${getRankTier(user.rating ?? 0).color}`}>
+                        {user.name}
+                    </Link>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                        @{user.username} • <span className={getRankTier(user.rating ?? 0).color}>{getRankTier(user.rating ?? 0).title}</span>
+                    </p>
+                    
+                    <div className={`mt-3 w-full bg-gradient-to-r ${styles.gradient} p-2 rounded-xl shadow-inner md:mt-4`}>
+                        <div className="flex justify-around items-center text-white">
+                            <div className="text-center">
+                                <p className="font-bold text-base md:text-lg">{user.rating ?? 0}</p>
+                                <p className="text-[10px] md:text-xs opacity-80">Rating</p>
+                            </div>
+                            <div className="text-center">
+                                <p className="font-bold text-base md:text-lg">{user.stats?.correct ?? 0}</p>
+                                <p className="text-[10px] md:text-xs opacity-80">Solved</p>
+                            </div>
                         </div>
                     </div>
                 </div>

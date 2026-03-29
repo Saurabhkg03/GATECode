@@ -78,9 +78,9 @@ const ContestGenerator: React.FC<ContestGeneratorProps> = ({ onContestCreated, i
     };
 
     return (
-        <div className="p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm space-y-5">
+        <div className="p-6 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm space-y-5">
             <h2 className="text-xl font-bold flex items-center gap-2 dark:text-white">
-                <Wand2 className="w-5 h-5 text-purple-600" />
+                <Wand2 className="w-5 h-5 text-blue-500" />
                 Real Exam Generator
             </h2>
 
@@ -93,7 +93,7 @@ const ContestGenerator: React.FC<ContestGeneratorProps> = ({ onContestCreated, i
                     <select
                         value={branch}
                         onChange={(e) => setBranch(e.target.value)}
-                        className="w-full p-2.5 border rounded-xl dark:bg-zinc-800 dark:border-zinc-700 dark:text-white text-sm focus:ring-2 focus:ring-purple-500 outline-none transition"
+                        className="w-full p-2.5 border rounded-xl dark:bg-zinc-900 dark:border-zinc-800 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
                     >
                         <option value="ece">Electronics (ECE)</option>
                         <option value="cse">Computer Science (CSE)</option>
@@ -115,7 +115,7 @@ const ContestGenerator: React.FC<ContestGeneratorProps> = ({ onContestCreated, i
                         value={contestTitle}
                         onChange={(e) => setContestTitle(e.target.value)}
                         placeholder="e.g. Major Test 1"
-                        className="w-full p-2.5 border rounded-xl dark:bg-zinc-800 dark:border-zinc-700 dark:text-white text-sm focus:ring-2 focus:ring-purple-500 outline-none transition"
+                        className="w-full p-2.5 border rounded-xl dark:bg-zinc-900 dark:border-zinc-800 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
                     />
                 </div>
             </div>
@@ -202,7 +202,7 @@ const ContestGenerator: React.FC<ContestGeneratorProps> = ({ onContestCreated, i
                         id="isPublic"
                         checked={isPublic}
                         onChange={(e) => setIsPublic(e.target.checked)}
-                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                        className="w-4 h-4 text-blue-500 rounded border-zinc-300 focus:ring-blue-500 dark:focus:ring-blue-500 dark:ring-offset-zinc-900 focus:ring-2 dark:bg-zinc-800 dark:border-zinc-700"
                     />
                     <label htmlFor="isPublic" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                         Publish to Community (Visible to everyone)
@@ -219,7 +219,7 @@ const ContestGenerator: React.FC<ContestGeneratorProps> = ({ onContestCreated, i
             <button
                 onClick={generateContest}
                 disabled={loading || (enableSchedule && !scheduledDateTime)}
-                className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 text-sm"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 text-sm shadow-blue-500/10"
             >
                 {loading ? <Loader2 className="animate-spin w-4 h-4" /> : <Wand2 className="w-4 h-4" />}
                 {loading ? 'Generating…' : 'Generate Exam'}

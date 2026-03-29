@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, ArrowRight, CheckCircle, XCircle, Loader2, BookOpen, Bookmark, Calendar, RotateCcw, Save, Timer as TimerIcon, Play, Pause, LogIn, Check as CheckIcon, X as XIcon, FolderPlus, ListPlus, ClipboardList } from 'lucide-react';
 import Image from 'next/image';
 
-import { doc, getDoc, setDoc, collection, getDocs, arrayUnion, arrayRemove, query, serverTimestamp, writeBatch, orderBy, addDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, arrayUnion, arrayRemove, query, serverTimestamp, writeBatch, orderBy, addDoc, increment } from 'firebase/firestore';
 import { db, type Option } from '@/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Question, Submission, UserQuestionData, QuestionList, UserStats, UserStreakData, User } from '@/data/mockData';
@@ -521,7 +521,29 @@ export default function QuestionClient({ id }: { id: string }) {
                 [`ratings.${selectedBranch}`]: newBranchRating
             });
 
+            // --- Update question's global accuracy stats ---
+            // Only update the question doc on first-time submission (not re-attempts)
+            // We use increment() for atomic concurrent writes from multiple users
+            const questionDocRef = doc(db, questionCollectionPath, question.id);
+            const newAttempts = (question.attempts || 0) + 1;
+            const newCorrectCount = (question.correctCount || 0) + (userCorrect ? 1 : 0);
+            const newAccuracy = newAttempts > 0 ? parseFloat(((newCorrectCount / newAttempts) * 100).toFixed(1)) : 0;
+
+            batch.update(questionDocRef, {
+                attempts: increment(1),
+                correctCount: increment(userCorrect ? 1 : 0),
+                accuracy: newAccuracy,
+            });
+
             await batch.commit();
+
+            // Update local question state to reflect new accuracy stats immediately
+            setQuestion(prev => prev ? {
+                ...prev,
+                attempts: newAttempts,
+                correctCount: newCorrectCount,
+                accuracy: newAccuracy,
+            } : prev);
 
             setUserInfo((prev: User | null) => {
                 if (!prev) return null;
@@ -581,7 +603,29 @@ export default function QuestionClient({ id }: { id: string }) {
                 [`ratings.${selectedBranch}`]: newBranchRating
             });
 
+            // --- Decrement question's global accuracy stats ---
+            const questionDocRef = doc(db, questionCollectionPath, question.id);
+            const prevAttempts = Math.max(0, (question.attempts || 0));
+            const prevCorrectCount = Math.max(0, (question.correctCount || 0));
+            const newAttempts = Math.max(0, prevAttempts - 1);
+            const newCorrectCount = isCorrect ? Math.max(0, prevCorrectCount - 1) : prevCorrectCount;
+            const newAccuracy = newAttempts > 0 ? parseFloat(((newCorrectCount / newAttempts) * 100).toFixed(1)) : 0;
+
+            batch.update(questionDocRef, {
+                attempts: increment(-1),
+                correctCount: increment(isCorrect ? -1 : 0),
+                accuracy: newAccuracy,
+            });
+
             await batch.commit();
+
+            // Update local question state to reflect new accuracy stats immediately
+            setQuestion(prev => prev ? {
+                ...prev,
+                attempts: newAttempts,
+                correctCount: newCorrectCount,
+                accuracy: newAccuracy,
+            } : prev);
 
             setUserInfo((prev: User | null) => {
                 if (!prev) return null;
