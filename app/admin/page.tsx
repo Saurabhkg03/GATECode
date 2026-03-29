@@ -303,7 +303,7 @@ export default function AdminPage() {
         <div className="min-h-screen">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex items-center gap-3 mb-6">
-                    <Shield className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                    <Shield className="w-8 h-8 text-blue-500" />
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                         {userInfo?.role === 'admin' ? `Admin Panel (${selectedBranch.toUpperCase()})` : `Moderator Panel (${selectedBranch.toUpperCase()})`}
                         <span className="text-sm font-normal text-gray-500 ml-2">[{userInfo?.role || 'No Role'}]</span>
@@ -314,7 +314,7 @@ export default function AdminPage() {
                     <div className="mb-6 flex gap-4">
                         <Link
                             href="/add-question"
-                            className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow hover:shadow-md"
+                            className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5"
                         >
                             <PlusCircle className="w-5 h-5" />
                             Add New Question
@@ -322,7 +322,7 @@ export default function AdminPage() {
                         {userInfo?.role === 'admin' && (
                             <button
                                 onClick={() => setIsImportModalOpen(true)}
-                                className="inline-flex items-center gap-2 bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors shadow hover:shadow-md"
+                                className="inline-flex items-center gap-2 bg-zinc-800 text-white px-6 py-3 rounded-lg font-bold hover:bg-zinc-700 transition-all shadow hover:shadow-md border border-white/5"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-file-json"><path d="M10 12h4" /><path d="M14 12v4" /><path d="M2.5 12c0-1.7 1.3-3 3-3 2 0 4 1.3 4 3s-2 3-4 3c-1.7 0-3-1.3-3-3" /><path d="M14.5 9c0-.8.7-1.5 1.5-1.5h3c.8 0 1.5.7 1.5 1.5v3c0 .8-.7 1.5-1.5 1.5h-3c-.8 0-1.5-.7-1.5-1.5z" /></svg>
                                 Import JSON
@@ -341,23 +341,23 @@ export default function AdminPage() {
                 )}
 
                 {userInfo?.role === 'admin' && (
-                    <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
+                    <div className="mb-6 border-b border-gray-200 dark:border-zinc-800">
                         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
                             <button
                                 onClick={() => { if (adminView !== 'pending') setAdminView('pending'); }}
-                                className={`${adminView === 'pending' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-500'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+                                className={`${adminView === 'pending' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:border-zinc-700'} whitespace-nowrap py-4 px-1 border-b-2 font-bold text-sm transition-all`}
                             >
                                 Pending Verification
                             </button>
                             <button
                                 onClick={() => { if (adminView !== 'all') setAdminView('all'); }}
-                                className={`${adminView === 'all' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-500'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+                                className={`${adminView === 'all' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:border-zinc-700'} whitespace-nowrap py-4 px-1 border-b-2 font-bold text-sm transition-all`}
                             >
                                 All Questions
                             </button>
                             <button
                                 onClick={() => { if (adminView !== 'contests') setAdminView('contests'); }}
-                                className={`${adminView === 'contests' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-500'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+                                className={`${adminView === 'contests' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:border-zinc-700'} whitespace-nowrap py-4 px-1 border-b-2 font-bold text-sm transition-all`}
                             >
                                 Contests
                             </button>
@@ -377,7 +377,7 @@ export default function AdminPage() {
                             <ContestGenerator isAdminContest={true} onContestCreated={() => { alert("Contest created securely."); fetchAdminContests(); }} />
                         </div>
 
-                        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden relative">
+                        <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden relative">
                             {loadingContests && <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center z-10"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>}
                             <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
                                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">All Contests ({adminContests.length})</h2>
@@ -387,13 +387,13 @@ export default function AdminPage() {
                             ) : (
                                 <div className="overflow-x-auto">
                                     <table className="w-full min-w-[640px]">
-                                        <thead className="bg-gray-50 dark:bg-gray-800">
+                                        <thead className="bg-gray-50 dark:bg-zinc-900">
                                             <tr>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Title</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">ID</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Created By</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-wider">Type</th>
+                                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-wider">Title</th>
+                                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-wider">ID</th>
+                                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-wider">Created By</th>
+                                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-wider">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -431,12 +431,12 @@ export default function AdminPage() {
                                                                             }
                                                                         }
                                                                     }}
-                                                                    className="px-3 py-1 bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:hover:bg-purple-900 rounded-md text-xs font-semibold transition-colors"
+                                                                    className="px-3 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 rounded-md text-xs font-bold transition-all border border-blue-200 dark:border-blue-500/20"
                                                                 >
                                                                     Process Ratings
                                                                 </button>
                                                             )}
-                                                            <button onClick={() => handleDeleteContest(c.id)} title="Delete Contest" className="text-red-600 hover:text-red-900 p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors">
+                                                            <button onClick={() => handleDeleteContest(c.id)} title="Delete Contest" className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-500/10 transition-colors">
                                                                 <X className="w-5 h-5" />
                                                             </button>
                                                         </div>
@@ -451,7 +451,7 @@ export default function AdminPage() {
                     </div>
                 ) : (
                     <>
-                        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden relative">
+                        <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden relative">
                             {(loadingMore || isApprovingAll) && <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center z-10"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>}
 
                             <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center flex-wrap gap-4">
@@ -480,14 +480,14 @@ export default function AdminPage() {
                             ) : (
                                 <div className="overflow-x-auto">
                                     <table className="w-full min-w-[640px]">
-                                        <thead className="bg-gray-50 dark:bg-gray-800">
+                                        <thead className="bg-gray-50 dark:bg-zinc-900">
                                             <tr>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Q.No.</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Title</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Subject</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Topic</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-wider">Q.No.</th>
+                                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-wider">Title</th>
+                                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-wider">Subject</th>
+                                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-wider">Topic</th>
+                                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-wider">Status</th>
+                                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-wider">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -510,9 +510,9 @@ export default function AdminPage() {
                                                                     <button onClick={() => handleReject(q.id)} title="Reject/Delete" className="text-red-600 hover:text-red-900 p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={loadingMore || isApprovingAll}><X className="w-5 h-5" /></button>
                                                                 </>
                                                             )}
-                                                            <Link href={`/edit-question/${q.id}`} title="Edit" className={`text-blue-600 hover:text-blue-900 p-2 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors ${loadingMore || isApprovingAll ? 'pointer-events-none opacity-50' : ''}`}><Edit className="w-5 h-5" /></Link>
+                                                            <Link href={`/edit-question/${q.id}`} title="Edit" className={`text-zinc-400 hover:text-blue-500 p-2 rounded-full hover:bg-zinc-800 transition-colors ${loadingMore || isApprovingAll ? 'pointer-events-none opacity-50' : ''}`}><Edit className="w-5 h-5" /></Link>
                                                             {userInfo?.role === 'admin' && (
-                                                                <button onClick={() => handleReject(q.id)} title="Delete Question" className="text-red-600 hover:text-red-900 p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={loadingMore || isApprovingAll}><X className="w-5 h-5" /></button>
+                                                                <button onClick={() => handleReject(q.id)} title="Delete Question" className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={loadingMore || isApprovingAll}><X className="w-5 h-5" /></button>
                                                             )}
                                                         </div>
                                                     </td>

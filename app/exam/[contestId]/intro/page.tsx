@@ -8,7 +8,6 @@ import { db } from '@/firebase';
 import { doc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { Contest, ContestAttempt } from '@/types/exam';
 import CustomAlert from '@/components/ui/CustomAlert';
-import { useSearchParams } from 'next/navigation';
 
 export default function ExamIntroPage() {
     const params = useParams();

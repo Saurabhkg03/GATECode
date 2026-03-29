@@ -493,6 +493,9 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
             if (res.ok) {
                 // Optimistic clean up
                 if (typeof window !== 'undefined') {
+                    // Remove the actual backup key used during the session
+                    localStorage.removeItem(`exam_backup_${stateRef.current.attemptId}`);
+                    // Also clean up any legacy keys
                     localStorage.removeItem(`gate_exam_progress_${contestId}`);
                     localStorage.removeItem(`exam_target_time_${contestId}_${uid}`);
                 }

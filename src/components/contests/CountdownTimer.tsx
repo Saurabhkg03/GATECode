@@ -103,7 +103,9 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
           <span className="text-[9px] uppercase text-gray-500 mt-0.5">d</span>
         </div>
       )}
-      <span className="text-gray-400 font-bold -mt-3">:</span>
+      {timeLeft.days > 0 && (
+        <span className="text-gray-400 font-bold -mt-3">:</span>
+      )}
       <div className="flex flex-col items-center">
         <span className="font-bold text-gray-900 dark:text-white bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded-md">
           {format(timeLeft.hours)}
