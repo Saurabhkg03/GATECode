@@ -15,6 +15,18 @@
 @layer base {
   html {
     @apply font-sans;
+    /* --- MOBILE UI SIZE --- */
+    /* Adjust this value to scale the app UI on phones (default 16px). */
+    font-size: 15px;
+  }
+
+  /* --- DESKTOP UI SIZE --- */
+  /* This breakpoint applies to tablets and larger screens (>= 768px). */
+  @media (min-width: 768px) {
+    html {
+      /* Adjust this value to scale the app UI on desktops. */
+      font-size: 15px;
+    }
   }
 
   input,
