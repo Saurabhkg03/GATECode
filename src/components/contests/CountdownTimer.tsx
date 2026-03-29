@@ -7,12 +7,14 @@ interface CountdownTimerProps {
   targetDate: Date;
   onComplete?: () => void;
   compact?: boolean; // Inline single-line variant for cards
+  className?: string;
 }
 
 const CountdownTimer: React.FC<CountdownTimerProps> = ({
   targetDate,
   onComplete,
   compact = false,
+  className,
 }) => {
   const [timeLeft, setTimeLeft] = useState<{
     days: number;
@@ -84,7 +86,7 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
     if (timeLeft.minutes > 0) parts.push(`${timeLeft.minutes}m`);
     if (timeLeft.days === 0) parts.push(`${format(timeLeft.seconds)}s`);
     return (
-      <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
+      <span className={`font-mono font-bold ${className || "text-amber-600 dark:text-amber-400"}`}>
         {parts.join(" ")}
       </span>
     );
@@ -92,7 +94,7 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
 
   // ── Full block variant (used in upcoming section) ──
   return (
-    <div className="flex gap-2 items-center font-mono text-sm tracking-tighter">
+    <div className={`flex gap-2 items-center font-mono text-sm tracking-tighter ${className || ""}`}>
       {timeLeft.days > 0 && (
         <div className="flex flex-col items-center">
           <span className="font-bold text-gray-900 dark:text-white bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded-md">

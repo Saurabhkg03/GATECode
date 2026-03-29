@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase';
-import { collection, getDocs, doc, deleteDoc, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, doc, deleteDoc, orderBy, query, writeBatch, arrayRemove } from 'firebase/firestore';
 import { Loader2, Star, Trash2, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import LatexRenderer from '@/components/LatexRenderer';
 import { extractAndCleanHtml } from '@/utils/htmlUtils';
@@ -43,7 +43,17 @@ export default function BookmarksPage() {
         if (!window.confirm("Remove this question from your bookmarks?")) return;
 
         try {
-            await deleteDoc(doc(db, 'users', user.uid, 'bookmarks', id));
+            const batch = writeBatch(db);
+            const bookmarkRef = doc(db, 'users', user.uid, 'bookmarks', id);
+            const userQuestionDataRef = doc(db, `users/${user.uid}/userQuestionData`, id);
+            const favoritesListRef = doc(db, `users/${user.uid}/questionLists`, 'favorites');
+
+            batch.delete(bookmarkRef);
+            batch.set(userQuestionDataRef, { isFavorite: false }, { merge: true });
+            batch.update(favoritesListRef, { questionIds: arrayRemove(id) });
+
+            await batch.commit();
+
             setBookmarks(prev => prev.filter(b => b.docId !== id));
         } catch (e) {
             console.error("Error removing bookmark:", e);

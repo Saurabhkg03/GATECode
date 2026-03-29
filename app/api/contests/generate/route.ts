@@ -19,8 +19,8 @@ export async function POST(req: NextRequest) {
             uid
         } = body;
 
-        if (!branch || !uid) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        if (!branch || !uid || uid === 'anonymous') {
+            return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
         }
 
         if (!adminDb) {

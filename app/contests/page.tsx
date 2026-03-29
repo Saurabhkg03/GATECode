@@ -323,7 +323,7 @@ const ScheduledContestCard = ({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 const ContestsPage = () => {
-    const { userInfo, user } = useAuth();
+    const { userInfo, user, isAuthenticated } = useAuth();
     const [contests, setContests] = useState<Contest[]>([]);
     const [loading, setLoading] = useState(true);
     const [showGenerator, setShowGenerator] = useState(false);
@@ -339,6 +339,7 @@ const ContestsPage = () => {
     const [selectedBranch, setSelectedBranch] = useState("All");
     const [selectedDifficulty, setSelectedDifficulty] = useState("All");
     const [selectedDuration, setSelectedDuration] = useState("All");
+    const [showMobileFilters, setShowMobileFilters] = useState(false);
 
     const fetchContests = async (isLoadMore = false) => {
         try {
@@ -574,15 +575,17 @@ const ContestsPage = () => {
                                 );
                             })}
                         </div>
-                        <button
-                            onClick={() => setShowGenerator(!showGenerator)}
-                            className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm border whitespace-nowrap ${showGenerator ? "bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300" : "bg-blue-600 hover:bg-blue-700 dark:bg-white dark:hover:bg-gray-100 border-transparent text-white dark:text-black hover:scale-[1.02]"}`}
-                        >
-                            {showGenerator ? <><X className="w-4 h-4" /> Close</> : <><Sparkles className="w-4 h-4" /> Create Custom Mock</>}
-                        </button>
+                        {isAuthenticated && (
+                            <button
+                                onClick={() => setShowGenerator(!showGenerator)}
+                                className={`hidden sm:flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm border whitespace-nowrap ${showGenerator ? "bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300" : "bg-blue-600 hover:bg-blue-700 dark:bg-white dark:hover:bg-gray-100 border-transparent text-white dark:text-black hover:scale-[1.02]"}`}
+                            >
+                                {showGenerator ? <><X className="w-4 h-4" /> Close</> : <><Sparkles className="w-4 h-4" /> Create Custom Mock</>}
+                            </button>
+                        )}
                     </div>
 
-                    {showGenerator && (
+                    {isAuthenticated && showGenerator && (
                         <div className="animate-in fade-in slide-in-from-top-4 duration-300">
                             <ContestGenerator onContestCreated={handleRefresh} isAdminContest={false} />
                         </div>
@@ -590,25 +593,46 @@ const ContestsPage = () => {
 
                     {/* ── FILTER BAR ── */}
                     <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-4 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="flex flex-col lg:flex-row gap-4">
-                            {/* Search */}
-                            <div className="relative flex-1">
-                                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                    <Search className="w-5 h-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                                {/* Search */}
+                                <div className="relative flex-1 group">
+                                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                        <Search className="w-5 h-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder="Search mock tests..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:text-gray-200"
+                                    />
                                 </div>
-                                <input
-                                    type="text"
-                                    placeholder="Search mock tests..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:text-gray-200"
-                                />
+
+                                {/* Filter Toggle (Mobile Only) */}
+                                <button
+                                    onClick={() => setShowMobileFilters(!showMobileFilters)}
+                                    className={`lg:hidden flex items-center justify-center p-2.5 rounded-xl border transition-all ${showMobileFilters ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400" : "bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 text-gray-500"}`}
+                                    title="Toggle Filters"
+                                >
+                                    <SlidersHorizontal className="w-5 h-5" />
+                                </button>
                             </div>
 
-                            {/* Dropdowns */}
-                            <div className="flex flex-col sm:flex-row gap-3">
+                            {/* Mobile Create Custom Mock Button */}
+                            {isAuthenticated && activeTab === "mine" && (
+                                <button
+                                    onClick={() => setShowGenerator(!showGenerator)}
+                                    className={`sm:hidden w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm border whitespace-nowrap ${showGenerator ? "bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300" : "bg-blue-600 hover:bg-blue-700 dark:bg-white dark:hover:bg-gray-100 border-transparent text-white dark:text-black"}`}
+                                >
+                                    {showGenerator ? <><X className="w-4 h-4" /> Close</> : <><Sparkles className="w-4 h-4" /> Create Custom Mock</>}
+                                </button>
+                            )}
+
+                            {/* Dropdowns - Collapsible on Mobile, always visible on LG+ */}
+                            <div className={`${showMobileFilters ? "flex" : "hidden lg:flex"} flex-col sm:flex-row gap-3 animate-in fade-in slide-in-from-top-2 duration-300`}>
                                 {/* Branch */}
-                                <div className="relative isolate">
+                                <div className="relative isolate flex-1 sm:flex-none">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <GraduationCap className="w-4 h-4 text-gray-400" />
                                     </div>
@@ -624,7 +648,7 @@ const ContestsPage = () => {
                                 </div>
 
                                 {/* Difficulty */}
-                                <div className="relative isolate">
+                                <div className="relative isolate flex-1 sm:flex-none">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <Gauge className="w-4 h-4 text-gray-400" />
                                     </div>
@@ -642,7 +666,7 @@ const ContestsPage = () => {
                                 </div>
 
                                 {/* Duration */}
-                                <div className="relative isolate">
+                                <div className="relative isolate flex-1 sm:flex-none">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <Clock className="w-4 h-4 text-gray-400" />
                                     </div>

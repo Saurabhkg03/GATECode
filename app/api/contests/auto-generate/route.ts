@@ -36,6 +36,7 @@ export async function GET(request: Request) {
             "Weekly",
             branch,
             nextWeekly.startTime,
+            nextWeekly.endTime,
             nextWeekly.durationMinutes,
           );
           generatedIds.push(contestId);
@@ -58,6 +59,7 @@ export async function GET(request: Request) {
             "Biweekly",
             branch,
             nextBiweekly.startTime,
+            nextBiweekly.endTime,
             nextBiweekly.durationMinutes,
           );
           generatedIds.push(contestId);
@@ -92,6 +94,7 @@ async function attemptToGenerateContest(
   contestType: string,
   branch: string,
   startTime: Date,
+  endTime: Date,
   durationMinutes: number,
 ) {
   const sourceCollection = `questions_${branch}`;
@@ -114,19 +117,15 @@ async function attemptToGenerateContest(
         ...data,
         branch: data.branch || branch,
         marks: Number(data.marks) || 1,
-        // fallback logic
         negative_marks:
-          Number(data.negative_marks) ||
-          (Number(data.marks) === 2 ? 0.66 : 0.33),
+          data.negative_marks !== undefined && data.negative_marks !== null
+            ? Number(data.negative_marks)
+            : (data.question_type === "nat" || data.question_type === "msq")
+            ? 0
+            : (Number(data.marks) === 2 ? 0.66 : 0.33),
       } as Question);
     }
   });
-
-  if (allQuestions.length < 5) {
-    throw new Error(
-      `Insufficient questions in '${sourceCollection}' (Found ${allQuestions.length})`,
-    );
-  }
 
   // Simplified fallback selection for automated contests to prevent failure
   const gaQuestions = allQuestions.filter((q) => {
@@ -148,6 +147,18 @@ async function attemptToGenerateContest(
         q.branch === "all" ||
         !q.branch),
   );
+
+  if (gaQuestions.length < 10) {
+    throw new Error(
+      `Insufficient GA questions in '${sourceCollection}' (Need 10, found ${gaQuestions.length})`
+    );
+  }
+
+  if (techQuestions.length < 55) {
+    throw new Error(
+      `Insufficient Technical questions in '${sourceCollection}' (Need 55, found ${techQuestions.length})`
+    );
+  }
 
   const selectQuestions = (
     pool: Question[],
@@ -182,6 +193,13 @@ async function attemptToGenerateContest(
     { name: "Technical", questions: finalTech },
   ];
 
+  const calculatedTotalMarks = finalSections.reduce(
+    (acc, section) =>
+      acc +
+      section.questions.reduce((sum, q) => sum + (Number(q.marks) || 0), 0),
+    0
+  );
+
   const newContest: Contest = {
     id: fullContestId,
     title: `GATE ${branch.toUpperCase()} ${contestType} Contest ${baseId.split("-")[1]}`,
@@ -189,9 +207,11 @@ async function attemptToGenerateContest(
     branch: branch,
     createdBy: "system-auto",
     isPublic: true,
+    isRated: true,
     startTime: startTime.toISOString(),
+    endTime: endTime.toISOString(),
     durationMinutes: durationMinutes,
-    totalMarks: 100, // Hardcoded for standard GATE
+    totalMarks: calculatedTotalMarks,
     sections: finalSections,
     description: `Official ${contestType.toLowerCase()} live contest. Test your rank amongst thousands of peers.`,
   };

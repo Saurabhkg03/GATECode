@@ -3,7 +3,7 @@
 import { useMemo, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Zap, ArrowRight, BookOpen, BarChart, Timer, Trophy, Sparkles, History, CheckCircle, Target } from "lucide-react";
+import { Zap, ArrowRight, BookOpen, BarChart, Timer, Trophy, Sparkles, History, CheckCircle, Target, Calendar } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDailyChallenge } from "@/contexts/DailyChallengeContext";
 import { useMetadata } from "@/contexts/MetadataContext";
@@ -273,47 +273,76 @@ export default function HomeClient({
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Weekly Contest Card */}
-            <Link href={`/contests/${weeklyInfo.id}`} className="relative rounded-2xl overflow-hidden group shadow-lg">
+            <Link href={`/contests/${weeklyInfo.id}`} className="relative rounded-2xl overflow-hidden group shadow-xl transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl">
+              {/* Premium Gradient Background */}
               <div className="absolute inset-0 bg-gradient-to-br from-amber-400 via-orange-500 to-red-500" />
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_28%_38%,rgba(255,255,255,0.20),transparent_62%)]" />
-              <div className="relative z-10 p-5 flex flex-col justify-between h-full min-h-[160px]">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_28%_38%,rgba(255,255,255,0.25),transparent_65%)]" />
+              
+              {/* Decorative Elements */}
+              <div className="absolute -bottom-10 -right-10 w-56 h-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.15),transparent_70%)]" />
+              <div className="absolute top-3 right-10 w-16 h-16 rounded-full border border-white/10" />
+              
+              {/* Lightning Illustration */}
+              <div className="absolute bottom-6 right-4 select-none leading-none filter drop-shadow-[0_12px_32px_rgba(0,0,0,0.4)] transition-transform duration-700 group-hover:-translate-y-3 group-hover:scale-110">
+                <span className="text-[80px] drop-shadow-lg">⚡</span>
+              </div>
+
+              <div className="relative z-10 p-6 flex flex-col justify-between h-full min-h-[180px]">
                 <div className="flex justify-between items-start">
-                  <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm text-white text-[10px] font-black uppercase tracking-[0.18em] rounded-full px-3 py-1 border border-white/10">
-                    <Trophy className="w-3 h-3" /> Weekly Contest
+                  <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-full px-4 py-1.5 border border-white/10 shadow-inner">
+                    <Trophy className="w-3.5 h-3.5" /> Weekly Contest
                   </span>
-                  <div className="bg-black/30 backdrop-blur-md rounded-full px-2.5 py-1 flex items-center gap-1.5 border border-white/10">
-                    <Timer className="w-3 h-3 text-white/75" />
-                    <span className="text-white text-[11px] font-bold tabular-nums">
+                  <div className="bg-black/40 backdrop-blur-xl rounded-full px-3 py-1.5 flex items-center gap-2 border border-white/15 shadow-lg">
+                    <Timer className="w-3.5 h-3.5 text-white/90" />
+                    <span className="text-white text-[12px] font-black tabular-nums">
                       <CountdownTimer targetDate={weeklyInfo.startTime} compact={true} onComplete={() => { }} />
                     </span>
                   </div>
                 </div>
                 <div className="mt-4">
-                  <h3 className="text-xl font-extrabold text-white leading-tight drop-shadow-md">Weekly Mock {weeklyInfo.number}</h3>
-                  <p className="text-white/80 text-xs mt-1 font-medium">Starts {weeklyInfo.startTime.toLocaleDateString("en-IN", { weekday: "short", hour: "2-digit", minute: "2-digit" })}</p>
+                  <h3 className="text-2xl font-black text-white leading-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.2)]">Weekly Mock {weeklyInfo.number}</h3>
+                  <div className="flex items-center gap-2 text-white/90 text-sm mt-1.5 font-bold">
+                    <Calendar className="w-4 h-4" />
+                    <span>Starts {weeklyInfo.startTime.toLocaleDateString("en-IN", { weekday: "long", hour: "2-digit", minute: "2-digit" })}</span>
+                  </div>
                 </div>
               </div>
             </Link>
 
             {/* Biweekly Contest Card */}
-            <Link href={`/contests/${biweeklyInfo.id}`} className="relative rounded-2xl overflow-hidden group shadow-lg">
+            <Link href={`/contests/${biweeklyInfo.id}`} className="relative rounded-2xl overflow-hidden group shadow-xl transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl">
+              {/* Premium Gradient Background */}
               <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-violet-600 to-purple-700" />
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_72%_28%,rgba(255,255,255,0.16),transparent_60%)]" />
-              <div className="relative z-10 p-5 flex flex-col justify-between h-full min-h-[160px]">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_72%_28%,rgba(255,255,255,0.2),transparent_60%)]" />
+              
+              {/* Decorative Elements */}
+              <div className="absolute -bottom-10 -left-10 w-56 h-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.12),transparent_70%)]" />
+              <div className="absolute top-3 left-10 w-16 h-16 rounded-full border border-white/10" />
+
+              {/* Lightning Illustrations */}
+              <div className="absolute bottom-4 right-4 select-none leading-none filter drop-shadow-[0_12px_32px_rgba(0,0,0,0.4)] transition-transform duration-700 group-hover:-translate-y-3 group-hover:scale-110">
+                <span className="text-[54px] block drop-shadow-lg">⚡</span>
+                <span className="text-[38px] block -mt-3 ml-6 opacity-80 drop-shadow-lg">⚡</span>
+              </div>
+
+              <div className="relative z-10 p-6 flex flex-col justify-between h-full min-h-[180px]">
                 <div className="flex justify-between items-start">
-                  <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm text-white text-[10px] font-black uppercase tracking-[0.18em] rounded-full px-3 py-1 border border-white/10">
-                    <Sparkles className="w-3 h-3" /> Biweekly Contest
+                  <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-full px-4 py-1.5 border border-white/10 shadow-inner">
+                    <Sparkles className="w-3.5 h-3.5" /> Biweekly Contest
                   </span>
-                  <div className="bg-black/30 backdrop-blur-md rounded-full px-2.5 py-1 flex items-center gap-1.5 border border-white/10">
-                    <Timer className="w-3 h-3 text-white/75" />
-                    <span className="text-white text-[11px] font-bold tabular-nums">
+                  <div className="bg-black/40 backdrop-blur-xl rounded-full px-3 py-1.5 flex items-center gap-2 border border-white/15 shadow-lg">
+                    <Timer className="w-3.5 h-3.5 text-white/90" />
+                    <span className="text-white text-[12px] font-black tabular-nums">
                       <CountdownTimer targetDate={biweeklyInfo.startTime} compact={true} onComplete={() => { }} />
                     </span>
                   </div>
                 </div>
                 <div className="mt-4">
-                  <h3 className="text-xl font-extrabold text-white leading-tight drop-shadow-md">Biweekly Mock {biweeklyInfo.number}</h3>
-                  <p className="text-white/80 text-xs mt-1 font-medium">Starts {biweeklyInfo.startTime.toLocaleDateString("en-IN", { weekday: "short", hour: "2-digit", minute: "2-digit" })}</p>
+                  <h3 className="text-2xl font-black text-white leading-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.2)]">Biweekly Mock {biweeklyInfo.number}</h3>
+                  <div className="flex items-center gap-2 text-white/90 text-sm mt-1.5 font-bold">
+                    <Calendar className="w-4 h-4" />
+                    <span>Starts {biweeklyInfo.startTime.toLocaleDateString("en-IN", { weekday: "long", hour: "2-digit", minute: "2-digit" })}</span>
+                  </div>
                 </div>
               </div>
             </Link>

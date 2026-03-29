@@ -446,23 +446,25 @@ export default function ProfileClient({ username }: { username: string }) {
                     {/* Left Column */}
                     <div className="lg:col-span-1 space-y-6">
                         {/* User Info Card */}
-                        <div className="bg-white dark:bg-zinc-900/70 p-6 relative rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <div className="flex flex-col items-center text-center">
-                                <div className="relative">
+                        <div className="bg-white dark:bg-zinc-900/70 p-5 md:p-6 relative rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <div className="flex flex-row md:flex-col items-center text-left md:text-center gap-5 md:gap-0">
+                                <div className="relative shrink-0">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={profileUser.avatar || '/user.png'} alt={profileUser.name || 'User Avatar'} className="w-28 h-28 rounded-full shadow-lg border-4 border-white dark:border-zinc-700 object-cover" onError={(e) => { e.currentTarget.src = '/user.png'; }} />
-                                    <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 ${getRankTier(branchRating).bg} ${getRankTier(branchRating).color} rounded-full px-3 py-1 text-xs font-bold shadow-md flex items-center gap-1 whitespace-nowrap border border-current`}>
+                                    <img src={profileUser.avatar || '/user.png'} alt={profileUser.name || 'User Avatar'} className="w-20 h-20 md:w-28 md:h-28 rounded-full shadow-lg border-4 border-white dark:border-zinc-700 object-cover" onError={(e) => { e.currentTarget.src = '/user.png'; }} />
+                                    <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 ${getRankTier(branchRating).bg} ${getRankTier(branchRating).color} rounded-full px-2 md:px-3 py-0.5 md:py-1 text-[10px] md:text-xs font-bold shadow-md flex items-center gap-1 whitespace-nowrap border border-current`}>
                                         {getRankTier(branchRating).title}
                                     </span>
                                 </div>
-                                <h1 className={`text-2xl font-bold mt-6 ${getRankTier(branchRating).color}`}>{profileUser.name || 'User'}</h1>
-                                <p className="text-zinc-500 dark:text-zinc-400">@{profileUser.username || 'username'}</p>
-                                <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 mt-2 text-sm">
-                                    <Calendar className="w-4 h-4" />
-                                    <span>Joined {profileUser.joined ? new Date(profileUser.joined).toLocaleDateString(undefined, { year: 'numeric', month: 'long' }) : 'N/A'}</span>
+                                <div className="flex-1 md:mt-6">
+                                    <h1 className={`text-xl md:text-2xl font-bold ${getRankTier(branchRating).color}`}>{profileUser.name || 'User'}</h1>
+                                    <p className="text-sm md:text-base text-zinc-500 dark:text-zinc-400">@{profileUser.username || 'username'}</p>
+                                    <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 mt-1.5 md:mt-2 text-xs md:text-sm">
+                                        <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                        <span>Joined {profileUser.joined ? new Date(profileUser.joined).toLocaleDateString(undefined, { year: 'numeric', month: 'long' }) : 'N/A'}</span>
+                                    </div>
                                 </div>
                             </div>
-                            {isOwnProfile && (<Link href="/settings" className="absolute top-4 right-4 p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors" title="Settings"><SettingsIcon className="w-5 h-5 text-zinc-500 dark:text-zinc-400" /></Link>)}
+                            {isOwnProfile && (<Link href="/settings" className="absolute top-3 right-3 md:top-4 md:right-4 p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors" title="Settings"><SettingsIcon className="w-4 h-4 md:w-5 md:h-5 text-zinc-500 dark:text-zinc-400" /></Link>)}
                         </div>
 
                         {/* Subject Mastery Card */}

@@ -7,7 +7,7 @@ import ImageZoom from '@/components/ui/ImageZoom';
 import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle, Star } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase';
-import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
 
 export default function ReviewModeUI({ questionAnalysis, contest, onExit }: any) {
     const { user } = useAuth();
@@ -49,19 +49,33 @@ export default function ReviewModeUI({ questionAnalysis, contest, onExit }: any)
         if (!user || savingBookmark) return;
         setSavingBookmark(true);
         try {
+            const batch = writeBatch(db);
             const docRef = doc(db, 'users', user.uid, 'bookmarks', question.id);
+            const userQuestionDataRef = doc(db, `users/${user.uid}/userQuestionData`, question.id);
+            const favoritesListRef = doc(db, `users/${user.uid}/questionLists`, 'favorites');
+
             if (isBookmarked) {
-                await deleteDoc(docRef);
+                batch.delete(docRef);
+                batch.set(userQuestionDataRef, { isFavorite: false }, { merge: true });
+                batch.update(favoritesListRef, { questionIds: arrayRemove(question.id) });
                 setIsBookmarked(false);
             } else {
-                await setDoc(docRef, {
+                batch.set(docRef, {
                     ...question,
                     bookmarkedAt: Date.now(),
                     contestId: contest.id,
                     contestTitle: contest.title
                 });
+                batch.set(userQuestionDataRef, { isFavorite: true }, { merge: true });
+                batch.set(favoritesListRef, {
+                    questionIds: arrayUnion(question.id),
+                    name: "Favorites",
+                    uid: user.uid,
+                    createdAt: serverTimestamp()
+                }, { merge: true });
                 setIsBookmarked(true);
             }
+            await batch.commit();
         } catch (e) {
             console.error("Error toggling bookmark:", e);
         } finally {
