@@ -259,7 +259,7 @@ const ListsModal = ({
                             {lists.length === 0 && (
                                 <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center py-4">No lists created yet.</p>
                             )}
-                            {lists.map(list => (
+                            {lists.filter(list => list.id !== 'favorites').map(list => (
                                 <label
                                     key={list.id}
                                     className="flex items-center gap-3 p-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
@@ -629,10 +629,17 @@ export default function QuestionClient({ id }: { id: string }) {
                     uid: user.uid,
                     createdAt: serverTimestamp()
                 }, { merge: true });
+                const bookmarkRef = doc(db, `users/${user.uid}/bookmarks`, id);
+                batch.set(bookmarkRef, {
+                    ...question,
+                    bookmarkedAt: Date.now()
+                });
             } else {
                 batch.update(favoritesListRef, {
                     questionIds: arrayRemove(id)
                 });
+                const bookmarkRef = doc(db, `users/${user.uid}/bookmarks`, id);
+                batch.delete(bookmarkRef);
             }
 
             await batch.commit();

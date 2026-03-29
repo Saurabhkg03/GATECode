@@ -27,12 +27,15 @@ export interface UpcomingContestInfo {
 
 export const getNextWeeklyContest = (now = new Date()): UpcomingContestInfo => {
   const nowMs = now.getTime();
-  const weeksPassed = Math.floor((nowMs - WEEKLY_EPOCH) / WEEK_MS);
-  // If we're past epoch, next = weeksPassed + 1; if before epoch, next = 1.
-  const nextNumber = Math.max(1, weeksPassed + 1);
-  const nextStartMs = WEEKLY_EPOCH + nextNumber * WEEK_MS;
+  const durationMs = DEFAULT_WEEKLY_DURATION_MINUTES * 60 * 1000;
+  
+  // Calculate N such that the contest's end time is in the future
+  const weeksPassedCalc = (nowMs - WEEKLY_EPOCH - durationMs) / WEEK_MS;
+  const nextNumber = Math.max(1, Math.floor(weeksPassedCalc) + 2);
+  
+  const nextStartMs = WEEKLY_EPOCH + (nextNumber - 1) * WEEK_MS;
   const startTime = new Date(nextStartMs);
-  const endTime = new Date(nextStartMs + DEFAULT_WEEKLY_DURATION_MINUTES * 60 * 1000);
+  const endTime = new Date(nextStartMs + durationMs);
 
   return {
     id: `weekly-${nextNumber}`,
@@ -46,11 +49,15 @@ export const getNextWeeklyContest = (now = new Date()): UpcomingContestInfo => {
 
 export const getNextBiweeklyContest = (now = new Date()): UpcomingContestInfo => {
   const nowMs = now.getTime();
-  const biweeksPassed = Math.floor((nowMs - BIWEEKLY_EPOCH) / BIWEEK_MS);
-  const nextNumber = Math.max(1, biweeksPassed + 1);
-  const nextStartMs = BIWEEKLY_EPOCH + nextNumber * BIWEEK_MS;
+  const durationMs = DEFAULT_BIWEEKLY_DURATION_MINUTES * 60 * 1000;
+
+  // Calculate N such that the contest's end time is in the future
+  const biweeksPassedCalc = (nowMs - BIWEEKLY_EPOCH - durationMs) / BIWEEK_MS;
+  const nextNumber = Math.max(1, Math.floor(biweeksPassedCalc) + 2);
+  
+  const nextStartMs = BIWEEKLY_EPOCH + (nextNumber - 1) * BIWEEK_MS;
   const startTime = new Date(nextStartMs);
-  const endTime = new Date(nextStartMs + DEFAULT_BIWEEKLY_DURATION_MINUTES * 60 * 1000);
+  const endTime = new Date(nextStartMs + durationMs);
 
   return {
     id: `biweekly-${nextNumber}`,

@@ -87,9 +87,11 @@ service cloud.firestore {
 
     // 6. Contest Registrations
     match /contestRegistrations/{regId} {
-      // Users can read/write only their own registration documents
-      allow read, write: if isSignedIn() && request.auth.uid == resource.data.uid;
-      // Allow create (resource.data doesn't exist yet on create)
+      // Users can read if it doesn't exist yet, or if they own it
+      allow read: if isSignedIn() && (resource == null || request.auth.uid == resource.data.uid);
+      // Allow update, delete if they own it
+      allow update, delete: if isSignedIn() && request.auth.uid == resource.data.uid;
+      // Allow create if they set themselves as the uid
       allow create: if isSignedIn() && request.auth.uid == request.resource.data.uid;
     }
   }

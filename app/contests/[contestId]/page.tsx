@@ -280,15 +280,22 @@ export default function ContestDescriptionPage() {
           <div className={`relative rounded-2xl overflow-hidden mb-10 bg-gradient-to-br ${gradientClass} p-8`}>
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_40%,rgba(255,255,255,0.18),transparent_60%)]" />
             {/* Decorative emoji */}
-            <div className="absolute bottom-4 right-4 text-[80px] opacity-30 select-none pointer-events-none leading-none">
-              {isWeekly ? "🧊" : "🔷"}
+            <div className="absolute bottom-4 right-4 opacity-70 select-none pointer-events-none leading-none filter drop-shadow-[0_12px_32px_rgba(0,0,0,0.4)]">
+              {isWeekly ? (
+                <span className="text-[88px]">⚡</span>
+              ) : (
+                <div>
+                  <span className="text-[60px] block">⚡</span>
+                  <span className="text-[44px] block -mt-3 ml-7 opacity-75">⚡</span>
+                </div>
+              )}
             </div>
             <div className="relative z-10">
               <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm text-white text-[10px] font-black uppercase tracking-widest rounded-full px-3 py-1 mb-4 border border-white/10">
                 {isWeekly ? <><Trophy className="w-3 h-3" /> Weekly Contest</> : <><Sparkles className="w-3 h-3" /> Biweekly Contest</>}
               </span>
-              <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2 drop-shadow">{title}</h1>
-              <p className="text-white/70 text-sm mb-6">{formattedDate}</p>
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2 drop-shadow tracking-tight">{title}</h1>
+              <p className="text-white/95 text-sm mb-6 font-medium drop-shadow-sm">{formattedDate}</p>
 
               {/* Status pill */}
               {live && (
@@ -300,8 +307,8 @@ export default function ContestDescriptionPage() {
               )}
               {upcoming && rawStartTime && (
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="text-white/60 text-xs">Starts in</span>
-                  <CountdownTimer targetDate={rawStartTime} compact onComplete={() => { }} />
+                  <span className="text-white/90 text-sm font-medium drop-shadow-sm">Starts in</span>
+                  <CountdownTimer targetDate={rawStartTime} compact className="text-yellow-300 drop-shadow-md text-lg" onComplete={() => { }} />
                 </div>
               )}
 
