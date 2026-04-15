@@ -51,7 +51,7 @@ export default function QuestionCard({ question, isSolved }: QuestionCardProps) 
                 </div>
 
                 {/* 3. Acceptance/Accuracy Column (hidden on mobile) */}
-                <div className="hidden sm:flex flex-shrink-0 w-24 text-base justify-end text-zinc-500 dark:text-zinc-400 tabular-nums">
+                <div className="hidden sm:flex flex-shrink-0 w-24 text-sm justify-end text-zinc-500 dark:text-zinc-400 tabular-nums">
                     {(!question.attempts || question.attempts === 0)
                         ? '—'
                         : `${question.accuracy?.toFixed(1)}%`
