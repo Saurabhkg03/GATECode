@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/firebase';
-import { collection, query, where, getDocs, doc, writeBatch, getDoc, updateDoc } from 'firebase/firestore';
+import { initAdmin } from '@/lib/firebaseAdmin';
+import admin from 'firebase-admin';
 
 export async function POST(req: NextRequest) {
     try {
@@ -11,35 +11,35 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing contestId' }, { status: 400 });
         }
 
+        const app = await initAdmin();
+        if (!app) {
+             return NextResponse.json({ error: 'Firebase Admin not configured' }, { status: 500 });
+        }
+        const db = app.firestore();
+
         // 1. Fetch the contest
-        const contestRef = doc(db, 'contests', contestId);
-        const contestSnap = await getDoc(contestRef);
-        if (!contestSnap.exists()) {
+        const contestRef = db.collection('contests').doc(contestId);
+        const contestSnap = await contestRef.get();
+        if (!contestSnap.exists) {
             return NextResponse.json({ error: 'Contest not found' }, { status: 404 });
         }
 
-        const contestData = contestSnap.data();
+        const contestData = contestSnap.data()!;
         if (contestData.isRatingsProcessed) {
             return NextResponse.json({ error: 'Ratings already processed for this contest' }, { status: 400 });
         }
 
         // 2. Fetch all valid attempts for this contest
-        const attemptsRef = collection(db, 'contest_attempts');
-        // Because of index limitations, we might not be able to do multiple inequalities or where+orderBy directly.
-        // We'll fetch where contestId is equal, then filter isSubmitted and isPractice in memory if needed,
-        // but simple equality should work if indexed.
-        const attemptsQuery = query(
-            attemptsRef,
-            where('contestId', '==', contestId),
-            where('isSubmitted', '==', true)
-        );
-        const attemptsSnap = await getDocs(attemptsQuery);
+        const attemptsQuery = db.collection('contest_attempts')
+            .where('contestId', '==', contestId)
+            .where('isSubmitted', '==', true);
+        const attemptsSnap = await attemptsQuery.get();
 
-        const validAttempts = attemptsSnap.docs.filter(d => d.data().isPractice !== true);
+        const validAttempts = attemptsSnap.docs.filter((d: admin.firestore.QueryDocumentSnapshot) => d.data().isPractice !== true);
 
         if (validAttempts.length === 0) {
             // Mark as processed if there are no attempts
-            await updateDoc(contestRef, { isRatingsProcessed: true });
+            await contestRef.update({ isRatingsProcessed: true });
             return NextResponse.json({ success: true, message: 'No valid attempts found, marked as processed.' });
         }
 
@@ -73,23 +73,23 @@ export async function POST(req: NextRequest) {
         const userStats: AttemptStat[] = [];
 
         // Fetch all users involved in attempts
-        const uids = validAttempts.map(doc => doc.data().uid);
+        const uids = validAttempts.map((doc: admin.firestore.QueryDocumentSnapshot) => doc.data().uid);
         const uniqueUids = Array.from(new Set(uids));
 
         const usersData = new Map();
         const BATCH_SIZE = 10;
         for (let i = 0; i < uniqueUids.length; i += BATCH_SIZE) {
             const uidsChunk = uniqueUids.slice(i, i + BATCH_SIZE);
-            const userQuery = query(collection(db, 'users'), where('uid', 'in', uidsChunk));
-            const userSnaps = await getDocs(userQuery);
-            userSnaps.forEach(doc => {
+            const userQuery = db.collection('users').where('uid', 'in', uidsChunk);
+            const userSnaps = await userQuery.get();
+            userSnaps.forEach((doc: admin.firestore.QueryDocumentSnapshot) => {
                 usersData.set(doc.id, doc.data());
             });
         }
 
         const branch = contestData.branch || 'ece';
         
-        validAttempts.forEach(docSnap => {
+        validAttempts.forEach((docSnap: admin.firestore.QueryDocumentSnapshot) => {
             const data = docSnap.data();
             let score = 0;
             let totalTimeSpent = 0;
@@ -195,11 +195,11 @@ export async function POST(req: NextRequest) {
 
         // 7. Execute Firestore Batch Writes
         const batches = [];
-        let currentBatch = writeBatch(db);
+        let currentBatch = db.batch();
         let writeCount = 0;
 
         updates.forEach((update, uid) => {
-            const userRef = doc(db, 'users', uid);
+            const userRef = db.collection('users').doc(uid);
             const userData = usersData.get(uid) || {};
             
             const branchRatings = userData.branchRatings || {};
@@ -236,7 +236,7 @@ export async function POST(req: NextRequest) {
 
             if (writeCount === 490) {
                 batches.push(currentBatch.commit());
-                currentBatch = writeBatch(db);
+                currentBatch = db.batch();
                 writeCount = 0;
             }
         });

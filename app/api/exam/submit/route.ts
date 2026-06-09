@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/firebase';
+import { initAdmin } from '@/lib/firebaseAdmin';
 import { evaluateExam } from '@/utils/examScoring';
 
 // Simple implementation accepting the Beacon payload
@@ -24,16 +24,19 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        // --- Save to Firestore ---
-        // Using standard Firestore update for reliability
-        const { doc, updateDoc, getDoc } = await import('firebase/firestore');
-        const attemptRef = doc(db, 'contest_attempts', attemptId);
+        // --- Save to Firestore using Admin SDK ---
+        const app = await initAdmin();
+        if (!app) {
+             return NextResponse.json({ error: 'Firebase Admin not configured' }, { status: 500 });
+        }
+        const db = app.firestore();
+        const attemptRef = db.collection('contest_attempts').doc(attemptId);
 
-        const attemptSnap = await getDoc(attemptRef);
-        if (!attemptSnap.exists()) {
+        const attemptSnap = await attemptRef.get();
+        if (!attemptSnap.exists) {
             return NextResponse.json({ error: 'Attempt not found' }, { status: 404 });
         }
-        const attemptData = attemptSnap.data();
+        const attemptData = attemptSnap.data()!;
 
         // 2. Calculate actual time spent based on server clock
         const serverTime = Date.now();
@@ -45,7 +48,7 @@ export async function POST(req: NextRequest) {
             // Flag this submission as late or invalid. 
             // Do not accept new answers, just auto-submit what was previously synced.
             console.warn(`[Submission Late] Attempt ${attemptId}. TimeSpent: ${timeSpentMs}, Allowed: ${allowedTimeMs}`);
-            await updateDoc(attemptRef, {
+            await attemptRef.update({
                 isSubmitted: true,
                 submittedAt: serverTime,
                 lastUpdated: serverTime,
@@ -56,21 +59,21 @@ export async function POST(req: NextRequest) {
 
         // --- Fetch Contest to Validate Server-Side ---
         const actualContestId = attemptData.contestId || contestId;
-        const contestRef = doc(db, 'contests', actualContestId);
-        const contestSnap = await getDoc(contestRef);
+        const contestRef = db.collection('contests').doc(actualContestId);
+        const contestSnap = await contestRef.get();
         let contestData: any = null;
         let totalScore = 0;
         let correctCount = 0;
         let totalAttempted = 0;
 
-        if (contestSnap.exists()) {
-            contestData = contestSnap.data();
+        if (contestSnap.exists) {
+            contestData = contestSnap.data()!;
             
             if (contestData.endTime) {
                 const contestEndTimeMs = new Date(contestData.endTime).getTime();
                 if (serverTime > contestEndTimeMs + 60000 && !attemptData.isPractice) {
                     console.warn(`[Submission Late - Contest Ended] Attempt ${attemptId}. ServerTime: ${serverTime}, EndTime: ${contestEndTimeMs}`);
-                    await updateDoc(attemptRef, {
+                    await attemptRef.update({
                         isSubmitted: true,
                         submittedAt: serverTime,
                         lastUpdated: serverTime,
@@ -91,11 +94,11 @@ export async function POST(req: NextRequest) {
         // --- Update User Stats if not Practice ---
         if (!attemptData.isPractice && contestData) {
             try {
-                const userRef = doc(db, 'users', uid);
-                const userSnap = await getDoc(userRef);
+                const userRef = db.collection('users').doc(uid);
+                const userSnap = await userRef.get();
 
-                if (userSnap.exists()) {
-                    const userData = userSnap.data();
+                if (userSnap.exists) {
+                    const userData = userSnap.data()!;
                     const branch = contestData.branch || 'General'; // Default to General if not specified
 
                     // Update User Profile Stats
@@ -112,7 +115,7 @@ export async function POST(req: NextRequest) {
                         'stats.correct': (userData.stats?.correct || 0) + correctCount,
                     };
 
-                    await updateDoc(userRef, updateObject);
+                    await userRef.update(updateObject);
                     console.log(`[Stats Update] User ${uid} updated for branch ${branch}.`);
                 }
             } catch (err) {
@@ -121,7 +124,7 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        await updateDoc(attemptRef, {
+        await attemptRef.update({
             responses,
             score: parseFloat(totalScore.toFixed(2)),
             timeLeftSeconds,

@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/firebase';
-import {
-    collection,
-    query,
-    where,
-    getDocs,
-    doc,
-    getDoc,
-    updateDoc,
-} from 'firebase/firestore';
+import { initAdmin } from '@/lib/firebaseAdmin';
+import admin from 'firebase-admin';
 
 /**
  * POST /api/exam/cleanup
@@ -29,10 +21,15 @@ export async function POST(req: NextRequest) {
         const serverTime = Date.now();
         const GRACE_MS = 60_000; // 60 s grace, mirrors submit route
 
+        const app = await initAdmin();
+        if (!app) {
+             return NextResponse.json({ error: 'Firebase Admin not configured' }, { status: 500 });
+        }
+        const db = app.firestore();
+
         // Find all non-submitted attempts
-        const attemptsRef = collection(db, 'contest_attempts');
-        const staleQuery = query(attemptsRef, where('isSubmitted', '==', false));
-        const staleSnap = await getDocs(staleQuery);
+        const attemptsQuery = db.collection('contest_attempts').where('isSubmitted', '==', false);
+        const staleSnap = await attemptsQuery.get();
 
         if (staleSnap.empty) {
             return NextResponse.json({ cleaned: 0 });
@@ -41,7 +38,7 @@ export async function POST(req: NextRequest) {
         let cleaned = 0;
         const updates: Promise<void>[] = [];
 
-        staleSnap.docs.forEach((attemptDoc) => {
+        staleSnap.docs.forEach((attemptDoc: admin.firestore.QueryDocumentSnapshot) => {
             const data = attemptDoc.data();
             const startedAt: number = data.startedAt || 0;
             const timeLeftSeconds: number = data.timeLeftSeconds || 0;
@@ -50,15 +47,15 @@ export async function POST(req: NextRequest) {
 
             if (serverTime > deadline) {
                 // This attempt has expired — auto-close it using its last synced state
-                const contestRef = doc(db, 'contests', data.contestId);
-
                 const updateTask = (async () => {
                     try {
-                        // Attempt to pull contestId to update user stats
-                        const contestSnap = await getDoc(contestRef);
+                        const contestRef = db.collection('contests').doc(data.contestId);
+                        const contestSnap = await contestRef.get();
+
+                        const attemptRef = db.collection('contest_attempts').doc(attemptDoc.id);
 
                         // Mark as submitted first (idempotent-safe)
-                        await updateDoc(doc(db, 'contest_attempts', attemptDoc.id), {
+                        await attemptRef.update({
                             isSubmitted: true,
                             submittedAt: serverTime,
                             lastUpdated: serverTime,
@@ -67,8 +64,8 @@ export async function POST(req: NextRequest) {
                         });
 
                         // Only update user ratings for non-practice (live) attempts
-                        if (!data.isPractice && data.uid && contestSnap.exists()) {
-                            const contestData = contestSnap.data();
+                        if (!data.isPractice && data.uid && contestSnap.exists) {
+                            const contestData = contestSnap.data()!;
                             const branch = contestData?.branch || 'General';
                             const responses = data.responses || {};
 
@@ -82,15 +79,16 @@ export async function POST(req: NextRequest) {
                                 }
                             });
 
-                            const userRef = doc(db, 'users', data.uid);
-                            const userSnap = await getDoc(userRef);
-                            if (userSnap.exists()) {
-                                const userData = userSnap.data();
+                            const userRef = db.collection('users').doc(data.uid);
+                            const userSnap = await userRef.get();
+                            if (userSnap.exists) {
+                                const userData = userSnap.data()!;
                                 const branchStats = userData.branchStats?.[branch] || { attempted: 0, correct: 0, accuracy: 0 };
                                 const newAttempted = (branchStats.attempted || 0) + totalAttempted;
                                 const newCorrect = (branchStats.correct || 0) + correctCount;
                                 const newAccuracy = newAttempted > 0 ? parseFloat(((newCorrect / newAttempted) * 100).toFixed(2)) : 0;
-                                await updateDoc(userRef, {
+                                
+                                await userRef.update({
                                     [`branchStats.${branch}.attempted`]: newAttempted,
                                     [`branchStats.${branch}.correct`]: newCorrect,
                                     [`branchStats.${branch}.accuracy`]: newAccuracy,

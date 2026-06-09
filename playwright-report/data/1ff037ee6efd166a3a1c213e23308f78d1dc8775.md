@@ -22,7 +22,7 @@ Timeout:  30000ms
 Call log:
   - Expect "toBeVisible" with timeout 30000ms
   - waiting for locator('select').filter({ hasText: 'All Branches' })
-    58 × locator resolved to <select class="w-full sm:w-40 pl-9 pr-8 py-2.5 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm text-gray-700 dark:text-gray-300 appearance-none focus:ring-2 focus:ring-blue-500 cursor-pointer">…</select>
+    60 × locator resolved to <select class="w-full sm:w-40 pl-9 pr-8 py-2.5 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm text-gray-700 dark:text-gray-300 appearance-none focus:ring-2 focus:ring-blue-500 cursor-pointer">…</select>
        - unexpected value "hidden"
 
 ```
@@ -78,95 +78,42 @@ Call log:
   - heading "Upcoming Contests" [level=2]:
     - img
     - text: Upcoming Contests
-  - link "Weekly Contest 1d 35m Weekly Mock 15 Sun, 7 Jun, 10:00 am 90 min":
-    - /url: /contests/weekly-15
+  - link "Weekly Contest 4d 18h 23m Weekly Mock 16 Sun, 14 Jun, 10:00 am 90 min":
+    - /url: /contests/weekly-16
     - img
     - img
     - text: Weekly Contest
     - img
-    - text: 1d 35m
-    - heading "Weekly Mock 15" [level=2]
+    - text: 4d 18h 23m
+    - heading "Weekly Mock 16" [level=2]
     - paragraph:
       - img
-      - text: Sun, 7 Jun, 10:00 am
+      - text: Sun, 14 Jun, 10:00 am
     - paragraph:
       - img
       - text: 90 min
-  - link "Biweekly Contest 10h 35m 38s Biweekly Mock 8 Sat, 6 Jun, 08:00 pm 120 min":
-    - /url: /contests/biweekly-8
+  - link "Biweekly Contest 11d 4h 23m Biweekly Mock 9 Sat, 20 Jun, 08:00 pm 120 min":
+    - /url: /contests/biweekly-9
     - img
     - img
     - img
     - text: Biweekly Contest
     - img
-    - text: 10h 35m 38s
-    - heading "Biweekly Mock 8" [level=2]
+    - text: 11d 4h 23m
+    - heading "Biweekly Mock 9" [level=2]
     - paragraph:
       - img
-      - text: Sat, 6 Jun, 08:00 pm
+      - text: Sat, 20 Jun, 08:00 pm
     - paragraph:
       - img
       - text: 120 min
-  - heading "Live Now" [level=2]:
-    - img
-    - text: Live Now
-  - text: "3"
-  - link "Official ece Live GATE ECE Live Competition (Real) Generated from 'questions_ece'. Contains 65 real questions. 180 min 100 Marks Join Live":
-    - img
-    - text: Official ece Live
-    - heading "GATE ECE Live Competition (Real)" [level=3]
-    - paragraph: Generated from 'questions_ece'. Contains 65 real questions.
-    - img
-    - text: 180 min
-    - img
-    - text: 100 Marks
-    - link "Join Live":
-      - /url: /contests/1774866430581-admin-ece
-      - img
-      - text: Join Live
-  - link "Official ece Live Official Test Generated from 'questions_ece'. Contains 65 real questions. 180 min 100 Marks Join Live":
-    - img
-    - text: Official ece Live
-    - heading "Official Test" [level=3]
-    - paragraph: Generated from 'questions_ece'. Contains 65 real questions.
-    - img
-    - text: 180 min
-    - img
-    - text: 100 Marks
-    - link "Join Live":
-      - /url: /contests/1774818011025-admin-ece
-      - img
-      - text: Join Live
-  - link "Official ece Live Mock contest rating Generated from 'questions_ece'. Contains 65 real questions. 180 min 100 Marks Join Live":
-    - img
-    - text: Official ece Live
-    - heading "Mock contest rating" [level=3]
-    - paragraph: Generated from 'questions_ece'. Contains 65 real questions.
-    - img
-    - text: 180 min
-    - img
-    - text: 100 Marks
-    - link "Join Live":
-      - /url: /contests/1773062321882-admin-ece
-      - img
-      - text: Join Live
   - heading "Past Official Exams (Practice Mode)" [level=2]:
     - img
     - text: Past Official Exams (Practice Mode)
-  - text: "1"
-  - link "Official ece GATE ECE Live Competition (Real) Generated from 'questions_ece'. Contains 65 real questions. 180 min 100 Marks Practice":
-    - img
-    - text: Official ece
-    - heading "GATE ECE Live Competition (Real)" [level=3]
-    - paragraph: Generated from 'questions_ece'. Contains 65 real questions.
-    - img
-    - text: 180 min
-    - img
-    - text: 100 Marks
-    - link "Practice":
-      - /url: /contests/1774818888197-admin-ece
-      - text: Practice
-      - img
+  - text: "0"
+  - img
+  - heading "No Official Contests Yet" [level=3]
+  - paragraph: No live or past official contests right now.
   - region "Notifications alt+T"
 - alert
 ```

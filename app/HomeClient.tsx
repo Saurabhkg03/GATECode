@@ -89,7 +89,7 @@ export default function HomeClient({
     queryKey: ["recentQuestions", activeBranch],
     queryFn: async () => {
       const q = query(
-        collection(db, `questions/${activeBranch}/questions`),
+        collection(db, `questions_${activeBranch}`),
         orderBy("year", "desc"),
         limit(20),
       );

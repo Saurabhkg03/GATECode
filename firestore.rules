@@ -35,7 +35,22 @@ service cloud.firestore {
         allow write: if isSignedIn() && isOwner(userId);
       }
 
-      // Other User Subcollections (Stats, Lists, etc.) - RESTRICTED
+      // Bookmarks
+      match /bookmarks/{bookmarkId} {
+        allow read, write: if isSignedIn() && isOwner(userId);
+      }
+
+      // User Question Data
+      match /userQuestionData/{dataId} {
+        allow read, write: if isSignedIn() && isOwner(userId);
+      }
+
+      // Question Lists
+      match /questionLists/{listId} {
+        allow read, write: if isSignedIn() && isOwner(userId);
+      }
+
+      // Other User Subcollections (Stats, etc.) - RESTRICTED
       match /{document=**} {
         allow read, write: if isSignedIn() && isOwner(userId);
       }

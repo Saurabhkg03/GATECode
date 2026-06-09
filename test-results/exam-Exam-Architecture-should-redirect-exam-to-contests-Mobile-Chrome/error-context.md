@@ -6,35 +6,87 @@
 
 # Test info
 
-- Name: exam.spec.ts >> Exam Architecture >> should protect /exam/[id]/result and redirect to login if not authenticated
-- Location: e2e\exam.spec.ts:22:7
+- Name: exam.spec.ts >> Exam Architecture >> should redirect /exam to /contests
+- Location: e2e\exam.spec.ts:4:7
 
 # Error details
 
 ```
 Error: expect(page).toHaveURL(expected) failed
 
-Expected pattern: /.*login.*/i
-Received string:  "http://localhost:3000/exam/test-contest-id/result"
+Expected pattern: /.*contests/
+Received string:  "http://localhost:3000/login?returnUrl=%2Fexam"
 Timeout: 30000ms
 
 Call log:
   - Expect "toHaveURL" with timeout 30000ms
-    61 × unexpected value "http://localhost:3000/exam/test-contest-id/result"
+    16 × unexpected value "http://localhost:3000/exam"
+    40 × unexpected value "http://localhost:3000/login?returnUrl=%2Fexam"
 
 ```
 
 ```yaml
 - main:
-  - img: "404"
-  - heading "Page Not Found" [level=1]
-  - paragraph: Oops! The page you're looking for seems to have gotten lost in space.
-  - link "Go to Homepage":
+  - navigation:
+    - link "GATECode Logo GATECode":
+      - /url: /
+      - img "GATECode Logo"
+      - text: GATECode
+    - button "ECE":
+      - img
+      - text: ECE
+      - img
+    - button "Toggle theme":
+      - img
+    - link "Login":
+      - /url: /login
+  - navigation:
+    - link "Home":
+      - /url: /
+      - img
+      - text: Home
+    - link "Practice":
+      - /url: /practice
+      - img
+      - text: Practice
+    - link "Contests":
+      - /url: /contests
+      - img
+      - text: Contests
+    - link "Leader":
+      - /url: /leaderboard
+      - img
+      - text: Leader
+    - link "Profile":
+      - /url: /login
+      - img
+      - text: Profile
+  - link "GATECode":
     - /url: /
+    - img "GATECode"
+  - heading "Welcome Back" [level=1]
+  - paragraph: Enter your credentials to access your account
+  - text: Email Address
+  - img
+  - textbox "you@example.com"
+  - text: Password
+  - img
+  - textbox "••••••••"
+  - button:
     - img
-    - text: Go to Homepage
+  - button "Forgot password?"
+  - button "Sign In":
+    - text: Sign In
+    - img
+  - text: Or continue with
+  - button "Google":
+    - img
+    - text: Google
+  - paragraph:
+    - text: Don't have an account?
+    - button "Sign up"
   - region "Notifications alt+T"
-- alert
+- alert: GATECode
 ```
 
 # Test source
@@ -45,7 +97,8 @@ Call log:
   3  | test.describe('Exam Architecture', () => {
   4  |   test('should redirect /exam to /contests', async ({ page }) => {
   5  |     await page.goto('/exam');
-  6  |     await expect(page).toHaveURL(/.*contests/);
+> 6  |     await expect(page).toHaveURL(/.*contests/);
+     |                        ^ Error: expect(page).toHaveURL(expected) failed
   7  |     await expect(page).toHaveTitle(/.*Contests.*/i);
   8  |   });
   9  | 
@@ -64,8 +117,7 @@ Call log:
   22 |   test('should protect /exam/[id]/result and redirect to login if not authenticated', async ({ page }) => {
   23 |     await page.goto('/exam/test-contest-id/result');
   24 |     // It should redirect to login
-> 25 |     await expect(page).toHaveURL(/.*login.*/i);
-     |                        ^ Error: expect(page).toHaveURL(expected) failed
+  25 |     await expect(page).toHaveURL(/.*login.*/i);
   26 |   });
   27 | 
   28 |   test.describe('Authenticated Flow', () => {
