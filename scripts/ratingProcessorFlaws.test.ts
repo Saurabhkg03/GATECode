@@ -36,7 +36,7 @@ function testRatingProcessorFlaws() {
     const branchRatingHistory = userData.branchRatingHistory || {};
     const highestBranchRatings = userData.highestBranchRatings || {};
 
-    const history = branchRatingHistory[branch as keyof typeof branchRatingHistory] || [];
+    const history: any[] = branchRatingHistory[branch as keyof typeof branchRatingHistory] || [];
     history.push({
         contestId: contestData.id,
         newRating: newRating

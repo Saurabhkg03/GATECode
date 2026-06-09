@@ -24,7 +24,7 @@ function testProfileFlaws() {
     }
 
     // 2. Highest Rating Branch Mix-Up Bug
-    const mockHighestRatingGlobal = 1800; // From an old global system or a different branch
+    const mockHighestRatingGlobal: number = 1800; // From an old global system or a different branch
     
     // The code does:
     const displayHighestRating = mockHighestRatingGlobal || 1500;
