@@ -51,8 +51,8 @@ service cloud.firestore {
       
       // Controlled update for accuracy stats
       allow update: if (collectionName == 'questions' || collectionName.matches('questions_.*') || collectionName.matches('gate_questions_.*')) && isSignedIn() && (
-        isAdmin() || 
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attempts', 'correctCount', 'accuracy'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attempts', 'correctCount', 'accuracy']) ||
+        isAdmin()
       );
     }
 
@@ -72,9 +72,9 @@ service cloud.firestore {
 
       // Updates:
       allow update: if isSignedIn() && (
-        isAdmin() || 
         // Allow user to add themselves to participants only
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participants'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participants']) ||
+        isAdmin()
       );
 
       // Contest Submissions Subcollection

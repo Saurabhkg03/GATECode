@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/firebase";
-import { doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
+import { adminDb } from "@/lib/firebaseAdmin";
 import {
   getNextWeeklyContest,
   getNextBiweeklyContest,
@@ -15,6 +14,10 @@ const TARGET_BRANCHES = ["ece", "cse", "me", "ee", "in"];
 export async function GET(request: Request) {
   // In production, you would definitely want to secure this endpoint!
   // e.g., using a secret token passed in headers by your cron service.
+
+  if (!adminDb) {
+    return NextResponse.json({ error: "Firebase Admin is not configured. Auto-generate requires Admin SDK." }, { status: 500 });
+  }
 
   try {
     const nextWeekly = getNextWeeklyContest();
@@ -83,9 +86,9 @@ export async function GET(request: Request) {
 }
 
 async function checkContestExists(contestId: string): Promise<boolean> {
-  const docRef = doc(db, "contests", contestId);
-  const docSnap = await getDoc(docRef);
-  return docSnap.exists();
+  const docRef = adminDb!.collection("contests").doc(contestId);
+  const docSnap = await docRef.get();
+  return docSnap.exists;
 }
 
 async function attemptToGenerateContest(
@@ -99,17 +102,11 @@ async function attemptToGenerateContest(
 ) {
   const sourceCollection = `questions_${branch}`;
 
-  let qCol = collection(db, sourceCollection);
-  let qSnapshot = await getDocs(qCol);
-
-  if (qSnapshot.empty) {
-    // Try subcollection fallback
-    qCol = collection(db, `${sourceCollection}/questions`);
-    qSnapshot = await getDocs(qCol);
-  }
+  let qCol = adminDb!.collection(sourceCollection);
+  let qSnapshot = await qCol.get();
 
   const allQuestions: Question[] = [];
-  qSnapshot.forEach((docSnap) => {
+  qSnapshot.forEach((docSnap: any) => {
     const data = docSnap.data();
     if (data.question_html || data.title) {
       allQuestions.push({
@@ -148,16 +145,11 @@ async function attemptToGenerateContest(
         !q.branch),
   );
 
-  if (gaQuestions.length < 10) {
-    throw new Error(
-      `Insufficient GA questions in '${sourceCollection}' (Need 10, found ${gaQuestions.length})`
-    );
-  }
+  const numGa = Math.min(10, gaQuestions.length);
+  const numTech = Math.min(55, techQuestions.length);
 
-  if (techQuestions.length < 55) {
-    throw new Error(
-      `Insufficient Technical questions in '${sourceCollection}' (Need 55, found ${techQuestions.length})`
-    );
+  if (numGa === 0 && numTech === 0) {
+    throw new Error(`No questions found in '${sourceCollection}'`);
   }
 
   const selectQuestions = (
@@ -184,9 +176,8 @@ async function attemptToGenerateContest(
     return [...selected1, ...selected2, ...fill];
   };
 
-  // Standard 65 questions (10 GA, 55 Tech)
-  const finalGa = shuffle(selectQuestions(gaQuestions, 5, 5));
-  const finalTech = shuffle(selectQuestions(techQuestions, 25, 30));
+  const finalGa = shuffle(selectQuestions(gaQuestions, Math.floor(numGa * 0.4), Math.ceil(numGa * 0.6)));
+  const finalTech = shuffle(selectQuestions(techQuestions, Math.floor(numTech * 0.4), Math.ceil(numTech * 0.6)));
 
   const finalSections: Section[] = [
     { name: "General Aptitude", questions: finalGa },
@@ -216,5 +207,5 @@ async function attemptToGenerateContest(
     description: `Official ${contestType.toLowerCase()} live contest. Test your rank amongst thousands of peers.`,
   };
 
-  await setDoc(doc(db, "contests", fullContestId), newContest);
+  await adminDb!.collection("contests").doc(fullContestId).set(newContest);
 }

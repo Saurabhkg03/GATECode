@@ -30,6 +30,7 @@ export interface Question {
   verified: boolean;
   addedBy?: string;
   branch: string; // To know which branch this question belongs to
+  randomId?: number; // Required for O(1) random sampling at scale
 }
 
 // --- NEW: Branch-specific stat sub-types ---
@@ -70,6 +71,10 @@ export interface User {
   // e.g., { ece: { currentStreak: 5, ... }, cse: { ... } }
   branchStreakData: Record<string, UserStreakData>;
 
+  // --- NEW: Branch-specific rating history ---
+  branchRatings?: Record<string, number>;
+  branchRatingHistory?: Record<string, any[]>;
+  highestBranchRatings?: Record<string, number>;
 
   // DEPRECATED: Old global stats (we'll migrate away from these)
   stats?: {

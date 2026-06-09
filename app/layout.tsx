@@ -7,6 +7,8 @@ import NavbarWrapper from "@/components/NavbarWrapper";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import LayoutWrapper from "@/components/LayoutWrapper";
 
+import { Toaster } from 'sonner';
+
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
@@ -32,6 +34,7 @@ export default function RootLayout({
                   class to <html> immediately, preventing the white flash.
                 */}
                 <script
+                    suppressHydrationWarning
                     dangerouslySetInnerHTML={{
                         __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='light'){document.documentElement.classList.add('light')}else{document.documentElement.classList.add('dark')}}catch(e){document.documentElement.classList.add('dark')}})();`,
                     }}
@@ -43,6 +46,7 @@ export default function RootLayout({
                         <LayoutWrapper>
                             <NavbarWrapper />
                             {children}
+                            <Toaster position="bottom-right" richColors />
                         </LayoutWrapper>
                     </ErrorBoundary>
                 </ClientProviders>

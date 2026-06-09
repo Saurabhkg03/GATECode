@@ -28,6 +28,11 @@ export function DailyChallengeProvider({ children }: { children: ReactNode }) {
       try {
         const res = await fetch(`/api/daily-challenge?branch=${selectedBranch}`);
         if (!res.ok) {
+          if (res.status === 404) {
+            console.warn(`[DailyChallenge] API returned 404 for ${selectedBranch}.`);
+            if (isMounted) setDailyChallengeId(null);
+            return;
+          }
           throw new Error(`Failed to fetch daily challenge: ${res.status}`);
         }
 

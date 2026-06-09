@@ -131,6 +131,8 @@ export default function ExamIntroPage() {
         }
     };
 
+    const canReattempt = !contest || contest.type !== 'admin' || (contest.endTime && new Date(contest.endTime).getTime() <= Date.now());
+
     if (loading || !user) return <div className="h-screen bg-gray-50 dark:bg-zinc-950"></div>;
 
     return (
@@ -164,13 +166,13 @@ export default function ExamIntroPage() {
                                     <RotateCcw className="w-6 h-6 text-purple-500" />
                                     Attempt History
                                 </h2>
-                                {!activeAttempt && (
+                                {!activeAttempt && canReattempt && (
                                     <button
                                         onClick={() => setShowReattemptConfirm(true)}
                                         className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold text-sm shadow-lg shadow-purple-500/20 transition-all flex items-center gap-2"
                                     >
                                         <RotateCcw className="w-4 h-4" />
-                                        Start New Attempt
+                                        {contest?.type === 'admin' ? "Start Practice Attempt" : "Start New Attempt"}
                                     </button>
                                 )}
                             </div>

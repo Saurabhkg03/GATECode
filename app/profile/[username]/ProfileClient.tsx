@@ -371,29 +371,34 @@ export default function ProfileClient({ username }: { username: string }) {
 
 
     const {
-        branchRating,
+        practiceRating,
+        contestElo,
+        highestContestElo,
         branchStats,
         branchStreak,
         branchCalendar,
         allAvailableYears,
         subjectStats,
-        ratingHistory,
-        highestRating
+        ratingHistory
     } = useMemo(() => {
         if (!profileUser || !metadata) {
             return {
-                branchRating: 0,
+                practiceRating: 0,
+                contestElo: 1500,
+                highestContestElo: 1500,
                 branchStats: { attempted: 0, correct: 0, accuracy: 0, subjects: {} },
                 branchStreak: { currentStreak: 0, lastSubmissionDate: '' },
                 branchCalendar: {},
                 allAvailableYears: [],
                 subjectStats: [],
-                ratingHistory: [] as any[],
-                highestRating: 1500
+                ratingHistory: [] as any[]
             };
         }
 
-        const rating = profileUser.ratings?.[selectedBranch] || 0;
+        const pRating = profileUser.ratings?.[selectedBranch] || 0;
+        const cElo = profileUser.branchRatings?.[selectedBranch] || 1500;
+        const hElo = profileUser.highestBranchRatings?.[selectedBranch] || 1500;
+        
         const stats = profileUser.branchStats?.[selectedBranch] || { attempted: 0, correct: 0, accuracy: 0, subjects: {} };
         const streak = profileUser.branchStreakData?.[selectedBranch] || { currentStreak: 0, lastSubmissionDate: '' };
         const calendar = profileUser.branchActivityCalendar?.[selectedBranch] || {};
@@ -414,17 +419,18 @@ export default function ProfileClient({ username }: { username: string }) {
             total: total
         }));
 
-        const ratingHistory = profileUser.ratingHistory || [];
+        const ratingHistory = profileUser.branchRatingHistory?.[selectedBranch] || [];
 
         return {
-            branchRating: rating,
+            practiceRating: pRating,
+            contestElo: cElo,
+            highestContestElo: hElo,
             branchStats: stats,
             branchStreak: streak,
             branchCalendar: calendar,
             allAvailableYears: Array.from(years).sort((a, b) => b - a),
             subjectStats: subjectStats,
-            ratingHistory,
-            highestRating: profileUser.highestRating || 1500
+            ratingHistory
         };
     }, [profileUser, metadata, selectedBranch]);
 
@@ -451,12 +457,12 @@ export default function ProfileClient({ username }: { username: string }) {
                                 <div className="relative shrink-0">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={profileUser.avatar || '/user.png'} alt={profileUser.name || 'User Avatar'} className="w-20 h-20 md:w-28 md:h-28 rounded-full shadow-lg border-4 border-white dark:border-zinc-700 object-cover" onError={(e) => { e.currentTarget.src = '/user.png'; }} />
-                                    <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 ${getRankTier(branchRating).bg} ${getRankTier(branchRating).color} rounded-full px-2 md:px-3 py-0.5 md:py-1 text-[10px] md:text-xs font-bold shadow-md flex items-center gap-1 whitespace-nowrap border border-current`}>
-                                        {getRankTier(branchRating).title}
+                                    <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 ${getRankTier(contestElo).bg} ${getRankTier(contestElo).color} rounded-full px-2 md:px-3 py-0.5 md:py-1 text-[10px] md:text-xs font-bold shadow-md flex items-center gap-1 whitespace-nowrap border border-current`}>
+                                        {getRankTier(contestElo).title}
                                     </span>
                                 </div>
                                 <div className="flex-1 md:mt-6">
-                                    <h1 className={`text-xl md:text-2xl font-bold ${getRankTier(branchRating).color}`}>{profileUser.name || 'User'}</h1>
+                                    <h1 className={`text-xl md:text-2xl font-bold ${getRankTier(contestElo).color}`}>{profileUser.name || 'User'}</h1>
                                     <p className="text-sm md:text-base text-zinc-500 dark:text-zinc-400">@{profileUser.username || 'username'}</p>
                                     <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 mt-1.5 md:mt-2 text-xs md:text-sm">
                                         <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4" />
@@ -508,8 +514,8 @@ export default function ProfileClient({ username }: { username: string }) {
 
                         {/* Stat Cards Grid */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-6">
-                            <StatCard icon={BarChart} value={branchRating} label="Current Rating" colorClass="text-blue-500 dark:text-blue-400" />
-                            <StatCard icon={Trophy} value={highestRating} label="Highest Rating" colorClass="text-yellow-500 dark:text-yellow-400" />
+                            <StatCard icon={Trophy} value={contestElo} label="Contest Elo" colorClass="text-yellow-500 dark:text-yellow-400" />
+                            <StatCard icon={BarChart} value={practiceRating} label="Practice Rating" colorClass="text-blue-500 dark:text-blue-400" />
                             <StatCard icon={CheckCircle} value={branchStats.correct || 0} label="Solved" colorClass="text-emerald-500 dark:text-emerald-400" />
                             <StatCard icon={Zap} value={`${branchStreak.currentStreak || 0} Days`} label="Current Streak" colorClass="text-orange-500 dark:text-orange-400" />
                         </div>
@@ -518,7 +524,7 @@ export default function ProfileClient({ username }: { username: string }) {
                         {ratingHistory && ratingHistory.length > 0 && (
                             <div className="bg-white dark:bg-zinc-900/70 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
                                 <h2 className="text-lg font-semibold pb-4 text-zinc-800 dark:text-white flex items-center gap-2">
-                                    <TrendingUp className="w-5 h-5 text-purple-500" /> Rating History
+                                    <TrendingUp className="w-5 h-5 text-purple-500" /> Contest Elo History
                                 </h2>
                                 <div className="h-64 mt-4 w-full">
                                     <ResponsiveContainer width="100%" height="100%">

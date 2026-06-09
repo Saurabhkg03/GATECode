@@ -105,7 +105,7 @@ export default function AdminPage() {
             const documentSnapshots = await getDocs(dataQuery);
             const questionsData = documentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() } as Question));
 
-            setQuestions(direction === 'prev' ? questionsData.reverse() : questionsData);
+            setQuestions(questionsData);
 
             if (documentSnapshots.docs.length > 0) {
                 if (direction === 'prev') {

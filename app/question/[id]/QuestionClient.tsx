@@ -514,12 +514,12 @@ export default function QuestionClient({ id }: { id: string }) {
             const batch = writeBatch(db);
             batch.set(submissionDocRef, submissionData);
 
-            batch.update(userDocRef, {
-                [`branchStats.${selectedBranch}`]: newBranchStats,
-                [`branchStreakData.${selectedBranch}`]: newBranchStreakData,
-                [`branchActivityCalendar.${selectedBranch}`]: newBranchCalendar,
-                [`ratings.${selectedBranch}`]: newBranchRating
-            });
+            batch.set(userDocRef, {
+                branchStats: { [selectedBranch]: newBranchStats },
+                branchStreakData: { [selectedBranch]: newBranchStreakData },
+                branchActivityCalendar: { [selectedBranch]: newBranchCalendar },
+                ratings: { [selectedBranch]: newBranchRating }
+            }, { merge: true });
 
             // --- Update question's global accuracy stats ---
             // Only update the question doc on first-time submission (not re-attempts)
@@ -598,10 +598,10 @@ export default function QuestionClient({ id }: { id: string }) {
             const batch = writeBatch(db);
             batch.delete(submissionDocRef);
 
-            batch.update(userDocRef, {
-                [`branchStats.${selectedBranch}`]: newBranchStats,
-                [`ratings.${selectedBranch}`]: newBranchRating
-            });
+            batch.set(userDocRef, {
+                branchStats: { [selectedBranch]: newBranchStats },
+                ratings: { [selectedBranch]: newBranchRating }
+            }, { merge: true });
 
             // --- Decrement question's global accuracy stats ---
             const questionDocRef = doc(db, questionCollectionPath, question.id);

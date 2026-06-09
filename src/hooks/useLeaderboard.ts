@@ -16,7 +16,7 @@ export function useLeaderboard(limitCount: number = 5) {
 
             const usersQuery = query(
                 collection(db, 'users'),
-                orderBy(`ratings.${selectedBranch}`, 'desc'),
+                orderBy(`branchRatings.${selectedBranch}`, 'desc'),
                 limit(limitCount)
             );
             const usersSnapshot = await getDocs(usersQuery);
@@ -24,7 +24,7 @@ export function useLeaderboard(limitCount: number = 5) {
             return usersSnapshot.docs.map(doc => {
                 const data = doc.data() as User;
                 const branchStats = data.branchStats?.[selectedBranch] || { attempted: 0, correct: 0, accuracy: 0, subjects: {} };
-                const branchRating = data.ratings?.[selectedBranch] || 0;
+                const branchRating = data.branchRatings?.[selectedBranch] || 1500;
 
                 return {
                     ...data,

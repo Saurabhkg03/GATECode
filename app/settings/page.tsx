@@ -10,8 +10,17 @@ import { SettingsSkeleton } from '@/components/Skeletons';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function SettingsPage() {
+    return (
+        <ProtectedRoute>
+            <SettingsContent />
+        </ProtectedRoute>
+    );
+}
+
+function SettingsContent() {
     const router = useRouter();
     const { user, userInfo, setUserInfo, deleteAccount, loading: loadingAuth } = useAuth();
 
