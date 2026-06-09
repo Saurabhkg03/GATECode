@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initAdmin } from '@/lib/firebaseAdmin';
 import admin from 'firebase-admin';
+import { processContestRatings } from '@/lib/ratingProcessor';
 
 /**
  * POST /api/exam/cleanup
@@ -111,7 +112,31 @@ export async function POST(req: NextRequest) {
 
         await Promise.allSettled(updates);
 
-        return NextResponse.json({ cleaned });
+        // --- Auto-process ELO for ended contests ---
+        let processedContests = 0;
+        try {
+            const now = new Date().toISOString();
+            const endedContestsSnap = await db.collection('contests')
+                .where('endTime', '<', now)
+                .get();
+
+            for (const contestDoc of endedContestsSnap.docs) {
+                const contestData = contestDoc.data();
+                if (!contestData.isRatingsProcessed) {
+                    try {
+                        console.log(`[Cleanup Auto-Elo] Processing ratings for completed contest: ${contestDoc.id} (${contestData.title})`);
+                        await processContestRatings(db, contestDoc.id);
+                        processedContests++;
+                    } catch (err) {
+                        console.error(`[Cleanup Auto-Elo] Failed to auto-process ratings for contest ${contestDoc.id}:`, err);
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('[Cleanup Auto-Elo] Error querying ended contests:', err);
+        }
+
+        return NextResponse.json({ cleaned, processedContests });
     } catch (e: any) {
         console.error('[Cleanup] Error:', e);
         return NextResponse.json({ error: e.message || 'Internal Server Error' }, { status: 500 });

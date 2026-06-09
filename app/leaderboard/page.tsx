@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Trophy, Target, Crown, ChevronLeft, ChevronRight, BarChart, Info, X } from 'lucide-react';
+import { Trophy, Target, Crown, ChevronLeft, ChevronRight, Info, X, Award } from 'lucide-react';
 import { db } from '@/firebase';
 import { collection, getDocs, query, orderBy, limit, startAfter, getCountFromServer, DocumentSnapshot, endBefore, limitToLast } from 'firebase/firestore';
 import { User } from '@/data/mockData';
@@ -12,9 +12,13 @@ import { LeaderboardSkeleton } from '@/components/Skeletons';
 import { getRankTier } from '@/utils/rating';
 
 const PAGE_SIZE = 10;
-const RATING_SCALING_FACTOR = 100;
 
-const PodiumCard = ({ user, rank }: { user: User; rank: number }) => {
+interface LeaderboardUser extends User {
+    contestElo: number;
+    practiceRating: number;
+}
+
+const PodiumCard = ({ user, rank }: { user: LeaderboardUser; rank: number }) => {
     const rankStyles: Record<number, any> = {
         1: { gradient: 'from-amber-400 to-yellow-500', shadow: 'shadow-yellow-500/40', iconColor: 'text-amber-600 dark:text-amber-300', ring: 'ring-yellow-400', order: 'order-1 md:order-2', height: 'mt-0 md:-mt-6' },
         2: { gradient: 'from-zinc-400 to-gray-500', shadow: 'shadow-gray-500/40', iconColor: 'text-gray-600 dark:text-zinc-300', ring: 'ring-gray-400', order: 'order-2 md:order-1', height: 'mt-0' },
@@ -39,22 +43,26 @@ const PodiumCard = ({ user, rank }: { user: User; rank: number }) => {
                 </div>
 
                 <div className="flex-1 min-w-0 md:w-full">
-                    <Link href={`/profile/${user.username}`} className={`font-bold text-lg md:text-base hover:underline truncate block ${getRankTier(user.rating ?? 0).color}`}>
+                    <Link href={`/profile/${user.username}`} className={`font-bold text-lg md:text-base hover:underline truncate block ${getRankTier(user.contestElo).color}`}>
                         {user.name}
                     </Link>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
-                        @{user.username} • <span className={getRankTier(user.rating ?? 0).color}>{getRankTier(user.rating ?? 0).title}</span>
+                        @{user.username} • <span className={getRankTier(user.contestElo).color}>{getRankTier(user.contestElo).title}</span>
                     </p>
                     
-                    <div className={`mt-3 w-full bg-gradient-to-r ${styles.gradient} p-2 rounded-xl shadow-inner md:mt-4`}>
-                        <div className="flex justify-around items-center text-white">
-                            <div className="text-center">
-                                <p className="font-bold text-base md:text-lg">{user.rating ?? 1500}</p>
-                                <p className="text-[10px] md:text-xs opacity-80">Contest Elo</p>
+                    <div className={`mt-3 w-full bg-gradient-to-r ${styles.gradient} p-2.5 rounded-xl shadow-inner md:mt-4`}>
+                        <div className="grid grid-cols-3 gap-1 items-center text-white text-center">
+                            <div>
+                                <p className="font-bold text-sm md:text-base leading-tight">{user.contestElo}</p>
+                                <p className="text-[9px] md:text-[10px] opacity-90">Contest Elo</p>
                             </div>
-                            <div className="text-center">
-                                <p className="font-bold text-base md:text-lg">{user.stats?.correct ?? 0}</p>
-                                <p className="text-[10px] md:text-xs opacity-80">Solved</p>
+                            <div className="border-x border-white/25">
+                                <p className="font-bold text-sm md:text-base leading-tight">{user.practiceRating.toFixed(1)}</p>
+                                <p className="text-[9px] md:text-[10px] opacity-90">Practice</p>
+                            </div>
+                            <div>
+                                <p className="font-bold text-sm md:text-base leading-tight">{user.stats?.correct ?? 0}</p>
+                                <p className="text-[9px] md:text-[10px] opacity-90">Solved</p>
                             </div>
                         </div>
                     </div>
@@ -73,33 +81,76 @@ const RatingInfoModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
             onClick={onClose}
         >
             <div
-                className="bg-white dark:bg-zinc-800 rounded-lg shadow-xl p-6 max-w-md w-full relative transform transition-all duration-300 scale-100 opacity-100"
+                className="bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl p-6 max-w-lg w-full relative transform transition-all duration-300 scale-100 opacity-100 border border-zinc-200/50 dark:border-zinc-700/50"
                 onClick={(e) => e.stopPropagation()}
             >
                 <button
                     onClick={onClose}
-                    className="absolute top-3 right-3 p-1 rounded-full text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                    className="absolute top-4 right-4 p-1.5 rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
                     aria-label="Close rating explanation"
                 >
                     <X className="w-5 h-5" />
                 </button>
 
-                <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
-                    <Info className="w-5 h-5 text-blue-500" />
-                    How Contest Elo Works
+                <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+                    <Info className="w-6 h-6 text-blue-500" />
+                    Leaderboard Ratings Explained
                 </h3>
 
-                <div className="space-y-3 text-sm text-zinc-600 dark:text-zinc-300">
-                    <p>
-                        The Contest Elo system evaluates your rank based entirely on your performance in official admin-hosted Live Contests.
-                    </p>
-                    <p>
-                        Similar to competitive programming and chess, your score goes up or down depending on your relative performance against the pool of other participants in the contest. 
-                        Every user starts with a base Elo of 1500.
-                    </p>
-                    <div className="bg-zinc-100 dark:bg-zinc-700 p-3 rounded my-2">
-                        <p className="text-xs">
-                            <strong className="dark:text-white">Note:</strong> Your Practice Rating (earned from single-question submissions) does NOT affect this score. Contest Elo is isolated to official exams only.
+                <div className="space-y-4 text-sm text-zinc-600 dark:text-zinc-350 max-h-[80vh] overflow-y-auto pr-1">
+                    <div>
+                        <h4 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-1.5">
+                            <Trophy className="w-4 h-4 text-yellow-500" />
+                            Contest Elo
+                        </h4>
+                        <p className="leading-relaxed mb-2">
+                            Contest Elo evaluates your competitive performance in official Live Contests. 
+                            It implements a multiplayer Elo rating algorithm where your Elo updates depending on your actual rank versus expected rank against all other participants.
+                        </p>
+                        
+                        <div className="my-3 bg-zinc-50 dark:bg-zinc-900/50 p-3 rounded-xl border border-zinc-200/50 dark:border-zinc-700/50 font-mono text-xs space-y-3 shadow-inner">
+                            <div>
+                                <span className="text-blue-600 dark:text-blue-400 font-semibold block mb-1">1. Expected Rank (ER):</span>
+                                <div className="flex items-center justify-center py-2 text-sm font-sans bg-white dark:bg-zinc-800 rounded-lg shadow-sm font-semibold border dark:border-zinc-750">
+                                    ER<sub>i</sub> = 1 + &Sigma;<sub>j &ne; i</sub> [ 1 / (1 + 10<sup>(R<sub>i</sub> - R<sub>j</sub>) / 400</sup>) ]
+                                </div>
+                            </div>
+                            <div className="border-t border-zinc-200/50 dark:border-zinc-750 pt-2">
+                                <span className="text-emerald-600 dark:text-emerald-400 font-semibold block mb-1">2. Rating Update:</span>
+                                <div className="flex items-center justify-center py-2 text-sm font-sans bg-white dark:bg-zinc-800 rounded-lg shadow-sm font-semibold border dark:border-zinc-750">
+                                    R&apos;<sub>i</sub> = R<sub>i</sub> + K &times; (ER<sub>i</sub> - AR<sub>i</sub>)
+                                </div>
+                                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed">
+                                    Where <code className="text-zinc-700 dark:text-zinc-300">R</code> is your previous Elo, <code className="text-zinc-700 dark:text-zinc-300">AR</code> is your actual rank (tie-broken by time spent), and <code className="text-zinc-700 dark:text-zinc-300">K</code> is volatility (50 for first 3 contests, scales down to 20). Base Elo starts at <strong>1500</strong>.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-zinc-200 dark:border-zinc-700 pt-3">
+                        <h4 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-1.5">
+                            <Award className="w-4 h-4 text-blue-500" />
+                            Practice Rating
+                        </h4>
+                        <p className="leading-relaxed mb-2">
+                            Practice Rating measures your proficiency and consistency in self-paced question practice. 
+                            It dynamically scales based on correct answers and accuracy to represent overall mastery.
+                        </p>
+
+                        <div className="my-3 bg-zinc-50 dark:bg-zinc-900/50 p-3 rounded-xl border border-zinc-200/50 dark:border-zinc-700/50 font-mono text-xs shadow-inner">
+                            <span className="text-blue-600 dark:text-blue-400 font-semibold block mb-1">Rating Formula:</span>
+                            <div className="flex items-center justify-center py-2 text-sm font-sans bg-white dark:bg-zinc-800 rounded-lg shadow-sm font-semibold border dark:border-zinc-750">
+                                Rating = Accuracy &times; log<sub>10</sub>(Correct + 1)
+                            </div>
+                            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed">
+                                Where <code className="text-zinc-700 dark:text-zinc-300">Accuracy</code> is your correctness percentage (Correct/Attempted &times; 100), and <code className="text-zinc-700 dark:text-zinc-300">Correct</code> is the total number of unique correct questions solved. Rating starts at <strong>0.00</strong>.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3.5 rounded-xl border border-blue-100 dark:border-blue-900/50 mt-4 shadow-sm">
+                        <p className="text-xs text-blue-800 dark:text-blue-200 leading-normal">
+                            💡 <strong>Tip:</strong> You can toggle the sorting on the leaderboard to view rankings by either timed live contests or self-paced daily practice!
                         </p>
                     </div>
                 </div>
@@ -112,7 +163,8 @@ export default function Leaderboard() {
     const { loading: authLoading } = useAuth();
     const { selectedBranch, availableBranches, loading: metadataLoading } = useMetadata();
 
-    const [leaderboard, setLeaderboard] = useState<User[]>([]);
+    const [sortBy, setSortBy] = useState<'contest' | 'practice'>('contest');
+    const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
     const [loadingData, setLoadingData] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
@@ -146,15 +198,16 @@ export default function Leaderboard() {
 
         try {
             const usersCollection = collection(db, 'users');
+            const sortField = sortBy === 'contest' ? `branchRatings.${selectedBranch}` : `ratings.${selectedBranch}`;
 
             if (direction === 'first') {
-                // Fix: Count only users who have a rating for this specific branch
-                const countQuery = query(usersCollection, orderBy(`ratings.${selectedBranch}`));
+                // Fix: Count only users who have a rating for this specific branch and sort option
+                const countQuery = query(usersCollection, orderBy(sortField));
                 const countSnapshot = await getCountFromServer(countQuery);
                 setTotalUsers(countSnapshot.data().count);
             }
 
-            let q = query(usersCollection, orderBy(`ratings.${selectedBranch}`, 'desc'));
+            let q = query(usersCollection, orderBy(sortField, 'desc'));
 
             if (direction === 'next' && cursorDoc) {
                 q = query(q, startAfter(cursorDoc), limit(PAGE_SIZE));
@@ -169,26 +222,23 @@ export default function Leaderboard() {
             const usersData = usersSnapshot.docs.map(doc => {
                 const data = doc.data() as User;
                 const branchStats = data.branchStats?.[selectedBranch] || { attempted: 0, correct: 0, accuracy: 0, subjects: {} };
-                const branchRating = data.ratings?.[selectedBranch] || 1500;
+                const practiceRating = data.ratings?.[selectedBranch] || 0;
+                const contestElo = data.branchRatings?.[selectedBranch] || 1500;
 
                 return {
                     ...data,
                     stats: branchStats,
-                    rating: branchRating,
+                    practiceRating,
+                    contestElo,
+                    rating: sortBy === 'contest' ? contestElo : practiceRating,
                 };
             });
 
-            // Fix: limitToLast maintains original order, no need to reverse
-            setLeaderboard(usersData);
+            setLeaderboard(usersData as LeaderboardUser[]);
 
             if (usersSnapshot.docs.length > 0) {
-                if (direction === 'prev') {
-                    setFirstVisible(usersSnapshot.docs[0]);
-                    setLastVisible(usersSnapshot.docs[usersSnapshot.docs.length - 1]);
-                } else {
-                    setFirstVisible(usersSnapshot.docs[0]);
-                    setLastVisible(usersSnapshot.docs[usersSnapshot.docs.length - 1]);
-                }
+                setFirstVisible(usersSnapshot.docs[0]);
+                setLastVisible(usersSnapshot.docs[usersSnapshot.docs.length - 1]);
             } else if (direction !== 'prev') {
                 setFirstVisible(null);
                 setLastVisible(null);
@@ -202,14 +252,14 @@ export default function Leaderboard() {
         } finally {
             setLoadingData(false); setLoadingMore(false);
         }
-    }, [selectedBranch]);
+    }, [selectedBranch, sortBy]);
 
     useEffect(() => {
         if (selectedBranch) {
             setFirstVisible(null); setLastVisible(null);
             fetchLeaderboard(1, 'first');
         }
-    }, [selectedBranch, fetchLeaderboard]);
+    }, [selectedBranch, sortBy, fetchLeaderboard]);
 
     const handleNextPage = () => {
         if (!loadingMore && lastVisible && currentPage < totalPages) {
@@ -222,6 +272,14 @@ export default function Leaderboard() {
         }
     };
 
+    const handleSortChange = (newSortBy: 'contest' | 'practice') => {
+        if (newSortBy !== sortBy) {
+            setSortBy(newSortBy);
+            setCurrentPage(1);
+            setFirstVisible(null);
+            setLastVisible(null);
+        }
+    };
 
     const totalPages = Math.max(1, Math.ceil(totalUsers / PAGE_SIZE));
     const topThreePodium = !loadingData && currentPage === 1 ? leaderboard.slice(0, 3) : [];
@@ -256,6 +314,34 @@ export default function Leaderboard() {
                     </p>
                 </div>
 
+                {/* Sorting Tabs */}
+                <div className="flex justify-center mb-6">
+                    <div className="bg-zinc-100 dark:bg-zinc-800/80 p-1 rounded-xl flex gap-1 shadow-inner border border-zinc-200/50 dark:border-zinc-700/50">
+                        <button
+                            onClick={() => handleSortChange('contest')}
+                            className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                                sortBy === 'contest'
+                                    ? 'bg-white dark:bg-zinc-700 text-zinc-950 dark:text-white shadow-md'
+                                    : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                            }`}
+                        >
+                            <Trophy className="w-4 h-4" />
+                            Contest Elo
+                        </button>
+                        <button
+                            onClick={() => handleSortChange('practice')}
+                            className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                                sortBy === 'practice'
+                                    ? 'bg-white dark:bg-zinc-700 text-zinc-950 dark:text-white shadow-md'
+                                    : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                            }`}
+                        >
+                            <Award className="w-4 h-4" />
+                            Practice Rating
+                        </button>
+                    </div>
+                </div>
+
                 {currentPage === 1 && topThreePodium.length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 items-end">
                         {topThreePodium[1] && <PodiumCard user={topThreePodium[1]} rank={2} />}
@@ -286,19 +372,23 @@ export default function Leaderboard() {
                                         />
                                         <div className="overflow-hidden">
                                             <div className="flex items-center gap-2">
-                                                <Link href={`/profile/${user.username}`} className={`font-medium hover:underline truncate text-sm block ${getRankTier(user.rating ?? 0).color}`}>{user.name}</Link>
-                                                <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-bold ${getRankTier(user.rating ?? 0).bg} ${getRankTier(user.rating ?? 0).color}`}>{getRankTier(user.rating ?? 0).title}</span>
+                                                <Link href={`/profile/${user.username}`} className={`font-medium hover:underline truncate text-sm block ${getRankTier(user.contestElo).color}`}>{user.name}</Link>
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-bold ${getRankTier(user.contestElo).bg} ${getRankTier(user.contestElo).color}`}>{getRankTier(user.contestElo).title}</span>
                                             </div>
                                             <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">@{user.username}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center justify-end gap-3 sm:gap-4 md:gap-6 text-right flex-shrink-0 pl-2">
-                                        <div className="flex items-center justify-end gap-1 sm:gap-1.5 text-yellow-600 dark:text-yellow-400 text-xs sm:text-sm min-w-[60px] sm:min-w-[70px]" title="Contest Elo">
-                                            <Trophy className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                            <span className="font-semibold">{user.rating ?? 1500}</span>
+                                    <div className="flex items-center justify-end gap-3 sm:gap-5 md:gap-8 text-right flex-shrink-0 pl-2">
+                                        <div className="flex items-center justify-end gap-1 sm:gap-1.5 text-yellow-600 dark:text-yellow-400 text-xs sm:text-sm min-w-[65px] sm:min-w-[75px]" title="Contest Elo">
+                                            <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                                            <span className="font-semibold">{user.contestElo}</span>
+                                        </div>
+                                        <div className="flex items-center justify-end gap-1 sm:gap-1.5 text-blue-600 dark:text-blue-400 text-xs sm:text-sm min-w-[65px] sm:min-w-[75px]" title="Practice Rating">
+                                            <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                                            <span className="font-semibold">{user.practiceRating.toFixed(2)}</span>
                                         </div>
                                         <div className="flex items-center justify-end gap-1 sm:gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm min-w-[50px] sm:min-w-[60px]" title="Accuracy">
-                                            <Target className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                            <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                                             <span className="font-semibold">{(user.stats?.accuracy ?? 0).toFixed(1)}%</span>
                                         </div>
                                     </div>
