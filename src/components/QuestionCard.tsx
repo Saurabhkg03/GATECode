@@ -29,7 +29,7 @@ export default function QuestionCard({ question, isSolved }: QuestionCardProps) 
             href={`/question/${question.id}`}
             className="block group"
         >
-            <div className={`flex items-center gap-4 px-4 py-3 sm:py-5 transition-colors duration-150 border-b border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 ${isSolved
+            <div className={`flex items-center gap-4 px-4 py-3 sm:py-5 transition-all duration-200 border-b border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:scale-[1.01] hover:shadow-[0_0_15px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_0_15px_rgba(255,255,255,0.02)] relative z-0 hover:z-10 rounded-lg ${isSolved
                 ? 'bg-zinc-50/10 dark:bg-zinc-900/10'
                 : 'bg-transparent'
                 }`}>
@@ -51,7 +51,7 @@ export default function QuestionCard({ question, isSolved }: QuestionCardProps) 
                 </div>
 
                 {/* 3. Acceptance/Accuracy Column (hidden on mobile) */}
-                <div className="hidden sm:flex flex-shrink-0 w-24 text-sm justify-end text-zinc-500 dark:text-zinc-400 tabular-nums">
+                <div className="hidden sm:flex flex-shrink-0 w-24 text-base justify-end text-zinc-500 dark:text-zinc-400 tabular-nums">
                     {(!question.attempts || question.attempts === 0)
                         ? '—'
                         : `${question.accuracy?.toFixed(1)}%`

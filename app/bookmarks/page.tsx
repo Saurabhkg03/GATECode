@@ -9,8 +9,17 @@ import LatexRenderer from '@/components/LatexRenderer';
 import { extractAndCleanHtml } from '@/utils/htmlUtils';
 import ImageZoom from '@/components/ui/ImageZoom';
 import Link from 'next/link';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function BookmarksPage() {
+    return (
+        <ProtectedRoute>
+            <BookmarksContent />
+        </ProtectedRoute>
+    );
+}
+
+function BookmarksContent() {
     const { user, loading } = useAuth();
     const [bookmarks, setBookmarks] = useState<any[]>([]);
     const [fetching, setFetching] = useState(true);
@@ -72,15 +81,7 @@ export default function BookmarksPage() {
     }
 
     if (!user) {
-        return (
-            <div className="flex flex-col items-center justify-center p-8 text-center min-h-[60vh]">
-                <h1 className="text-2xl font-bold mb-4">You need to log in!</h1>
-                <p className="text-gray-600 mb-6">Please log in to view and save bookmarked questions.</p>
-                <Link href="/login" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
-                    Go to Login
-                </Link>
-            </div>
-        );
+        return null;
     }
 
     return (
@@ -121,7 +122,6 @@ export default function BookmarksPage() {
                                             <span className="text-green-600">+{b.marks || 0}</span>
                                             <span className="text-red-500">-{b.negative_marks || 0}</span>
                                         </div>
-                                        {/* Question Snippet mapping properly to actual data structure. */}
                                     </div>
                                     <div className="flex gap-2">
                                         <button onClick={() => removeBookmark(b.docId)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Remove Bookmark">

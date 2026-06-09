@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/firebase';
 import { doc, getDoc, setDoc, updateDoc, Timestamp, collection, getDocs, query, where, documentId } from 'firebase/firestore';
 import { Contest, ContestAttempt, QuestionResponse, Section, Question } from '@/types/exam';
+import { evaluateExam } from '@/utils/examScoring';
 
 export async function POST(req: NextRequest) {
     try {
@@ -12,8 +13,22 @@ export async function POST(req: NextRequest) {
         }
 
         // 1. Fetch Contest Metadata
-        const contestRef = doc(db, 'contests', contestId);
-        const contestSnap = await getDoc(contestRef);
+        let actualContestId = contestId;
+        let contestRef = doc(db, 'contests', contestId);
+        let contestSnap = await getDoc(contestRef);
+
+        if (!contestSnap.exists()) {
+            // Try resolving generic scheduled contest ID (e.g., weekly-15) to a branch-specific contest
+            if (contestId.startsWith('weekly-') || contestId.startsWith('biweekly-')) {
+                const userRef = doc(db, 'users', uid);
+                const userSnap = await getDoc(userRef);
+                const userBranch = userSnap.exists() ? (userSnap.data().branch || 'ece').toLowerCase() : 'ece';
+                
+                actualContestId = `${contestId}-${userBranch}`;
+                contestRef = doc(db, 'contests', actualContestId);
+                contestSnap = await getDoc(contestRef);
+            }
+        }
 
         if (!contestSnap.exists()) {
             return NextResponse.json({ error: 'Contest not found' }, { status: 404 });
@@ -21,11 +36,10 @@ export async function POST(req: NextRequest) {
 
         const contestData = contestSnap.data() as Contest;
 
-        // 2. Check for Existing Attempts (to Resume or Deduplicate)
         const attemptsRef = collection(db, 'contest_attempts');
         const q = query(
             attemptsRef,
-            where('contestId', '==', contestId),
+            where('contestId', '==', actualContestId),
             where('uid', '==', uid),
             where('isSubmitted', '==', false)
         );
@@ -74,18 +88,24 @@ export async function POST(req: NextRequest) {
                 // For resume logic, if it's not expired or we are forcing fresh
                 if (forceFresh && !isVeryRecent) {
                     // Auto-submit stale unsubmitted attempts when force fresh
+                    const result = evaluateExam(contestData, att.responses);
                     const attRef = doc(db, 'contest_attempts', att.id);
                     await updateDoc(attRef, {
                         isSubmitted: true,
                         timeLeftSeconds: 0,
+                        score: result.totalScore,
+                        responses: result.responses,
                         lastUpdated: serverTime
                     });
                 } else if (isExpired && !isVeryRecent) {
                     // Auto-submit expired attempts
+                    const result = evaluateExam(contestData, att.responses);
                     const attRef = doc(db, 'contest_attempts', att.id);
                     await updateDoc(attRef, {
                         isSubmitted: true,
                         timeLeftSeconds: 0,
+                        score: result.totalScore,
+                        responses: result.responses,
                         lastUpdated: serverTime
                     });
                 } else if (!foundResumable && !isExpired) {
@@ -105,7 +125,7 @@ export async function POST(req: NextRequest) {
 
         if (!attempt) {
             // Create a brand new unique attempt
-            const newAttemptId = `${contestId}_${uid}_${serverTime}_${Math.random().toString(36).substring(2, 6)}`;
+            const newAttemptId = `${actualContestId}_${uid}_${serverTime}_${Math.random().toString(36).substring(2, 6)}`;
             const attemptRef = doc(db, 'contest_attempts', newAttemptId);
 
             let allocatedSeconds = contestData.durationMinutes * 60;
@@ -128,7 +148,7 @@ export async function POST(req: NextRequest) {
 
             attempt = {
                 id: newAttemptId,
-                contestId,
+                contestId: actualContestId,
                 uid,
                 startedAt: serverTime,
                 lastUpdated: serverTime,

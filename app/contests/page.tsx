@@ -472,11 +472,36 @@ const ContestsPage = () => {
                 attemptSnap.forEach(d => {
                     const data = d.data();
                     const cid = data.contestId as string;
-                    if (!map[cid] || !data.isSubmitted) {
+                    
+                    let isSub = !!data.isSubmitted;
+
+                    if (!isSub && data.startedAt) {
+                        const contestDoc = contests.find(c => c.id === cid);
+                        const weeklyInfo = getNextWeeklyContest();
+                        const biweeklyInfo = getNextBiweeklyContest();
+                        let durationMins = contestDoc?.durationMinutes;
+                        
+                        if (!durationMins) {
+                            if (cid === weeklyInfo.id) durationMins = weeklyInfo.durationMinutes;
+                            else if (cid === biweeklyInfo.id) durationMins = biweeklyInfo.durationMinutes;
+                        }
+
+                        if (durationMins) {
+                            const elapsedSeconds = (Date.now() - data.startedAt) / 1000;
+                            if (elapsedSeconds >= (durationMins * 60) + 120) {
+                                isSub = true;
+                            }
+                        }
+                    }
+
+                    if (!map[cid]) {
                         map[cid] = {
-                            isSubmitted: !!data.isSubmitted,
+                            isSubmitted: isSub,
                             timeLeftSeconds: data.timeLeftSeconds || 0
                         };
+                    } else if (isSub) {
+                        map[cid].isSubmitted = true;
+                        map[cid].timeLeftSeconds = data.timeLeftSeconds || 0;
                     }
                 });
                 setAttemptMap(map);
@@ -485,7 +510,7 @@ const ContestsPage = () => {
             }
         };
         loadUserData();
-    }, [user]);
+    }, [user, contests]);
 
     const handleRefresh = () => { fetchContests(); setShowGenerator(false); };
 

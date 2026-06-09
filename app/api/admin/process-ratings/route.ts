@@ -87,6 +87,8 @@ export async function POST(req: NextRequest) {
             });
         }
 
+        const branch = contestData.branch || 'ece';
+        
         validAttempts.forEach(docSnap => {
             const data = docSnap.data();
             let score = 0;
@@ -137,11 +139,13 @@ export async function POST(req: NextRequest) {
                     existingStat.timeSpent = totalTimeSpent;
                 } else {
                     const userData = usersData.get(data.uid) || {};
+                    const branchRatings = userData.branchRatings || {};
+                    
                     userStats.push({
                         uid: data.uid,
                         score: finalScore,
                         timeSpent: totalTimeSpent,
-                        oldRating: userData.rating || 1500
+                        oldRating: branchRatings[branch] || 1500
                     });
                 }
             }
@@ -197,9 +201,14 @@ export async function POST(req: NextRequest) {
         updates.forEach((update, uid) => {
             const userRef = doc(db, 'users', uid);
             const userData = usersData.get(uid) || {};
-            const ratingHistory = userData.ratingHistory || [];
+            
+            const branchRatings = userData.branchRatings || {};
+            const branchRatingHistory = userData.branchRatingHistory || {};
+            const highestBranchRatings = userData.highestBranchRatings || {};
 
-            ratingHistory.push({
+            const history = branchRatingHistory[branch] || [];
+
+            history.push({
                 contestId,
                 contestTitle: contestData.title,
                 date: Date.now(),
@@ -208,11 +217,18 @@ export async function POST(req: NextRequest) {
                 rank: update.rank
             });
 
+            const updatedBranchRatings = { ...branchRatings, [branch]: update.newRating };
+            const updatedHighestRatings = { 
+                ...highestBranchRatings, 
+                [branch]: Math.max(highestBranchRatings[branch] || 1500, update.newRating) 
+            };
+            const updatedBranchHistory = { ...branchRatingHistory, [branch]: history };
+
             const updatedFields = {
-                rating: update.newRating,
-                highestRating: Math.max(userData.highestRating || 1500, update.newRating),
-                contestCount: update.contestCount,
-                ratingHistory
+                branchRatings: updatedBranchRatings,
+                highestBranchRatings: updatedHighestRatings,
+                branchRatingHistory: updatedBranchHistory,
+                contestCount: update.contestCount
             };
 
             currentBatch.update(userRef, updatedFields);

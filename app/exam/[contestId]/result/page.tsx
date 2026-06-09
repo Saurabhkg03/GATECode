@@ -34,11 +34,6 @@ export default function ExamResultPage() {
     const [loadingRank, setLoadingRank] = useState(true);
 
     useEffect(() => {
-        if (!loading && !user) {
-            router.push('/login');
-            return;
-        }
-
         if (user) {
             const fetchData = async () => {
                 try {
@@ -98,80 +93,33 @@ export default function ExamResultPage() {
                         setEnrichedQuestions(enrichmentMap);
                     }
 
+                    // Fetch Global Rank securely via API
+                    if (attemptSnap.exists()) {
+                        const attData = attemptSnap.data() as ContestAttempt;
+                        if (!attemptIdFromUrl && !attData.isPractice) {
+                            try {
+                                const res = await fetch(`/api/exam/rank?contestId=${contestId}&score=${attData.score || 0}`);
+                                if (res.ok) {
+                                    const data = await res.json();
+                                    setGlobalRank({
+                                        rank: data.rank,
+                                        total: data.totalUsers
+                                    });
+                                }
+                            } catch (err) {
+                                console.error("Error fetching ranking:", err);
+                            }
+                        }
+                    }
+
                 } catch (error) {
                     console.error("Error fetching results:", error);
                 } finally {
                     setFetching(false);
-                }
-            };
-            fetchData();
-
-            // Fetch Global Rank
-            const fetchRank = async () => {
-                try {
-                    const attemptsRef = collection(db, 'contest_attempts');
-                    const rankQuery = query(
-                        attemptsRef,
-                        where('contestId', '==', contestId),
-                        where('isSubmitted', '==', true),
-                        where('isPractice', '!=', true), // Filter out practice attempts
-                        orderBy('isPractice'), // Required by Firestore for inequalities
-                        orderBy('score', 'desc')
-                    );
-
-                    const snapshot = await getDocs(rankQuery);
-                    const allLiveAttempts = snapshot.docs.map(doc => ({
-                        uid: doc.data().uid,
-                        score: doc.data().score || 0,
-                        responses: doc.data().responses || {}
-                    }));
-
-                    // Calculate Global Average Time Per Question
-                    const qStats: Record<string, { totalSecs: number, count: number }> = {};
-                    allLiveAttempts.forEach(att => {
-                        Object.values(att.responses).forEach((resp: any) => {
-                            if (resp.timeSpent > 0 && resp.status !== 'not_visited') {
-                                if (!qStats[resp.questionId]) qStats[resp.questionId] = { totalSecs: 0, count: 0 };
-                                qStats[resp.questionId].totalSecs += resp.timeSpent;
-                                qStats[resp.questionId].count++;
-                            }
-                        });
-                    });
-
-                    const avgTimeMap: Record<string, number> = {};
-                    for (const qId in qStats) {
-                        avgTimeMap[qId] = Math.round(qStats[qId].totalSecs / qStats[qId].count);
-                    }
-                    setGlobalAvgTimes(avgTimeMap);
-
-                    // Deduplicate by user (take highest score if multiple, though logic usually prevents multiple live)
-                    const userBestScores: Record<string, number> = {};
-                    allLiveAttempts.forEach(att => {
-                        if (userBestScores[att.uid] === undefined || att.score > userBestScores[att.uid]) {
-                            userBestScores[att.uid] = att.score;
-                        }
-                    });
-
-                    const sortedScores = Object.values(userBestScores).sort((a: any, b: any) => b - a);
-                    const myScore = userBestScores[user.uid] || 0;
-                    const myRank = sortedScores.indexOf(myScore) + 1;
-
-                    setGlobalRank({
-                        rank: myRank > 0 ? myRank : 0,
-                        total: sortedScores.length
-                    });
-                } catch (err) {
-                    console.error("Error fetching ranking:", err);
-                } finally {
                     setLoadingRank(false);
                 }
             };
-
-            if (user && !attemptIdFromUrl) {
-                fetchRank();
-            } else {
-                setLoadingRank(false);
-            }
+            fetchData();
         }
     }, [user, loading, contestId, router, attemptIdFromUrl]);
 

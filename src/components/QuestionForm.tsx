@@ -156,6 +156,7 @@ export default function QuestionForm({ questionId }: QuestionFormProps) {
                 addedBy: userInfo.uid,
                 createdAt: new Date().toISOString(),
                 verified: userInfo.role === 'admin' ? true : false, // Admins can auto-verify
+                randomId: Math.random(), // Required for O(1) random sampling at scale
                 // Handle single vs multiple correct labels
                 correctAnswerLabel: formData.question_type === 'mcq'
                     ? formData.options?.find((opt: { is_correct: boolean }) => opt.is_correct)?.label || 'A' // Default to A if none selected

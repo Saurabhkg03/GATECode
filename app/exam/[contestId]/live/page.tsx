@@ -176,6 +176,26 @@ const LiveExamUI = () => {
 
     // Format time removed (moved to ExamTimer)
 
+    if (state.error) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-zinc-950 p-4">
+                <div className="max-w-md w-full bg-white dark:bg-zinc-900 border border-red-200 dark:border-red-900/50 rounded-xl p-8 shadow-2xl text-center">
+                    <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <X className="w-8 h-8" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">Exam Error</h2>
+                    <p className="text-gray-600 dark:text-gray-400 mb-8">{state.error}</p>
+                    <button
+                        onClick={() => window.location.href = '/contests'}
+                        className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition-all shadow-lg hover:shadow-blue-500/25"
+                    >
+                        Return to Contests
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     if (isLoading || !contest) {
         return (
             <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-zinc-950">
@@ -653,12 +673,6 @@ export default function ExamPage() {
     const contestId = params.contestId as string;
     const { user, loading } = useAuth();
     const router = useRouter();
-
-    useEffect(() => {
-        if (!loading && !user) {
-            router.push(`/login?redirect=/exam/${contestId}/live`);
-        }
-    }, [user, loading, router, contestId]);
 
     if (loading || !user) return <div className="h-screen bg-white dark:bg-zinc-950"></div>;
 

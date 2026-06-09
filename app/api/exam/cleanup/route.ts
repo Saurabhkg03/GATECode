@@ -90,13 +90,10 @@ export async function POST(req: NextRequest) {
                                 const newAttempted = (branchStats.attempted || 0) + totalAttempted;
                                 const newCorrect = (branchStats.correct || 0) + correctCount;
                                 const newAccuracy = newAttempted > 0 ? parseFloat(((newCorrect / newAttempted) * 100).toFixed(2)) : 0;
-                                const newRating = parseFloat((Math.max(0, (newAccuracy / 100) * Math.log10(newCorrect + 1) * 100)).toFixed(2));
-
                                 await updateDoc(userRef, {
                                     [`branchStats.${branch}.attempted`]: newAttempted,
                                     [`branchStats.${branch}.correct`]: newCorrect,
                                     [`branchStats.${branch}.accuracy`]: newAccuracy,
-                                    [`ratings.${branch}`]: newRating,
                                     'stats.attempted': (userData.stats?.attempted || 0) + totalAttempted,
                                     'stats.correct': (userData.stats?.correct || 0) + correctCount,
                                 });

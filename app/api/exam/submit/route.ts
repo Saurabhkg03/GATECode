@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/firebase';
+import { evaluateExam } from '@/utils/examScoring';
 
 // Simple implementation accepting the Beacon payload
 export async function POST(req: NextRequest) {
@@ -54,50 +55,37 @@ export async function POST(req: NextRequest) {
         }
 
         // --- Fetch Contest to Validate Server-Side ---
-        const contestRef = doc(db, 'contests', contestId);
+        const actualContestId = attemptData.contestId || contestId;
+        const contestRef = doc(db, 'contests', actualContestId);
         const contestSnap = await getDoc(contestRef);
         let contestData: any = null;
+        let totalScore = 0;
+        let correctCount = 0;
+        let totalAttempted = 0;
 
         if (contestSnap.exists()) {
             contestData = contestSnap.data();
-            const questionMap = new Map();
-            if (contestData.sections) {
-                contestData.sections.forEach((sec: any) => {
-                    sec.questions.forEach((q: any) => {
-                        questionMap.set(q.id, {
-                            type: q.question_type,
-                            options: q.options,
-                            natMin: parseFloat(q.nat_answer_min),
-                            natMax: parseFloat(q.nat_answer_max)
-                        });
+            
+            if (contestData.endTime) {
+                const contestEndTimeMs = new Date(contestData.endTime).getTime();
+                if (serverTime > contestEndTimeMs + 60000 && !attemptData.isPractice) {
+                    console.warn(`[Submission Late - Contest Ended] Attempt ${attemptId}. ServerTime: ${serverTime}, EndTime: ${contestEndTimeMs}`);
+                    await updateDoc(attemptRef, {
+                        isSubmitted: true,
+                        submittedAt: serverTime,
+                        lastUpdated: serverTime,
+                        timeLeftSeconds: 0
                     });
-                });
-            }
-
-            // Trust the server, not the client
-            Object.values(responses || {}).forEach((resp: any) => {
-                const qData = questionMap.get(resp.questionId);
-                if (qData) {
-                    let isCorrect = false;
-                    if (qData.type === 'mcq') {
-                        const correctOption = qData.options?.find((o: any) => o.is_correct);
-                        isCorrect = !!(correctOption && resp.selectedOptions?.[0] === correctOption.label);
-                    } else if (qData.type === 'msq') {
-                        const correctLabels = qData.options?.filter((o: any) => o.is_correct).map((o: any) => o.label).sort();
-                        const userVal = [...(resp.selectedOptions || [])].sort();
-                        isCorrect = !!(correctLabels && userVal && correctLabels.length === userVal.length &&
-                            correctLabels.every((val: string, index: number) => val === userVal[index]));
-                    } else if (qData.type === 'nat') {
-                        const val = parseFloat(resp.natAnswer || '');
-                        if (!isNaN(val) && !isNaN(qData.natMin) && !isNaN(qData.natMax) && val >= qData.natMin && val <= qData.natMax) {
-                            isCorrect = true;
-                        }
-                    }
-                    resp.isCorrect = isCorrect;
-                } else {
-                    resp.isCorrect = false;
+                    return NextResponse.json({ success: true, warning: 'Submission was late. The contest had already ended. Only previously synced answers were recorded.' });
                 }
-            });
+            }
+            
+            // Use the shared evaluation engine
+            const result = evaluateExam(contestData, responses);
+            
+            totalScore = result.totalScore;
+            correctCount = result.correctCount;
+            totalAttempted = result.totalAttempted;
         }
 
         // --- Update User Stats if not Practice ---
@@ -110,39 +98,22 @@ export async function POST(req: NextRequest) {
                     const userData = userSnap.data();
                     const branch = contestData.branch || 'General'; // Default to General if not specified
 
-                    // Calculate score for this attempt
-                    let correctCount = 0;
-                    let totalAttempted = 0;
-
-                    // responses is an object: { qid: { selectedOptions, natAnswer, status, ... } }
-                    Object.values(responses || {}).forEach((resp: any) => {
-                        if (resp.status === 'answered' || resp.status === 'answered_marked_for_review') {
-                            totalAttempted++;
-                            if (resp.isCorrect) {
-                                correctCount++;
-                            }
-                        }
-                    });
-
                     // Update User Profile Stats
                     const branchStats = userData.branchStats?.[branch] || { attempted: 0, correct: 0, accuracy: 0, subjects: {} };
                     const newAttempted = (branchStats.attempted || 0) + totalAttempted;
                     const newCorrect = (branchStats.correct || 0) + correctCount;
                     const newAccuracy = newAttempted > 0 ? parseFloat(((newCorrect / newAttempted) * 100).toFixed(2)) : 0;
 
-                    // Rating Calculation Formula: (Accuracy / 100) * log10(Correct + 1) * 100
-                    const newRating = parseFloat((Math.max(0, (newAccuracy / 100) * Math.log10(newCorrect + 1) * 100)).toFixed(2));
-
-                    await updateDoc(userRef, {
+                    let updateObject: any = {
                         [`branchStats.${branch}.attempted`]: newAttempted,
                         [`branchStats.${branch}.correct`]: newCorrect,
                         [`branchStats.${branch}.accuracy`]: newAccuracy,
-                        [`ratings.${branch}`]: newRating,
-                        // Optionally update global stats if they exist
                         'stats.attempted': (userData.stats?.attempted || 0) + totalAttempted,
                         'stats.correct': (userData.stats?.correct || 0) + correctCount,
-                    });
-                    console.log(`[Stats Update] User ${uid} updated for branch ${branch}. New Rating: ${newRating}`);
+                    };
+
+                    await updateDoc(userRef, updateObject);
+                    console.log(`[Stats Update] User ${uid} updated for branch ${branch}.`);
                 }
             } catch (err) {
                 console.error("[Stats Update Error]:", err);
@@ -152,6 +123,7 @@ export async function POST(req: NextRequest) {
 
         await updateDoc(attemptRef, {
             responses,
+            score: parseFloat(totalScore.toFixed(2)),
             timeLeftSeconds,
             isSubmitted: true,
             submittedAt: serverTime,

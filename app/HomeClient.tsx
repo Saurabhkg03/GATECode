@@ -191,7 +191,7 @@ export default function HomeClient({
             </p>
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
               {/* --- NEW: Show branch-specific rating --- */}
-              Current Rating ({branchName}):{" "}
+              Practice Rating ({branchName}):{" "}
               <span className="font-semibold text-blue-600 dark:text-blue-400">
                 {userBranchRating}
               </span>
@@ -273,7 +273,7 @@ export default function HomeClient({
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Weekly Contest Card */}
-            <Link href={`/contests/${weeklyInfo.id}`} className="relative rounded-2xl overflow-hidden group shadow-xl transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl">
+            <Link href={`/contests/${weeklyInfo.id}-${activeBranch.toLowerCase()}`} className="relative rounded-2xl overflow-hidden group shadow-xl transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl">
               {/* Premium Gradient Background */}
               <div className="absolute inset-0 bg-gradient-to-br from-amber-400 via-orange-500 to-red-500" />
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_28%_38%,rgba(255,255,255,0.25),transparent_65%)]" />
@@ -310,7 +310,7 @@ export default function HomeClient({
             </Link>
 
             {/* Biweekly Contest Card */}
-            <Link href={`/contests/${biweeklyInfo.id}`} className="relative rounded-2xl overflow-hidden group shadow-xl transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl">
+            <Link href={`/contests/${biweeklyInfo.id}-${activeBranch.toLowerCase()}`} className="relative rounded-2xl overflow-hidden group shadow-xl transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl">
               {/* Premium Gradient Background */}
               <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-violet-600 to-purple-700" />
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_72%_28%,rgba(255,255,255,0.2),transparent_60%)]" />
@@ -472,10 +472,10 @@ export default function HomeClient({
                     </p>
                   </div>
                   <div
-                    className="flex items-center gap-1 text-blue-600 dark:text-blue-400"
-                    title="Performance Rating"
+                    className="flex items-center gap-1 text-yellow-600 dark:text-yellow-400"
+                    title="Contest Elo"
                   >
-                    <BarChart className="w-4 h-4" />
+                    <Trophy className="w-4 h-4" />
                     <span className="font-semibold text-sm">
                       {leader.rating ?? 0}
                     </span>
@@ -513,10 +513,12 @@ export default function HomeClient({
                   </Link>
                 ))
               ) : (
-                <div className="h-full flex flex-col items-center justify-center p-6 text-center text-zinc-500 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl">
-                  <CheckCircle className="w-8 h-8 text-emerald-500 mb-2" />
-                  <p className="font-medium text-zinc-800 dark:text-white mb-1">All caught up!</p>
-                  <p className="text-sm">You have no recent incorrect submissions.</p>
+                <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-gradient-to-br from-emerald-50/50 to-teal-50/50 dark:from-emerald-900/10 dark:to-teal-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl shadow-inner">
+                  <div className="w-16 h-16 bg-white dark:bg-emerald-900/40 rounded-full flex items-center justify-center shadow-sm mb-4 border border-emerald-100 dark:border-emerald-800">
+                    <CheckCircle className="w-8 h-8 text-emerald-500" />
+                  </div>
+                  <p className="font-bold text-lg text-emerald-900 dark:text-emerald-400 mb-1">All caught up!</p>
+                  <p className="text-sm text-emerald-700/70 dark:text-emerald-500/70">You have no recent incorrect submissions.</p>
                 </div>
               )}
             </div>
@@ -548,10 +550,12 @@ export default function HomeClient({
                   </Link>
                 ))
               ) : (
-                <div className="h-full flex flex-col items-center justify-center p-6 text-center text-zinc-500 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl">
-                  <BookOpen className="w-8 h-8 text-blue-400 mb-2 opacity-50" />
-                  <p className="font-medium text-zinc-700 dark:text-zinc-300 mb-1">No questions yet</p>
-                  <p className="text-sm">Start practicing to see recommendations here.</p>
+                <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 border border-blue-100 dark:border-blue-900/30 rounded-2xl shadow-inner">
+                  <div className="w-16 h-16 bg-white dark:bg-blue-900/40 rounded-full flex items-center justify-center shadow-sm mb-4 border border-blue-100 dark:border-blue-800">
+                    <BookOpen className="w-8 h-8 text-blue-500" />
+                  </div>
+                  <p className="font-bold text-lg text-blue-900 dark:text-blue-400 mb-1">No questions yet</p>
+                  <p className="text-sm text-blue-700/70 dark:text-blue-500/70">Start practicing to see personalized recommendations.</p>
                 </div>
               )}
             </div>

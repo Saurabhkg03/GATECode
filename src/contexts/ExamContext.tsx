@@ -265,7 +265,21 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
                     signal: controller.signal,
                 });
 
-                if (!res.ok) throw new Error('Failed to start exam');
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    console.error("[ExamContext] /api/exam/start failed with status:", res.status);
+                    console.error("[ExamContext] Raw response body:", errorText);
+                    
+                    let errMessage = 'Failed to start exam';
+                    try {
+                        const errData = JSON.parse(errorText);
+                        errMessage = errData.error || errMessage;
+                    } catch (e) {
+                        console.error("[ExamContext] Could not parse error response as JSON", e);
+                    }
+                    
+                    throw new Error(`Error ${res.status}: ${errMessage}`);
+                }
 
                 const data = await res.json();
 
@@ -288,12 +302,30 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
                             const localData = JSON.parse(localDataStr);
                             const localKeysCount = Object.keys(localData || {}).length;
                             const remoteKeysCount = Object.keys(restoredResponses).length;
-
-                            // Merge missing local responses into the restored responses
-                            restoredResponses = { ...localData, ...restoredResponses };
+                            // Merge local responses into restored responses by timestamp
+                            const allKeys = new Set([...Object.keys(localData || {}), ...Object.keys(restoredResponses)]);
+                            const merged: any = {};
+                            
+                            allKeys.forEach(key => {
+                                const localQ = localData[key];
+                                const remoteQ = restoredResponses[key];
+                                
+                                if (localQ && !remoteQ) {
+                                    merged[key] = localQ;
+                                } else if (!localQ && remoteQ) {
+                                    merged[key] = remoteQ;
+                                } else {
+                                    // Both exist, compare markedAt
+                                    const localTime = localQ.markedAt || 0;
+                                    const remoteTime = remoteQ.markedAt || 0;
+                                    merged[key] = localTime >= remoteTime ? localQ : remoteQ;
+                                }
+                            });
+                            
+                            restoredResponses = merged;
 
                             // If local had more or different data, we consider it a restore event
-                            if (localKeysCount > 0 && JSON.stringify(localData) !== JSON.stringify(data.attempt.responses)) {
+                            if (localKeysCount > 0 && JSON.stringify(restoredResponses) !== JSON.stringify(data.attempt.responses)) {
                                 didRestoreFromLocal = true;
                             }
                         } catch (e) {

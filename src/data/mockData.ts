@@ -70,6 +70,9 @@ export interface User {
   // e.g., { ece: { currentStreak: 5, ... }, cse: { ... } }
   branchStreakData: Record<string, UserStreakData>;
 
+  // --- NEW: Branch-specific rating history ---
+  branchRatingHistory?: Record<string, any[]>;
+  highestBranchRatings?: Record<string, number>;
 
   // DEPRECATED: Old global stats (we'll migrate away from these)
   stats?: {

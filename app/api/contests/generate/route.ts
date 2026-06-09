@@ -132,6 +132,15 @@ export async function POST(req: NextRequest) {
         ];
 
         const totalQs = finalSections[0].questions.length + finalSections[1].questions.length;
+        
+        const actualMarks = finalSections[0].questions.reduce((sum, q) => sum + Number(q.marks), 0) + 
+                            finalSections[1].questions.reduce((sum, q) => sum + Number(q.marks), 0);
+                            
+        if (actualMarks !== 100) {
+            return NextResponse.json({ 
+                error: `Cannot generate a valid 100-mark exam. The generated exam contains ${actualMarks} marks. Ensure the database has enough 1-mark and 2-mark questions.` 
+            }, { status: 400 });
+        }
         const prefix = isAdminContest ? 'admin' : 'mock';
         const newContestId = `${Date.now()}-${prefix}-${branch}`;
         const defaultTitle = `GATE ${branch.toUpperCase()} ${isAdminContest ? 'Live Competition' : 'Mock Practice'} (Real)`;
@@ -153,6 +162,7 @@ export async function POST(req: NextRequest) {
             branch: branch,
             createdBy: uid || 'anonymous',
             isPublic: isAdminContest ? true : isPublic,
+            ...(isAdminContest && { isRated: true }),
             durationMinutes: 180,
             totalMarks: 100,
             sections: finalSections,

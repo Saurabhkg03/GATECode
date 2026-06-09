@@ -49,8 +49,8 @@ const PodiumCard = ({ user, rank }: { user: User; rank: number }) => {
                     <div className={`mt-3 w-full bg-gradient-to-r ${styles.gradient} p-2 rounded-xl shadow-inner md:mt-4`}>
                         <div className="flex justify-around items-center text-white">
                             <div className="text-center">
-                                <p className="font-bold text-base md:text-lg">{user.rating ?? 0}</p>
-                                <p className="text-[10px] md:text-xs opacity-80">Rating</p>
+                                <p className="font-bold text-base md:text-lg">{user.rating ?? 1500}</p>
+                                <p className="text-[10px] md:text-xs opacity-80">Contest Elo</p>
                             </div>
                             <div className="text-center">
                                 <p className="font-bold text-base md:text-lg">{user.stats?.correct ?? 0}</p>
@@ -86,24 +86,22 @@ const RatingInfoModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
 
                 <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
                     <Info className="w-5 h-5 text-blue-500" />
-                    How Rating Works
+                    How Contest Elo Works
                 </h3>
 
                 <div className="space-y-3 text-sm text-zinc-600 dark:text-zinc-300">
                     <p>
-                        The rating aims to provide a balanced measure of your performance on GATECode, considering both accuracy and the number of questions you solve correctly.
+                        The Contest Elo system evaluates your rank based entirely on your performance in official admin-hosted Live Contests.
                     </p>
-                    <p>It is calculated using the following formula:</p>
-                    <div className="bg-zinc-100 dark:bg-zinc-700 p-3 rounded text-center my-2">
-                        <code className="text-sm font-mono text-zinc-800 dark:text-zinc-200 block whitespace-normal">
-                            Rating = (Accuracy / 100) * log<sub>10</sub>(Correct + 1) * {RATING_SCALING_FACTOR}
-                        </code>
+                    <p>
+                        Similar to competitive programming and chess, your score goes up or down depending on your relative performance against the pool of other participants in the contest. 
+                        Every user starts with a base Elo of 1500.
+                    </p>
+                    <div className="bg-zinc-100 dark:bg-zinc-700 p-3 rounded my-2">
+                        <p className="text-xs">
+                            <strong className="dark:text-white">Note:</strong> Your Practice Rating (earned from single-question submissions) does NOT affect this score. Contest Elo is isolated to official exams only.
+                        </p>
                     </div>
-                    <ul className="list-disc list-inside space-y-1 pl-1">
-                        <li><strong className="dark:text-white">Accuracy / 100:</strong> Your overall percentage of correct answers, normalized to a value between 0 and 1.</li>
-                        <li><strong className="dark:text-white">log<sub>10</sub>(Correct + 1):</strong> This part rewards solving more questions. Using a logarithm (base 10) means solving your first few questions correctly gives a bigger boost than solving more questions when you&apos;ve already solved many.</li>
-                        <li><strong className="dark:text-white">{RATING_SCALING_FACTOR}:</strong> This simply scales the result to make the rating number easier to read (e.g., 150 instead of 1.5).</li>
-                    </ul>
                 </div>
             </div>
         </div>
@@ -150,7 +148,9 @@ export default function Leaderboard() {
             const usersCollection = collection(db, 'users');
 
             if (direction === 'first') {
-                const countSnapshot = await getCountFromServer(query(usersCollection));
+                // Fix: Count only users who have a rating for this specific branch
+                const countQuery = query(usersCollection, orderBy(`ratings.${selectedBranch}`));
+                const countSnapshot = await getCountFromServer(countQuery);
                 setTotalUsers(countSnapshot.data().count);
             }
 
@@ -169,7 +169,7 @@ export default function Leaderboard() {
             const usersData = usersSnapshot.docs.map(doc => {
                 const data = doc.data() as User;
                 const branchStats = data.branchStats?.[selectedBranch] || { attempted: 0, correct: 0, accuracy: 0, subjects: {} };
-                const branchRating = data.ratings?.[selectedBranch] || 0;
+                const branchRating = data.ratings?.[selectedBranch] || 1500;
 
                 return {
                     ...data,
@@ -178,7 +178,8 @@ export default function Leaderboard() {
                 };
             });
 
-            setLeaderboard(direction === 'prev' ? usersData.reverse() : usersData);
+            // Fix: limitToLast maintains original order, no need to reverse
+            setLeaderboard(usersData);
 
             if (usersSnapshot.docs.length > 0) {
                 if (direction === 'prev') {
@@ -292,9 +293,9 @@ export default function Leaderboard() {
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-end gap-3 sm:gap-4 md:gap-6 text-right flex-shrink-0 pl-2">
-                                        <div className="flex items-center justify-end gap-1 sm:gap-1.5 text-blue-600 dark:text-blue-400 text-xs sm:text-sm min-w-[60px] sm:min-w-[70px]" title="Performance Rating">
-                                            <BarChart className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                            <span className="font-semibold">{user.rating ?? 0}</span>
+                                        <div className="flex items-center justify-end gap-1 sm:gap-1.5 text-yellow-600 dark:text-yellow-400 text-xs sm:text-sm min-w-[60px] sm:min-w-[70px]" title="Contest Elo">
+                                            <Trophy className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                            <span className="font-semibold">{user.rating ?? 1500}</span>
                                         </div>
                                         <div className="flex items-center justify-end gap-1 sm:gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm min-w-[50px] sm:min-w-[60px]" title="Accuracy">
                                             <Target className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
