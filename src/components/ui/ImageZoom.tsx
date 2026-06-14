@@ -39,10 +39,10 @@ const ImageZoom: React.FC<ImageZoomProps> = ({ src, alt = "Image", className }) 
                     className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={() => setIsOpen(false)}
                 >
-                    <div className="relative max-w-full max-h-screen flex flex-col items-center justify-center">
+                    <div className="relative w-full h-full flex flex-col items-center justify-center p-8">
                         {/* Close Button */}
                         <button
-                            className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white transition-colors"
+                            className="absolute top-4 right-4 z-10 p-2 text-white/70 hover:text-white transition-colors bg-black/50 rounded-full"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setIsOpen(false);
@@ -54,7 +54,7 @@ const ImageZoom: React.FC<ImageZoomProps> = ({ src, alt = "Image", className }) 
                         <img
                             src={src}
                             alt={alt}
-                            className="max-h-[90vh] max-w-[95vw] rounded-lg shadow-2xl object-contain bg-white select-none"
+                            className="w-full h-full rounded-lg shadow-2xl object-contain bg-white select-none"
                             onClick={(e) => e.stopPropagation()} // Prevent closing when clicking image itself
                         />
 
