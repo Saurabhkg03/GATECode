@@ -19,6 +19,7 @@ import {
 } from "firebase/firestore";
 import { Contest } from "@/types/exam";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMetadata } from "@/contexts/MetadataContext";
 import {
     getNextWeeklyContest,
     getNextBiweeklyContest,
@@ -53,14 +54,18 @@ import {
     ChevronDown
 } from "lucide-react";
 
+import ContestThumbnail from "@/components/contests/ContestThumbnail";
+
 type TabType = "official" | "community" | "mine";
 const ITEMS_PER_PAGE = 12;
 
-const GATE_BRANCHES = [
-    "AE", "AG", "AR", "BM", "BT", "CE", "CH", "CS", "CY", "DA", "EC", "EE",
-    "ES", "EY", "GG", "IN", "MA", "ME", "MN", "MT", "NM", "PE", "PH", "PI",
-    "ST", "TF", "XE", "XH", "XL"
+const AVAILABLE_BRANCHES = [
+    "ECE", "CSE", "ME", "CE", "EE"
 ];
+
+const mapPageBranchToDbBranch = (branch: string): string => branch.toLowerCase();
+
+const mapDbBranchToPageBranch = (branch: string): string => branch.toUpperCase();
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -142,13 +147,18 @@ const ContestCard = ({
             }}
             role="link"
             tabIndex={0}
-            className={`group flex flex-col justify-between rounded-[24px] p-6 border transition-all duration-300 h-full relative overflow-hidden cursor-pointer ${
+            className={`group flex flex-col justify-between rounded-[24px] border transition-all duration-300 h-full relative overflow-hidden cursor-pointer ${
                 type === "admin" 
                     ? "bg-slate-50 dark:bg-zinc-900 border-amber-200/50 dark:border-amber-500/10 hover:shadow-xl hover:shadow-amber-500/5" 
                     : "bg-white dark:bg-zinc-900 border-slate-200/60 dark:border-zinc-800/50 hover:shadow-xl hover:shadow-blue-500/5"
             } ${isPast(contest) ? "opacity-85 grayscale-[0.3]" : "shadow-sm"} ${live ? "ring-1 ring-emerald-500/30" : ""}`}
         >
-            <div className="relative z-10">
+            {/* Thumbnail Header */}
+            <div className="relative h-28 w-full shrink-0 border-b border-slate-100 dark:border-zinc-800/50">
+                <ContestThumbnail contestId={contest.id} title={contest.title} />
+            </div>
+
+            <div className="relative z-10 p-6 flex-1 flex flex-col">
                 {/* Badges row */}
                 <div className="flex justify-between items-start mb-5">
                     <div className="flex gap-2 flex-wrap">
@@ -190,7 +200,7 @@ const ContestCard = ({
                 )}
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-y-3 gap-x-4 mb-6">
+                <div className="grid grid-cols-2 gap-y-3 gap-x-4 mb-6 mt-auto">
                     <div className="flex items-center gap-2.5 text-[11px] font-semibold text-slate-500 dark:text-zinc-500">
                         <Clock className="w-3.5 h-3.5" /> {contest.durationMinutes} min
                     </div>
@@ -200,7 +210,7 @@ const ContestCard = ({
                 </div>
             </div>
 
-            <div className="relative z-10 pt-4 border-t border-slate-50 dark:border-zinc-800">
+            <div className="relative z-10 p-6 pt-4 border-t border-slate-100 dark:border-zinc-800/50">
                 {upcoming ? (
                     <div className="w-full py-3.5 rounded-2xl font-bold text-xs uppercase tracking-wider text-center flex items-center justify-center gap-2 bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 border border-slate-200 dark:border-zinc-700 cursor-not-allowed select-none">
                         <Lock className="w-4 h-4" /> Locked
@@ -261,18 +271,21 @@ const SectionHeading = ({ icon, label, count }: { icon: React.ReactNode; label: 
 
 const ScheduledContestCard = ({
     type,
+    branch,
     isRegistered,
 }: {
     type: "weekly" | "biweekly";
+    branch: string;
     isRegistered?: boolean;
 }) => {
     const isWeekly = type === "weekly";
     const info = isWeekly ? getNextWeeklyContest() : getNextBiweeklyContest();
+    const contestId = `${info.id}-${branch}`;
     const live = isLive({ startTime: info.startTime.toISOString(), durationMinutes: info.durationMinutes } as Contest);
 
     return (
         <Link
-            href={`/contests/${info.id}`}
+            href={`/contests/${contestId}`}
             className={`flex-1 relative rounded-2xl overflow-hidden group transition-all duration-300 hover:scale-[1.015] active:scale-[0.99] hover:brightness-105 ${
                 isWeekly
                     ? "bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500"
@@ -326,7 +339,7 @@ const ScheduledContestCard = ({
                 {/* Title + date */}
                 <div className="mt-5">
                     <h2 className="text-[22px] font-black text-white leading-tight drop-shadow">
-                        {isWeekly ? "Weekly" : "Biweekly"} Mock {info.number}
+                        GATE {branch.toUpperCase()} {isWeekly ? "Weekly" : "Biweekly"} Mock {info.number}
                     </h2>
                     <div className="mt-2 flex items-center gap-4 flex-wrap">
                         <p className="inline-flex items-center gap-1.5 bg-black/20 text-white text-[11px] font-semibold rounded-lg px-2.5 py-1">
@@ -347,6 +360,7 @@ const ScheduledContestCard = ({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 const ContestsPage = () => {
+    const { selectedBranch: globalBranch } = useMetadata();
     const { userInfo, user, isAuthenticated } = useAuth();
     const [contests, setContests] = useState<Contest[]>([]);
     const [loading, setLoading] = useState(true);
@@ -360,10 +374,18 @@ const ContestsPage = () => {
     const [loadingMore, setLoadingMore] = useState(false);
 
     const [searchQuery, setSearchQuery] = useState("");
-    const [selectedBranch, setSelectedBranch] = useState("All");
+    const [selectedBranch, setSelectedBranch] = useState("ECE");
     const [selectedDifficulty, setSelectedDifficulty] = useState("All");
     const [selectedDuration, setSelectedDuration] = useState("All");
     const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+    // Sync local selection when global branch changes
+    useEffect(() => {
+        if (globalBranch) {
+            setSelectedBranch(mapDbBranchToPageBranch(globalBranch));
+        }
+    }, [globalBranch]);
+
     // Re-render tick every 60s so contest states (live/upcoming/past) update automatically
     const [, setTick] = useState(0);
     useEffect(() => {
@@ -396,7 +418,8 @@ const ContestsPage = () => {
 
             // Dropdown Filters
             if (selectedBranch !== "All") {
-                conditions.push(where("branch", "==", selectedBranch));
+                const dbBranch = mapPageBranchToDbBranch(selectedBranch);
+                conditions.push(where("branch", "==", dbBranch));
             }
             if (selectedDifficulty !== "All") {
                 conditions.push(where("difficulty", "==", selectedDifficulty));
@@ -482,8 +505,8 @@ const ContestsPage = () => {
                         let durationMins = contestDoc?.durationMinutes;
                         
                         if (!durationMins) {
-                            if (cid === weeklyInfo.id) durationMins = weeklyInfo.durationMinutes;
-                            else if (cid === biweeklyInfo.id) durationMins = biweeklyInfo.durationMinutes;
+                            if (cid.startsWith(weeklyInfo.id)) durationMins = weeklyInfo.durationMinutes;
+                            else if (cid.startsWith(biweeklyInfo.id)) durationMins = biweeklyInfo.durationMinutes;
                         }
 
                         if (durationMins) {
@@ -525,7 +548,7 @@ const ContestsPage = () => {
     };
 
     // Derived state for filters
-    const availableBranches = GATE_BRANCHES;
+    const availableBranches = AVAILABLE_BRANCHES;
 
     // Local filter logic for what's not efficiently possible in Firestore
     const filteredContests = contests.filter((c) => {
@@ -541,6 +564,21 @@ const ContestsPage = () => {
             if (selectedDuration === "Short (< 30m)" && c.durationMinutes >= 30) return false;
             if (selectedDuration === "Medium (30-90m)" && (c.durationMinutes < 30 || c.durationMinutes > 90)) return false;
             if (selectedDuration === "Long (> 90m)" && c.durationMinutes <= 90) return false;
+        }
+
+        // Filter out weekly/biweekly contests of other branches
+        const isWeeklyBiweekly = c.id.startsWith("weekly-") || 
+                                 c.id.startsWith("biweekly-") || 
+                                 c.title.toLowerCase().includes("weekly") || 
+                                 c.title.toLowerCase().includes("biweekly");
+        if (isWeeklyBiweekly) {
+            const dbBranch = c.branch?.toLowerCase();
+            const targetBranch = selectedBranch !== "All"
+                ? mapPageBranchToDbBranch(selectedBranch)
+                : globalBranch?.toLowerCase();
+            if (dbBranch && targetBranch && dbBranch !== targetBranch) {
+                return false;
+            }
         }
         return true;
     });
@@ -564,15 +602,18 @@ const ContestsPage = () => {
 
     const partitionedContests = partitionByStatus(filteredContests);
 
+    const isWeeklyOrBiweekly = (c: Contest) => 
+        c.type === "admin" && (c.id.startsWith("weekly-") || c.id.startsWith("biweekly-") || c.title.toLowerCase().includes("weekly") || c.title.toLowerCase().includes("biweekly"));
+
     // Identify past weekly/biweekly for special section
-    const pastOfficialWeeklyBiweekly = activeTab === "official" ? partitionedContests.past.filter(c => 
-        c.type === "admin" && (c.id.startsWith("weekly-") || c.id.startsWith("biweekly-") || c.title.toLowerCase().includes("weekly") || c.title.toLowerCase().includes("biweekly"))
-    ) : [];
+    const pastOfficialWeeklyBiweekly = activeTab === "official" ? partitionedContests.past.filter(isWeeklyOrBiweekly) : [];
     
     // Other past official contests
-    const pastOfficialOthers = activeTab === "official" ? partitionedContests.past.filter(c => 
-        !(c.type === "admin" && (c.id.startsWith("weekly-") || c.id.startsWith("biweekly-") || c.title.toLowerCase().includes("weekly") || c.title.toLowerCase().includes("biweekly")))
-    ) : [];
+    const pastOfficialOthers = activeTab === "official" ? partitionedContests.past.filter(c => !isWeeklyOrBiweekly(c)) : [];
+
+    // Filter upcoming and live official contests to avoid duplicating weekly/biweekly
+    const upcomingOfficialOthers = activeTab === "official" ? partitionedContests.upcoming.filter(c => !isWeeklyOrBiweekly(c)) : [];
+    const liveOfficialOthers = activeTab === "official" ? partitionedContests.live.filter(c => !isWeeklyOrBiweekly(c)) : [];
 
     const cardType = (c: Contest, tab: TabType): "admin" | "mock" | "mine" =>
         tab === "mine" ? "mine" : c.type === "admin" ? "admin" : "mock";
@@ -614,6 +655,7 @@ const ContestsPage = () => {
     // weekly/biweekly scheduled contest IDs for registration badge
     const weeklyInfo = getNextWeeklyContest();
     const biweeklyInfo = getNextBiweeklyContest();
+    const activeBranch = selectedBranch !== "All" ? mapPageBranchToDbBranch(selectedBranch) : (globalBranch || "ece");
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors">
@@ -713,8 +755,7 @@ const ContestsPage = () => {
                                         onChange={(e) => setSelectedBranch(e.target.value)}
                                         className="w-full sm:w-40 pl-9 pr-8 py-2.5 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm text-gray-700 dark:text-gray-300 appearance-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                                     >
-                                        <option value="All">All Branches</option>
-                                        {availableBranches.map(b => <option key={b} value={b}>{b}</option>)}
+                                        {AVAILABLE_BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
                                     </select>
                                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                                 </div>
@@ -761,22 +802,22 @@ const ContestsPage = () => {
                     {/* ── OFFICIAL TAB ── */}
                     {activeTab === "official" && (
                         <div className="space-y-8">
-                            {/* Scheduled / Upcoming contests (weekly + biweekly) */}
+                            {/* Scheduled / Upcoming contests (weekly/biweekly big banners) */}
                             <div className="space-y-4">
                                 <SectionHeading icon={<Timer className="w-5 h-5 text-amber-500" />} label="Upcoming Contests" />
                                 <div className="flex flex-col sm:flex-row gap-5">
-                                    <ScheduledContestCard type="weekly" isRegistered={registeredIds.has(weeklyInfo.id)} />
-                                    <ScheduledContestCard type="biweekly" isRegistered={registeredIds.has(biweeklyInfo.id)} />
+                                    <ScheduledContestCard type="weekly" branch={activeBranch} isRegistered={registeredIds.has(`${weeklyInfo.id}-${activeBranch}`)} />
+                                    <ScheduledContestCard type="biweekly" branch={activeBranch} isRegistered={registeredIds.has(`${biweeklyInfo.id}-${activeBranch}`)} />
                                 </div>
-                                {/* Scheduled admin contests */}
-                                {partitionedContests.upcoming.length > 0 && renderGrid(partitionedContests.upcoming, "official")}
+                                {/* Scheduled admin contests (excluding the weekly/biweekly shown above) */}
+                                {upcomingOfficialOthers.length > 0 && renderGrid(upcomingOfficialOthers, "official")}
                             </div>
 
                             {/* Live */}
-                            {partitionedContests.live.length > 0 && (
+                            {liveOfficialOthers.length > 0 && (
                                 <div className="space-y-4">
-                                    <SectionHeading icon={<Radio className="w-5 h-5 text-green-500 animate-pulse" />} label="Live Now" count={partitionedContests.live.length} />
-                                    {renderGrid(partitionedContests.live, "official")}
+                                    <SectionHeading icon={<Radio className="w-5 h-5 text-green-500 animate-pulse" />} label="Live Now" count={liveOfficialOthers.length} />
+                                    {renderGrid(liveOfficialOthers, "official")}
                                 </div>
                             )}
 

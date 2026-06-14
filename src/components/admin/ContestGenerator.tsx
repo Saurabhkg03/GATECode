@@ -15,6 +15,8 @@ const ContestGenerator: React.FC<ContestGeneratorProps> = ({ onContestCreated, i
     const [status, setStatus] = useState('');
     const [branch, setBranch] = useState('ece');
     const [contestTitle, setContestTitle] = useState('');
+    const [difficulty, setDifficulty] = useState('Medium');
+    const [durationMinutes, setDurationMinutes] = useState(180);
     const [isPublic, setIsPublic] = useState(false);
     const [enableSchedule, setEnableSchedule] = useState(false);
     const [scheduledDateTime, setScheduledDateTime] = useState('');
@@ -45,7 +47,9 @@ const ContestGenerator: React.FC<ContestGeneratorProps> = ({ onContestCreated, i
                     scheduledDateTime,
                     endDateTime,
                     isAdminContest,
-                    uid: userInfo?.uid || 'anonymous'
+                    uid: userInfo?.uid || 'anonymous',
+                    difficulty,
+                    durationMinutes: Number(durationMinutes)
                 }),
             });
 
@@ -76,6 +80,8 @@ const ContestGenerator: React.FC<ContestGeneratorProps> = ({ onContestCreated, i
             setLoading(false);
         }
     };
+
+    const isWeeklyOrBiweekly = contestTitle.toLowerCase().includes('weekly') || contestTitle.toLowerCase().includes('biweekly');
 
     return (
         <div className="p-6 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm space-y-5">
@@ -117,6 +123,41 @@ const ContestGenerator: React.FC<ContestGeneratorProps> = ({ onContestCreated, i
                         placeholder="e.g. Major Test 1"
                         className="w-full p-2.5 border rounded-xl dark:bg-zinc-900 dark:border-zinc-800 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
                     />
+                </div>
+            </div>
+
+            {/* Row 2: Difficulty + Duration */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Difficulty Level
+                    </label>
+                    <select
+                        value={difficulty}
+                        onChange={(e) => setDifficulty(e.target.value)}
+                        className="w-full p-2.5 border rounded-xl dark:bg-zinc-900 dark:border-zinc-800 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                    >
+                        <option value="Easy">Easy</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Hard">Hard</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Duration (minutes)
+                    </label>
+                    <input
+                        type="number"
+                        min="1"
+                        value={isWeeklyOrBiweekly ? 180 : durationMinutes}
+                        onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 0)}
+                        disabled={isWeeklyOrBiweekly}
+                        className={`w-full p-2.5 border rounded-xl dark:bg-zinc-900 dark:border-zinc-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition ${isWeeklyOrBiweekly ? 'opacity-60 bg-gray-100 dark:bg-zinc-800 text-gray-500 cursor-not-allowed' : 'bg-white dark:text-white'}`}
+                    />
+                    {isWeeklyOrBiweekly && (
+                        <p className="text-xs text-amber-500 mt-1.5 font-medium">Weekly/Biweekly exams are fixed at 180 mins.</p>
+                    )}
                 </div>
             </div>
 

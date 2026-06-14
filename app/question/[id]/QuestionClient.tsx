@@ -570,85 +570,23 @@ export default function QuestionClient({ id }: { id: string }) {
     };
 
     const handleTryAgain = async () => {
-        if (!user || !question || !userInfo || resetting || !selectedBranch) return;
+        if (!user || !question || resetting) return;
         setResetting(true);
-
         try {
-            const defaultStats: UserStats = { attempted: 0, correct: 0, accuracy: 0, subjects: {} };
-            const oldBranchStats = userInfo.branchStats?.[selectedBranch] || defaultStats;
-            const newBranchStats = { ...oldBranchStats, subjects: { ...(oldBranchStats.subjects || {}) } };
-
-            if (newBranchStats.attempted > 0) {
-                newBranchStats.attempted -= 1;
-            }
-            if (isCorrect && newBranchStats.correct > 0) {
-                newBranchStats.correct -= 1;
-                const subject = question.subject;
-                if (subject && subject !== "General" && subject !== "N/A" && (newBranchStats.subjects[subject] || 0) > 0) {
-                    newBranchStats.subjects[subject] -= 1;
-                }
-            }
-            newBranchStats.accuracy = newBranchStats.attempted > 0 ? parseFloat(((newBranchStats.correct / newBranchStats.attempted) * 100).toFixed(2)) : 0;
-
-            const newBranchRating = calculateRating(newBranchStats.accuracy, newBranchStats.correct);
-
-            const userDocRef = doc(db, 'users', user.uid);
             const submissionDocRef = doc(db, `users/${user.uid}/submissions`, question.id);
-
             const batch = writeBatch(db);
             batch.delete(submissionDocRef);
-
-            batch.set(userDocRef, {
-                branchStats: { [selectedBranch]: newBranchStats },
-                ratings: { [selectedBranch]: newBranchRating }
-            }, { merge: true });
-
-            // --- Decrement question's global accuracy stats ---
-            const questionDocRef = doc(db, questionCollectionPath, question.id);
-            const prevAttempts = Math.max(0, (question.attempts || 0));
-            const prevCorrectCount = Math.max(0, (question.correctCount || 0));
-            const newAttempts = Math.max(0, prevAttempts - 1);
-            const newCorrectCount = isCorrect ? Math.max(0, prevCorrectCount - 1) : prevCorrectCount;
-            const newAccuracy = newAttempts > 0 ? parseFloat(((newCorrectCount / newAttempts) * 100).toFixed(1)) : 0;
-
-            batch.update(questionDocRef, {
-                attempts: increment(-1),
-                correctCount: increment(isCorrect ? -1 : 0),
-                accuracy: newAccuracy,
-            });
-
             await batch.commit();
 
-            // Update local question state to reflect new accuracy stats immediately
-            setQuestion(prev => prev ? {
-                ...prev,
-                attempts: newAttempts,
-                correctCount: newCorrectCount,
-                accuracy: newAccuracy,
-            } : prev);
-
-            setUserInfo((prev: User | null) => {
-                if (!prev) return null;
-
-                const newBranchStatsMap = { ...prev.branchStats, [selectedBranch]: newBranchStats };
-                const newRatingsMap = { ...prev.ratings, [selectedBranch]: newBranchRating };
-
-                return {
-                    ...prev,
-                    branchStats: newBranchStatsMap,
-                    ratings: newRatingsMap
-                };
-            });
-
+            // Just reset the local state
             setSubmitted(false);
             setSelectedOptions([]);
             setNatAnswer('');
             setIsCorrect(false);
             setTimeElapsed(0);
             setIsTimerOn(false);
-
         } catch (error) {
-            console.error("Error resetting question:", error);
+            console.error("Error resetting submission:", error);
         } finally {
             setResetting(false);
         }

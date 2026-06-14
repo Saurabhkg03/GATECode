@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { Calendar, Settings as SettingsIcon, CheckCircle, TrendingUp, Zap, BarChart, Loader2, Trophy } from 'lucide-react';
+import { Calendar, Settings as SettingsIcon, CheckCircle, TrendingUp, Zap, BarChart, Loader2, Trophy, Info, X, ChevronDown, ChevronUp, Star, Target, Flame, Crown, Diamond } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase';
 import {
@@ -256,6 +256,49 @@ const ActivityCalendar = ({ calendarData, availableYears }: { calendarData: Reco
     );
 };
 
+const RankModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+    if (!isOpen) return null;
+
+    const ranks = [
+        { title: 'Novice', range: '< 1600', color: 'text-gray-500', bg: 'bg-gray-100 dark:bg-gray-900/80', icon: Star, border: 'border-gray-200 dark:border-gray-800' },
+        { title: 'Pupil', range: '1600 - 1699', color: 'text-green-500', bg: 'bg-green-100 dark:bg-green-900/80', icon: Target, border: 'border-green-200 dark:border-green-800' },
+        { title: 'Specialist', range: '1700 - 1799', color: 'text-cyan-500', bg: 'bg-cyan-100 dark:bg-cyan-900/80', icon: Zap, border: 'border-cyan-200 dark:border-cyan-800' },
+        { title: 'Expert', range: '1800 - 1899', color: 'text-blue-500', bg: 'bg-blue-100 dark:bg-blue-900/80', icon: Flame, border: 'border-blue-200 dark:border-blue-800' },
+        { title: 'Master', range: '1900 - 1999', color: 'text-purple-500', bg: 'bg-purple-100 dark:bg-purple-900/80', icon: Crown, border: 'border-purple-200 dark:border-purple-800' },
+        { title: 'Grandmaster', range: '2000+', color: 'text-red-500', bg: 'bg-red-100 dark:bg-red-900/80', icon: Diamond, border: 'border-red-200 dark:border-red-800' },
+    ];
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200" onClick={onClose}>
+            <div className="bg-white dark:bg-zinc-950 rounded-3xl shadow-2xl p-6 max-w-md w-full relative transform transition-all border border-zinc-200/50 dark:border-zinc-800/50 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-5 right-5 p-2 rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-10"><X className="w-5 h-5" /></button>
+                
+                <div className="text-center mb-6">
+                    <div className="mx-auto w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-2xl flex items-center justify-center mb-3">
+                        <Trophy className="w-6 h-6 text-yellow-500" />
+                    </div>
+                    <h3 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Contest Elo Ranks</h3>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">Reach new milestones by participating in official contests. Everyone starts at 1500 Elo.</p>
+                </div>
+
+                <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar">
+                    {ranks.map((rank) => (
+                        <div key={rank.title} className={`flex items-center gap-4 p-4 rounded-2xl border ${rank.border} ${rank.bg} transition-all duration-300 hover:scale-[1.02] cursor-default`}>
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-white dark:bg-zinc-950 shadow-sm ${rank.color}`}>
+                                <rank.icon className="w-6 h-6" strokeWidth={2.5} />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className={`text-lg font-bold ${rank.color}`}>{rank.title}</span>
+                                <span className="text-xs font-mono font-medium text-zinc-600 dark:text-zinc-400 opacity-80">{rank.range} Elo</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function ProfileClient({ username }: { username: string }) {
     const { user: authUser, loading: authLoading } = useAuth();
     const { metadata, loading: metadataLoading, selectedBranch, questionCollectionPath, availableBranches } = useMetadata();
@@ -268,6 +311,7 @@ export default function ProfileClient({ username }: { username: string }) {
     const [loadingSubmissions, setLoadingSubmissions] = useState(true);
     const [submissionsLastDoc, setSubmissionsLastDoc] = useState<DocumentSnapshot<DocumentData> | null>(null);
     const [hasMoreSubmissions, setHasMoreSubmissions] = useState(false);
+    const [isRankInfoOpen, setIsRankInfoOpen] = useState(false);
 
     const isOwnProfile = authUser && profileUser && authUser.uid === profileUser.uid;
 
@@ -444,6 +488,34 @@ export default function ProfileClient({ username }: { username: string }) {
 
     const branchName = availableBranches[selectedBranch] || 'Stats';
 
+    const subjectMasteryCard = (
+        <div className="bg-white dark:bg-zinc-900/70 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+            <h2 className="text-lg font-semibold p-6 border-b border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white">Subject Mastery ({branchName})</h2>
+            <div className="p-6 space-y-4 max-h-80 overflow-y-auto">
+                {subjectStats.length > 0 ? (
+                    subjectStats.sort((a, b) => b.total - a.total)
+                        .filter(data => data.total > 0)
+                        .map((data) => {
+                            const percentage = data.total > 0 ? (data.solved / data.total) * 100 : 0;
+                            return (
+                                <div key={data.name}>
+                                    <div className="flex justify-between text-sm mb-1">
+                                        <span className="font-medium text-zinc-700 dark:text-zinc-200">{data.name}</span>
+                                        <span className="text-zinc-500 dark:text-zinc-400">{data.solved} / {data.total}</span>
+                                    </div>
+                                    <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2 overflow-hidden">
+                                        <div className="bg-blue-500 h-2 rounded-full transition-all duration-500 ease-out" style={{ width: `${percentage}%` }}></div>
+                                    </div>
+                                </div>
+                            )
+                        })
+                ) : (
+                    <p className="text-zinc-500 dark:text-zinc-400 text-sm">Loading subject data...</p>
+                )}
+            </div>
+        </div>
+    );
+
     return (
         <div className="min-h-screen w-full p-4 md:p-6">
             <div className="max-w-7xl mx-auto">
@@ -470,41 +542,33 @@ export default function ProfileClient({ username }: { username: string }) {
                                     </div>
                                 </div>
                             </div>
+                            
+                            {/* Centered button */}
+                            <div className="flex justify-center w-full mt-4 border-t border-zinc-200 dark:border-zinc-800 pt-4">
+                                <button 
+                                    onClick={() => setIsRankInfoOpen(true)}
+                                    className="flex items-center justify-center gap-2 text-sm font-semibold text-blue-500 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 px-6 py-2.5 rounded-xl transition-all duration-200 w-full md:w-auto hover:shadow-md"
+                                >
+                                    <Info className="w-4 h-4" />
+                                    How to get ranks?
+                                </button>
+                            </div>
+
+                            <RankModal isOpen={isRankInfoOpen} onClose={() => setIsRankInfoOpen(false)} />
+
                             {isOwnProfile && (<Link href="/settings" className="absolute top-3 right-3 md:top-4 md:right-4 p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors" title="Settings"><SettingsIcon className="w-4 h-4 md:w-5 md:h-5 text-zinc-500 dark:text-zinc-400" /></Link>)}
                         </div>
 
-                        {/* Subject Mastery Card */}
-                        <div className="bg-white dark:bg-zinc-900/70 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h2 className="text-lg font-semibold p-6 border-b border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white">Subject Mastery ({branchName})</h2>
-                            <div className="p-6 space-y-4 max-h-80 overflow-y-auto">
-                                {subjectStats.length > 0 ? (
-                                    subjectStats.sort((a, b) => b.total - a.total)
-                                        .filter(data => data.total > 0)
-                                        .map((data) => {
-                                            const percentage = data.total > 0 ? (data.solved / data.total) * 100 : 0;
-                                            return (
-                                                <div key={data.name}>
-                                                    <div className="flex justify-between text-sm mb-1">
-                                                        <span className="font-medium text-zinc-700 dark:text-zinc-200">{data.name}</span>
-                                                        <span className="text-zinc-500 dark:text-zinc-400">{data.solved} / {data.total}</span>
-                                                    </div>
-                                                    <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2 overflow-hidden">
-                                                        <div className="bg-blue-500 h-2 rounded-full transition-all duration-500 ease-out" style={{ width: `${percentage}%` }}></div>
-                                                    </div>
-                                                </div>
-                                            )
-                                        })
-                                ) : (
-                                    <p className="text-zinc-500 dark:text-zinc-400 text-sm">Loading subject data...</p>
-                                )}
-                            </div>
+                        {/* Subject Mastery Card (Desktop only) */}
+                        <div className="hidden lg:block">
+                            {subjectMasteryCard}
                         </div>
                     </div>
 
                     {/* Right Column */}
-                    <div className="lg:col-span-2 space-y-6">
+                    <div className="lg:col-span-2 flex flex-col gap-6">
                         {/* Activity Calendar Card */}
-                        <div className="bg-white dark:bg-zinc-900/70 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                        <div className="bg-white dark:bg-zinc-900/70 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm order-1 lg:order-1">
                             <h2 className="text-lg font-semibold pb-2 text-zinc-800 dark:text-white">Activity ({branchName})</h2>
                             <ActivityCalendar
                                 calendarData={branchCalendar}
@@ -512,17 +576,9 @@ export default function ProfileClient({ username }: { username: string }) {
                             />
                         </div>
 
-                        {/* Stat Cards Grid */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-6">
-                            <StatCard icon={Trophy} value={contestElo} label="Contest Elo" colorClass="text-yellow-500 dark:text-yellow-400" />
-                            <StatCard icon={BarChart} value={practiceRating} label="Practice Rating" colorClass="text-blue-500 dark:text-blue-400" />
-                            <StatCard icon={CheckCircle} value={branchStats.correct || 0} label="Solved" colorClass="text-emerald-500 dark:text-emerald-400" />
-                            <StatCard icon={Zap} value={`${branchStreak.currentStreak || 0} Days`} label="Current Streak" colorClass="text-orange-500 dark:text-orange-400" />
-                        </div>
-
                         {/* Rating History Graph */}
                         {ratingHistory && ratingHistory.length > 0 && (
-                            <div className="bg-white dark:bg-zinc-900/70 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <div className="bg-white dark:bg-zinc-900/70 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm order-2 lg:order-3">
                                 <h2 className="text-lg font-semibold pb-4 text-zinc-800 dark:text-white flex items-center gap-2">
                                     <TrendingUp className="w-5 h-5 text-purple-500" /> Contest Elo History
                                 </h2>
@@ -567,8 +623,21 @@ export default function ProfileClient({ username }: { username: string }) {
                             </div>
                         )}
 
+                        {/* Stat Cards Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-6 order-3 lg:order-2">
+                            <StatCard icon={Trophy} value={contestElo} label="Contest Elo" colorClass="text-yellow-500 dark:text-yellow-400" />
+                            <StatCard icon={BarChart} value={practiceRating} label="Practice Rating" colorClass="text-blue-500 dark:text-blue-400" />
+                            <StatCard icon={CheckCircle} value={branchStats.correct || 0} label="Solved" colorClass="text-emerald-500 dark:text-emerald-400" />
+                            <StatCard icon={Zap} value={`${branchStreak.currentStreak || 0} Days`} label="Current Streak" colorClass="text-orange-500 dark:text-orange-400" />
+                        </div>
+
+                        {/* Subject Mastery Card (Mobile only) */}
+                        <div className="block lg:hidden order-4">
+                            {subjectMasteryCard}
+                        </div>
+
                         {/* Recent Submissions Card */}
-                        <div className="bg-white dark:bg-zinc-900/70 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                        <div className="bg-white dark:bg-zinc-900/70 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm order-5 lg:order-4">
                             <h2 className="text-lg font-semibold p-6 border-b border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-white">Recent Submissions ({branchName})</h2>
                             <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
                                 {recentSubmissions.length > 0 ? (
