@@ -47,6 +47,16 @@ const SidebarItem = ({ label, icon, isActive, onClick, onDelete }: {
     </button>
 );
 
+// Global cache to survive unmounts (tab switching)
+interface PracticeCacheData {
+    pageCache: Record<number, Question[]>;
+    pageCursors: Record<number, DocumentSnapshot>;
+    maxReachedPage: number;
+    totalQuestions: number;
+    totalPages: number;
+}
+const globalPracticeCache: Record<string, PracticeCacheData> = {};
+
 function PracticeContent() {
     const { user, userInfo, loading: authLoading } = useAuth();
     const { metadata, loading: metadataLoading, questionCollectionPath, availableBranches, selectedBranch } = useMetadata();
@@ -154,16 +164,43 @@ function PracticeContent() {
         refetchOnWindowFocus: true,
     });
 
-    const [questions, setQuestions] = useState<Question[]>([]);
+    const cacheKey = useMemo(() => {
+        return JSON.stringify({
+            questionCollectionPath,
+            userRole: userInfo?.role,
+            questionTypeFilter,
+            subjectFilter,
+            topicFilter,
+            yearFilter,
+            sortOrder,
+            selectedListId,
+            listQuestionIdsStr: listQuestionIds?.join(',') || ''
+        });
+    }, [questionCollectionPath, userInfo?.role, questionTypeFilter, subjectFilter, topicFilter, yearFilter, sortOrder, selectedListId, listQuestionIds]);
+
+    const initialCache = globalPracticeCache[cacheKey];
+
+    const [questions, setQuestions] = useState<Question[]>(initialCache?.pageCache[1] || []);
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [totalQuestions, setTotalQuestions] = useState(0);
-    const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+    const [totalPages, setTotalPages] = useState(initialCache?.totalPages || 1);
+    const [totalQuestions, setTotalQuestions] = useState(initialCache?.totalQuestions || 0);
+    const [isLoadingQuestions, setIsLoadingQuestions] = useState(!initialCache);
     
-    // Ultra-Low Read Memory Caching for Pagination
-    const [pageCache, setPageCache] = useState<Record<number, Question[]>>({});
-    const [pageCursors, setPageCursors] = useState<Record<number, DocumentSnapshot>>({});
-    const [maxReachedPage, setMaxReachedPage] = useState(1);
+    // Ultra-Low Read Memory Caching for Pagination (Now globally backed)
+    const [pageCache, setPageCache] = useState<Record<number, Question[]>>(initialCache?.pageCache || {});
+    const [pageCursors, setPageCursors] = useState<Record<number, DocumentSnapshot>>(initialCache?.pageCursors || {});
+    const [maxReachedPage, setMaxReachedPage] = useState(initialCache?.maxReachedPage || 1);
+
+    // Sync to global cache
+    useEffect(() => {
+        globalPracticeCache[cacheKey] = {
+            pageCache,
+            pageCursors,
+            maxReachedPage,
+            totalQuestions,
+            totalPages
+        };
+    }, [pageCache, pageCursors, maxReachedPage, totalQuestions, totalPages, cacheKey]);
 
     const fetchQuestions = async (pageToFetch = 1) => {
         if (!questionCollectionPath) return;
@@ -206,6 +243,16 @@ function PracticeContent() {
                 if (topicFilter !== 'all') constraints.push(where('topic', '==', topicFilter));
                 if (yearFilter !== 'all') constraints.push(where('year', '==', yearFilter));
 
+                // --- Zero-Read Cache Check ---
+                // We check it before counting total, saving a count query if we already cached this page!
+                // We can't completely skip the count query if we don't have totalQuestions cached, 
+                // but since it's cached globally, we can check.
+                if (pageCache[pageToFetch]) {
+                    setQuestions(pageCache[pageToFetch]);
+                    setIsLoadingQuestions(false);
+                    return; // Skip refetching entirely if we have it cached!
+                }
+
                 // 1. Get exact total count for pagination first!
                 const countQuery = query(collection(db, questionCollectionPath), ...constraints);
                 const countSnapshot = await getCountFromServer(countQuery);
@@ -213,13 +260,6 @@ function PracticeContent() {
                 
                 setTotalQuestions(exactTotal);
                 setTotalPages(Math.max(1, Math.ceil(exactTotal / CLIENT_PAGE_SIZE)));
-
-                // --- Zero-Read Cache Check ---
-                if (pageCache[pageToFetch]) {
-                    setQuestions(pageCache[pageToFetch]);
-                    setIsLoadingQuestions(false);
-                    return;
-                }
 
                 // 2. Query Configuration
                 if (sortOrder === 'year-desc') constraints.push(orderBy('year', 'desc'));
@@ -272,15 +312,27 @@ function PracticeContent() {
 
     // Auto-fetch when filters/dependencies change
     useEffect(() => {
-        setQuestions([]);
-        setCurrentPage(1);
-        // Clear all caches since the query parameters have fundamentally changed
-        setPageCache({});
-        setPageCursors({});
-        setMaxReachedPage(1);
-        fetchQuestions(1);
+        // Only reset if we do NOT have a cache for this new key!
+        if (globalPracticeCache[cacheKey]) {
+            const cached = globalPracticeCache[cacheKey];
+            setQuestions(cached.pageCache[1] || []);
+            setTotalPages(cached.totalPages);
+            setTotalQuestions(cached.totalQuestions);
+            setPageCache(cached.pageCache);
+            setPageCursors(cached.pageCursors);
+            setMaxReachedPage(cached.maxReachedPage);
+            setCurrentPage(1);
+            setIsLoadingQuestions(false);
+        } else {
+            setQuestions([]);
+            setCurrentPage(1);
+            setPageCache({});
+            setPageCursors({});
+            setMaxReachedPage(1);
+            fetchQuestions(1);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [questionCollectionPath, userInfo, questionTypeFilter, subjectFilter, topicFilter, yearFilter, sortOrder, selectedListId, listQuestionIds]);
+    }, [cacheKey]);
 
     const [submissions, setSubmissions] = useState<Submission[]>([]);
 

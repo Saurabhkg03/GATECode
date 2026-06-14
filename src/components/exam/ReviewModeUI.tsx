@@ -234,14 +234,28 @@ export default function ReviewModeUI({ questionAnalysis, contest, onExit }: any)
                             </div>
 
                             {/* Explanation */}
-                            {question.explanation_html && (
+                            {(question.explanation_html || question.explanation_redirect_url || (question.explanation_image_links && question.explanation_image_links.length > 0)) && (
                                 <div className="mt-8 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-200 dark:border-blue-900/30 p-6">
                                     <h3 className="font-bold text-blue-800 dark:text-blue-300 mb-4 flex items-center gap-2">
                                         <div className="w-2 h-6 bg-blue-500 rounded-full"></div>
                                         Detailed Solution
                                     </h3>
                                     <div className="prose dark:prose-invert max-w-none text-blue-900 dark:text-blue-100">
-                                        <LatexRenderer content={extractAndCleanHtml(question.explanation_html)} />
+                                        {question.explanation_redirect_url ? (
+                                            <p>
+                                                This explanation is provided by GateOverflow.
+                                                <a
+                                                    href={question.explanation_redirect_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-blue-500 hover:underline font-semibold inline-flex items-center gap-1 ml-1"
+                                                >
+                                                    Click here to view the full discussion
+                                                </a>
+                                            </p>
+                                        ) : (
+                                            <LatexRenderer content={extractAndCleanHtml(question.explanation_html || '', 'mtq_explanation-text')} />
+                                        )}
                                     </div>
                                     {question.explanation_image_links && question.explanation_image_links.length > 0 && (
                                         <div className="mt-6 space-y-4">

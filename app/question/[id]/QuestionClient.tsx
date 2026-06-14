@@ -1106,7 +1106,7 @@ export default function QuestionClient({ id }: { id: string }) {
                                                             <BookOpen className="w-4 h-4 text-zinc-500" />
                                                             <h3 className="font-semibold text-zinc-900 dark:text-white">Explanation</h3>
                                                         </div>
-                                                        <div className="p-6">
+                                                        <div className="p-6 overflow-x-auto">
                                                             <MathRenderer
                                                                 content={cleanedExplanationHtml}
                                                                 className="prose prose-sm dark:prose-invert max-w-none text-zinc-700 dark:text-zinc-300"
