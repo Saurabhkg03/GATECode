@@ -190,21 +190,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signup = async (name: string, username: string, email: string, password: string) => {
-    const saneUsername = username.toLowerCase().replace(/[^a-z0-9_]/g, '');
-    if (saneUsername.length < 3) {
-      throw new Error('Username must be at least 3 characters and contain only letters, numbers, or underscores.');
-    }
-    // Check if username exists
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('username', '==', saneUsername));
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-      throw new Error('Username already exists. Please choose another one.');
-    }
-
     // Create user in Auth
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     console.log("User created in Auth:", userCredential.user.uid);
+    const uid = userCredential.user.uid;
+
+    let baseUsername = username.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (baseUsername.length < 3) {
+      baseUsername = `user_${uid.slice(-6)}`;
+    }
+
+    let usernameExists = true;
+    let finalUsername = baseUsername;
+    let counter = 1;
+    while (usernameExists) {
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('username', '==', finalUsername));
+      const querySnapshot = await getDocs(q);
+      if (querySnapshot.empty) {
+        usernameExists = false;
+      } else {
+        finalUsername = `${baseUsername}_${counter}`;
+        counter++;
+        console.log(`Username exists, trying: ${finalUsername}`);
+      }
+    }
 
     // --- Send verification email ---
     try {
@@ -233,15 +243,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const newUser: User = {
       uid: userCredential.user.uid,
       name,
-      username: saneUsername,
+      username: finalUsername,
       email: email,
       joined: new Date().toISOString(),
       avatar: userCredential.user.photoURL || '/user.png',
       role: 'user',
       needsSetup: false, // Set to false as name/username are provided
 
-      // Initialize new branch fields
-      ratings: {},
+      // Initialize new branch fields with defaults for all branches so they appear on leaderboard
+      ratings: { ece: 0, cse: 0, me: 0, ce: 0, ee: 0 },
+      branchRatings: { ece: 1500, cse: 1500, me: 1500, ce: 1500, ee: 1500 },
       branchStats: {},
       branchActivityCalendar: {},
       branchStreakData: {},
@@ -309,8 +320,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: 'user',
         needsSetup: !googleUser.displayName, // Needs setup if no display name from Google
 
-        // Initialize new branch fields
-        ratings: {},
+        // Initialize new branch fields with defaults for all branches so they appear on leaderboard
+        ratings: { ece: 0, cse: 0, me: 0, ce: 0, ee: 0 },
+        branchRatings: { ece: 1500, cse: 1500, me: 1500, ce: 1500, ee: 1500 },
         branchStats: {},
         branchActivityCalendar: {},
         branchStreakData: {},

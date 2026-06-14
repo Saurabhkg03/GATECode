@@ -435,7 +435,7 @@ export default function HomeClient({
               </p>
             ) : (
               leaderboardPreview.map((leader, index) => (
-                <div key={leader.uid} className="flex items-center gap-4">
+                <div key={leader.uid || `leader-${index}`} className="flex items-center gap-4">
                   <div
                     className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm ${index === 0
                       ? "bg-yellow-400 text-white"
@@ -450,7 +450,7 @@ export default function HomeClient({
                   </div>
                   <Image
                     src={leader.avatar || "/user.png"}
-                    alt={leader.name}
+                    alt={leader.name || "Leader Avatar"}
                     width={40}
                     height={40}
                     className="rounded-full object-cover w-10 h-10 border dark:border-zinc-700"
@@ -503,8 +503,8 @@ export default function HomeClient({
                   {[1, 2, 3].map(i => <div key={i} className="h-16 bg-muted rounded-xl" />)}
                 </div>
               ) : recentMistakes && recentMistakes.length > 0 ? (
-                recentMistakes.map((m: any) => (
-                  <Link key={m.qid} href={`/question/${m.qid}`} className="block p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-red-500/50 dark:hover:border-red-500/50 hover:bg-red-50/50 dark:hover:bg-red-900/10 transition-colors">
+                recentMistakes.map((m: any, index: number) => (
+                  <Link key={m.qid || `mistake-${index}`} href={`/question/${m.qid}`} className="block p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-red-500/50 dark:hover:border-red-500/50 hover:bg-red-50/50 dark:hover:bg-red-900/10 transition-colors">
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-xs font-semibold text-red-600 dark:text-red-400">Needs Review</span>
                       <span className="text-xs text-zinc-500">{new Date(m.timestamp).toLocaleDateString()}</span>
@@ -540,8 +540,8 @@ export default function HomeClient({
                   {[1, 2, 3].map(i => <div key={i} className="h-16 bg-muted rounded-xl" />)}
                 </div>
               ) : recentQuestions && recentQuestions.length > 0 ? (
-                recentQuestions.slice(0, 4).map((q: any) => (
-                  <Link key={q.id} href={`/question/${q.id}`} className="block p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-blue-500/50 dark:hover:border-blue-500/50 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors">
+                recentQuestions.slice(0, 4).map((q: any, index: number) => (
+                  <Link key={q.id || `question-${index}`} href={`/question/${q.id}`} className="block p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-blue-500/50 dark:hover:border-blue-500/50 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors">
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">{q.subject}</span>
                       <span className="text-xs text-zinc-500">{q.year}</span>

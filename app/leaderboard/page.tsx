@@ -61,8 +61,8 @@ const PodiumCard = ({ user, rank }: { user: LeaderboardUser; rank: number }) => 
                                 <p className="text-[9px] md:text-[10px] opacity-90">Practice</p>
                             </div>
                             <div>
-                                <p className="font-bold text-sm md:text-base leading-tight">{user.stats?.correct ?? 0}</p>
-                                <p className="text-[9px] md:text-[10px] opacity-90">Solved</p>
+                                <p className="font-bold text-sm md:text-base leading-tight">{(user.stats?.accuracy ?? 0).toFixed(1)}%</p>
+                                <p className="text-[9px] md:text-[10px] opacity-90">Accuracy</p>
                             </div>
                         </div>
                     </div>
@@ -77,80 +77,82 @@ const RatingInfoModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-200"
             onClick={onClose}
         >
             <div
-                className="bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl p-6 max-w-lg w-full relative transform transition-all duration-300 scale-100 opacity-100 border border-zinc-200/50 dark:border-zinc-700/50"
+                className="bg-white dark:bg-zinc-950 rounded-3xl shadow-2xl p-6 max-w-lg w-full relative transform transition-all border border-zinc-200/50 dark:border-zinc-800/80 flex flex-col max-h-[90vh]"
                 onClick={(e) => e.stopPropagation()}
             >
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 p-1.5 rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                    className="absolute top-5 right-5 p-2 rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors z-10"
                     aria-label="Close rating explanation"
                 >
                     <X className="w-5 h-5" />
                 </button>
 
-                <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+                <h3 className="text-2xl font-black text-zinc-900 dark:text-white mb-6 flex items-center gap-2 tracking-tight">
                     <Info className="w-6 h-6 text-blue-500" />
-                    Leaderboard Ratings Explained
+                    Ratings Explained
                 </h3>
 
-                <div className="space-y-4 text-sm text-zinc-600 dark:text-zinc-350 max-h-[80vh] overflow-y-auto pr-1">
-                    <div>
-                        <h4 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-1.5">
-                            <Trophy className="w-4 h-4 text-yellow-500" />
+                <div className="space-y-6 text-sm text-zinc-650 dark:text-zinc-300 overflow-y-auto pr-2 custom-scrollbar">
+                    {/* Contest Elo Section */}
+                    <div className="space-y-3">
+                        <h4 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2 text-base">
+                            <Trophy className="w-5 h-5 text-yellow-500" />
                             Contest Elo
                         </h4>
-                        <p className="leading-relaxed mb-2">
+                        <p className="leading-relaxed">
                             Contest Elo evaluates your competitive performance in official Live Contests. 
                             It implements a multiplayer Elo rating algorithm where your Elo updates depending on your actual rank versus expected rank against all other participants.
                         </p>
                         
-                        <div className="my-3 bg-zinc-50 dark:bg-zinc-900/50 p-3 rounded-xl border border-zinc-200/50 dark:border-zinc-700/50 font-mono text-xs space-y-3 shadow-inner">
-                            <div>
-                                <span className="text-blue-600 dark:text-blue-400 font-semibold block mb-1">1. Expected Rank (ER):</span>
-                                <div className="flex items-center justify-center py-2 text-sm font-sans bg-white dark:bg-zinc-800 rounded-lg shadow-sm font-semibold border dark:border-zinc-750">
+                        <div className="bg-zinc-50 dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200/60 dark:border-zinc-800 space-y-4 shadow-sm">
+                            <div className="space-y-1.5">
+                                <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">1. Expected Rank (ER):</span>
+                                <div className="flex items-center justify-center py-3 px-4 text-sm font-mono bg-white dark:bg-zinc-950 rounded-xl shadow-sm border border-zinc-150 dark:border-zinc-900 text-zinc-800 dark:text-zinc-200">
                                     ER<sub>i</sub> = 1 + &Sigma;<sub>j &ne; i</sub> [ 1 / (1 + 10<sup>(R<sub>i</sub> - R<sub>j</sub>) / 400</sup>) ]
                                 </div>
                             </div>
-                            <div className="border-t border-zinc-200/50 dark:border-zinc-750 pt-2">
-                                <span className="text-emerald-600 dark:text-emerald-400 font-semibold block mb-1">2. Rating Update:</span>
-                                <div className="flex items-center justify-center py-2 text-sm font-sans bg-white dark:bg-zinc-800 rounded-lg shadow-sm font-semibold border dark:border-zinc-750">
+                            <div className="border-t border-zinc-200 dark:border-zinc-800 pt-3 space-y-1.5">
+                                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">2. Rating Update:</span>
+                                <div className="flex items-center justify-center py-3 px-4 text-sm font-mono bg-white dark:bg-zinc-950 rounded-xl shadow-sm border border-zinc-150 dark:border-zinc-900 text-zinc-800 dark:text-zinc-200">
                                     R&apos;<sub>i</sub> = R<sub>i</sub> + K &times; (ER<sub>i</sub> - AR<sub>i</sub>)
                                 </div>
-                                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed">
-                                    Where <code className="text-zinc-700 dark:text-zinc-300">R</code> is your previous Elo, <code className="text-zinc-700 dark:text-zinc-300">AR</code> is your actual rank (tie-broken by time spent), and <code className="text-zinc-700 dark:text-zinc-300">K</code> is volatility (50 for first 3 contests, scales down to 20). Base Elo starts at <strong>1500</strong>.
+                                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed">
+                                    Where <code className="px-1 py-0.5 bg-zinc-200 dark:bg-zinc-800 rounded font-mono text-zinc-700 dark:text-zinc-300">R</code> is your previous Elo, <code className="px-1 py-0.5 bg-zinc-200 dark:bg-zinc-800 rounded font-mono text-zinc-700 dark:text-zinc-300">AR</code> is your actual rank (tie-broken by time spent), and <code className="px-1 py-0.5 bg-zinc-200 dark:bg-zinc-800 rounded font-mono text-zinc-700 dark:text-zinc-300">K</code> is volatility (50 for first 3 contests, scales down to 20). Base Elo starts at <strong>1500</strong>.
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="border-t border-zinc-200 dark:border-zinc-700 pt-3">
-                        <h4 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-1.5">
-                            <Award className="w-4 h-4 text-blue-500" />
+                    {/* Practice Rating Section */}
+                    <div className="space-y-3 border-t border-zinc-100 dark:border-zinc-900 pt-6">
+                        <h4 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2 text-base">
+                            <Award className="w-5 h-5 text-blue-500" />
                             Practice Rating
                         </h4>
-                        <p className="leading-relaxed mb-2">
-                            Practice Rating measures your proficiency and consistency in self-paced question practice. 
+                        <p className="leading-relaxed">
+                            Practice Rating measures your proficiency and consistency in self-paced practice. 
                             It dynamically scales based on correct answers and accuracy to represent overall mastery.
                         </p>
 
-                        <div className="my-3 bg-zinc-50 dark:bg-zinc-900/50 p-3 rounded-xl border border-zinc-200/50 dark:border-zinc-700/50 font-mono text-xs shadow-inner">
-                            <span className="text-blue-600 dark:text-blue-400 font-semibold block mb-1">Rating Formula:</span>
-                            <div className="flex items-center justify-center py-2 text-sm font-sans bg-white dark:bg-zinc-800 rounded-lg shadow-sm font-semibold border dark:border-zinc-750">
+                        <div className="bg-zinc-50 dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200/60 dark:border-zinc-800 space-y-3 shadow-sm">
+                            <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">Rating Formula:</span>
+                            <div className="flex items-center justify-center py-3 px-4 text-sm font-mono bg-white dark:bg-zinc-950 rounded-xl shadow-sm border border-zinc-150 dark:border-zinc-900 text-zinc-800 dark:text-zinc-200">
                                 Rating = Accuracy &times; log<sub>10</sub>(Correct + 1)
                             </div>
-                            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed">
-                                Where <code className="text-zinc-700 dark:text-zinc-300">Accuracy</code> is your correctness percentage (Correct/Attempted &times; 100), and <code className="text-zinc-700 dark:text-zinc-300">Correct</code> is the total number of unique correct questions solved. Rating starts at <strong>0.00</strong>.
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed">
+                                Where <code className="px-1 py-0.5 bg-zinc-200 dark:bg-zinc-800 rounded font-mono text-zinc-700 dark:text-zinc-300">Accuracy</code> is your correctness percentage, and <code className="px-1 py-0.5 bg-zinc-200 dark:bg-zinc-800 rounded font-mono text-zinc-700 dark:text-zinc-300">Correct</code> is the total number of unique correct questions solved. Rating starts at <strong>0.00</strong>.
                             </p>
                         </div>
                     </div>
 
-                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3.5 rounded-xl border border-blue-100 dark:border-blue-900/50 mt-4 shadow-sm">
-                        <p className="text-xs text-blue-800 dark:text-blue-200 leading-normal">
-                            💡 <strong>Tip:</strong> You can toggle the sorting on the leaderboard to view rankings by either timed live contests or self-paced daily practice!
+                    <div className="bg-blue-50/50 dark:bg-blue-950/30 p-4 rounded-2xl border border-blue-100/60 dark:border-blue-900/50 mt-4 shadow-sm">
+                        <p className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed font-medium">
+                            💡 <strong>Tip:</strong> Toggle the sorting tabs on the leaderboard to view rankings by timed live contests or self-paced daily practice!
                         </p>
                     </div>
                 </div>
@@ -352,6 +354,18 @@ export default function Leaderboard() {
 
                 <div className="glass-card overflow-hidden relative mt-4">
                     {loadingMore && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>}
+                    
+                    {/* Table Header */}
+                    <div className="flex items-center px-4 py-2.5 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-zinc-800 text-[10px] sm:text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+                        <div className="w-12 text-center">Rank</div>
+                        <div className="flex-1">User</div>
+                        <div className="flex items-center justify-end gap-3 sm:gap-5 md:gap-8 text-right flex-shrink-0 pl-2">
+                            <div className="min-w-[65px] sm:min-w-[75px]">Elo</div>
+                            <div className="min-w-[65px] sm:min-w-[75px]">Practice</div>
+                            <div className="min-w-[50px] sm:min-w-[60px]">Accuracy</div>
+                        </div>
+                    </div>
+
                     <div>
                         {listUsers.map((user, index) => {
                             const rankOffset = currentPage === 1 ? topThreePodium.length : 0;

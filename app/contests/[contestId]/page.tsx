@@ -40,6 +40,7 @@ import {
 } from "@/utils/contestSchedule";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
+import ContestThumbnail from "@/components/contests/ContestThumbnail";
 
 // ── local helpers ────────────────────────────────────────────────────────────
 
@@ -100,7 +101,7 @@ export default function ContestDescriptionPage() {
           setContest({ id: contestId, ...docSnap.data() } as Contest);
         } else {
           // Parse scheduled weekly/biweekly from ID
-          const cleanId = contestId.replace(/-ece$|-cse$|-me$|-ee$/, "");
+          const cleanId = contestId.replace(/-[a-z]{2,3}$/, "");
           if (cleanId.startsWith("weekly-")) {
             const info = getNextWeeklyContest();
             setScheduledMeta({ type: "weekly", info });
@@ -368,40 +369,46 @@ export default function ContestDescriptionPage() {
           </div>
         ) : (
           /* Standard Firestore contest hero */
-          <div className="mb-10">
-            {/* Status badges */}
-            <div className="flex gap-2 flex-wrap mb-4">
-              {live && (
-                <span className="inline-flex items-center gap-1.5 bg-green-500/10 border border-green-500/30 text-green-400 text-xs font-bold rounded-full px-3 py-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> Live Now
-                </span>
-              )}
-              {upcoming && (
-                <span className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold rounded-full px-3 py-1">
-                  <Timer className="w-3 h-3" /> Upcoming
-                </span>
-              )}
-              {isRegistered && (
-                <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold rounded-full px-3 py-1">
-                  <CheckCircle2 className="w-3 h-3" /> Registered
-                </span>
-              )}
+          <div className="relative mb-10 rounded-2xl overflow-hidden p-8 border border-white/10 shadow-xl">
+            {/* Background Thumbnail */}
+            <div className="absolute inset-0 z-0">
+              <ContestThumbnail contestId={contestId} title={title} />
             </div>
+            
+            <div className="relative z-10">
+              {/* Status badges */}
+              <div className="flex gap-2 flex-wrap mb-4">
+                {live && (
+                  <span className="inline-flex items-center gap-1.5 bg-green-500/20 border border-green-500/40 text-green-100 text-xs font-bold rounded-full px-3 py-1 backdrop-blur-md">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> Live Now
+                  </span>
+                )}
+                {upcoming && (
+                  <span className="inline-flex items-center gap-1.5 bg-white/20 border border-white/30 text-white text-xs font-bold rounded-full px-3 py-1 backdrop-blur-md">
+                    <Timer className="w-3 h-3" /> Upcoming
+                  </span>
+                )}
+                {isRegistered && (
+                  <span className="inline-flex items-center gap-1.5 bg-emerald-500/30 border border-emerald-500/50 text-emerald-100 text-xs font-bold rounded-full px-3 py-1 backdrop-blur-md">
+                    <CheckCircle2 className="w-3 h-3" /> Registered
+                  </span>
+                )}
+              </div>
 
-            <h1 className="text-4xl sm:text-5xl font-bold text-[#ffa116] mb-3 tracking-tight">{title}</h1>
+              <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-3 tracking-tight drop-shadow-md">{title}</h1>
 
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-400 mb-8 font-medium">
-              <span>{formattedDate}</span>
-              {upcoming && rawStartTime && (
-                <>
-                  <span className="w-1 h-1 rounded-full bg-gray-600" />
-                  <div className="flex items-center gap-2">
-                    <span>Starts in</span>
-                    <CountdownTimer targetDate={rawStartTime} />
-                  </div>
-                </>
-              )}
-            </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-white/90 mb-8 font-medium drop-shadow-sm">
+                <span>{formattedDate}</span>
+                {upcoming && rawStartTime && (
+                  <>
+                    <span className="w-1 h-1 rounded-full bg-white/50" />
+                    <div className="flex items-center gap-2">
+                      <span>Starts in</span>
+                      <CountdownTimer targetDate={rawStartTime} className="text-white drop-shadow-md text-lg" />
+                    </div>
+                  </>
+                )}
+              </div>
 
             <div className="flex flex-wrap items-center gap-3">
               {/* Primary action */}
@@ -462,6 +469,7 @@ export default function ContestDescriptionPage() {
                   {isCopied ? <Copy className="w-4 h-4 text-green-400" /> : <Share2 className="w-4 h-4" />}
                 </button>
               )}
+            </div>
             </div>
           </div>
         )}

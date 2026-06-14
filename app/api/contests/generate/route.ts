@@ -16,7 +16,9 @@ export async function POST(req: NextRequest) {
             scheduledDateTime,
             endDateTime,
             isAdminContest = false,
-            uid
+            uid,
+            difficulty = 'Medium',
+            durationMinutes = 180
         } = body;
 
         if (!branch || !uid || uid === 'anonymous') {
@@ -146,6 +148,9 @@ export async function POST(req: NextRequest) {
         const defaultTitle = `GATE ${branch.toUpperCase()} ${isAdminContest ? 'Live Competition' : 'Mock Practice'} (Real)`;
         const title = contestTitle || defaultTitle;
 
+        const isWeeklyOrBiweekly = title.toLowerCase().includes('weekly') || title.toLowerCase().includes('biweekly');
+        const finalDuration = isWeeklyOrBiweekly ? 180 : durationMinutes;
+
         let startTimeISO: string | undefined = undefined;
         let endTimeISO: string | undefined = undefined;
         if (enableSchedule && scheduledDateTime) {
@@ -163,7 +168,8 @@ export async function POST(req: NextRequest) {
             createdBy: uid || 'anonymous',
             isPublic: isAdminContest ? true : isPublic,
             ...(isAdminContest && { isRated: true }),
-            durationMinutes: 180,
+            difficulty,
+            durationMinutes: finalDuration,
             totalMarks: 100,
             sections: finalSections,
             description: `Generated from '${sourceCollection}'. Contains ${totalQs} real questions.`,
