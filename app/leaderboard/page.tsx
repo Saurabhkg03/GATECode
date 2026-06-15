@@ -357,12 +357,12 @@ export default function Leaderboard() {
                     
                     {/* Table Header */}
                     <div className="flex items-center px-4 py-2.5 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-zinc-800 text-[10px] sm:text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
-                        <div className="w-12 text-center">Rank</div>
-                        <div className="flex-1">User</div>
+                        <div className="w-12 text-center flex-shrink-0">Rank</div>
+                        <div className="flex-1 min-w-0">User</div>
                         <div className="flex items-center justify-end gap-3 sm:gap-5 md:gap-8 text-right flex-shrink-0 pl-2">
-                            <div className="min-w-[65px] sm:min-w-[75px]">Elo</div>
-                            <div className="min-w-[65px] sm:min-w-[75px]">Practice</div>
-                            <div className="min-w-[50px] sm:min-w-[60px]">Accuracy</div>
+                            <div className={`min-w-[65px] sm:min-w-[75px] ${sortBy === 'contest' ? 'block' : 'hidden sm:block'}`}>Elo</div>
+                            <div className={`min-w-[65px] sm:min-w-[75px] ${sortBy === 'practice' ? 'block' : 'hidden sm:block'}`}>Practice</div>
+                            <div className="min-w-[50px] sm:min-w-[60px] hidden sm:block">Accuracy</div>
                         </div>
                     </div>
 
@@ -373,10 +373,10 @@ export default function Leaderboard() {
 
                             return (
                                 <div key={user.uid} className={`flex items-center px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 last:border-b-0 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50 transition-colors`}>
-                                    <div className="w-12 text-center font-bold text-zinc-500 dark:text-zinc-400 text-sm">
+                                    <div className="w-12 text-center font-bold text-zinc-500 dark:text-zinc-400 text-sm flex-shrink-0">
                                         {rank}
                                     </div>
-                                    <div className="flex-1 flex items-center gap-3 overflow-hidden">
+                                    <div className="flex-1 flex items-center gap-3 overflow-hidden min-w-0">
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
                                             src={user.avatar || '/user.png'}
@@ -384,24 +384,24 @@ export default function Leaderboard() {
                                             className="w-9 h-9 rounded-full object-cover flex-shrink-0 border dark:border-zinc-700"
                                             onError={(e) => { (e.target as HTMLImageElement).src = '/user.png'; }}
                                         />
-                                        <div className="overflow-hidden">
-                                            <div className="flex items-center gap-2">
-                                                <Link href={`/profile/${user.username}`} className={`font-medium hover:underline truncate text-sm block ${getRankTier(user.contestElo).color}`}>{user.name}</Link>
-                                                <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-bold ${getRankTier(user.contestElo).bg} ${getRankTier(user.contestElo).color}`}>{getRankTier(user.contestElo).title}</span>
+                                        <div className="overflow-hidden min-w-0 flex-1">
+                                            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                                                <Link href={`/profile/${user.username}`} className={`font-medium hover:underline truncate text-sm block min-w-0 flex-shrink ${getRankTier(user.contestElo).color}`}>{user.name}</Link>
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-bold flex-shrink-0 ${getRankTier(user.contestElo).bg} ${getRankTier(user.contestElo).color}`}>{getRankTier(user.contestElo).title}</span>
                                             </div>
                                             <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">@{user.username}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-end gap-3 sm:gap-5 md:gap-8 text-right flex-shrink-0 pl-2">
-                                        <div className="flex items-center justify-end gap-1 sm:gap-1.5 text-yellow-600 dark:text-yellow-400 text-xs sm:text-sm min-w-[65px] sm:min-w-[75px]" title="Contest Elo">
+                                        <div className={`flex items-center justify-end gap-1 sm:gap-1.5 text-yellow-600 dark:text-yellow-400 text-xs sm:text-sm min-w-[65px] sm:min-w-[75px] ${sortBy === 'contest' ? 'flex' : 'hidden sm:flex'}`} title="Contest Elo">
                                             <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                                             <span className="font-semibold">{user.contestElo}</span>
                                         </div>
-                                        <div className="flex items-center justify-end gap-1 sm:gap-1.5 text-blue-600 dark:text-blue-400 text-xs sm:text-sm min-w-[65px] sm:min-w-[75px]" title="Practice Rating">
+                                        <div className={`flex items-center justify-end gap-1 sm:gap-1.5 text-blue-600 dark:text-blue-400 text-xs sm:text-sm min-w-[65px] sm:min-w-[75px] ${sortBy === 'practice' ? 'flex' : 'hidden sm:flex'}`} title="Practice Rating">
                                             <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                                             <span className="font-semibold">{user.practiceRating.toFixed(2)}</span>
                                         </div>
-                                        <div className="flex items-center justify-end gap-1 sm:gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm min-w-[50px] sm:min-w-[60px]" title="Accuracy">
+                                        <div className="flex items-center justify-end gap-1 sm:gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm min-w-[50px] sm:min-w-[60px] hidden sm:flex" title="Accuracy">
                                             <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                                             <span className="font-semibold">{(user.stats?.accuracy ?? 0).toFixed(1)}%</span>
                                         </div>

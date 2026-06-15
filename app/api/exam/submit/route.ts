@@ -81,18 +81,14 @@ export async function POST(req: NextRequest) {
             const serverTimeLeft = attemptData.timeLeftSeconds || 0;
             const allowedTimeMs = (serverTimeLeft * 1000) + 60000; // Add 60s grace period for network latency
 
+            let isLate = false;
+            let lateWarning = '';
             if (timeSpentMs > allowedTimeMs && !attemptData.isPractice) {
-                // Flag this submission as late or invalid. 
-                // Do not accept new answers, just auto-submit what was previously synced.
                 console.warn(`[Submission Late] Attempt ${attemptId}. TimeSpent: ${timeSpentMs}, Allowed: ${allowedTimeMs}`);
-                t.update(attemptRef, {
-                    isSubmitted: true,
-                    submittedAt: serverTime,
-                    lastUpdated: serverTime,
-                    timeLeftSeconds: 0 // Enforce 0
-                });
-                resultPayload = { success: true, warning: 'Submission was late. Only previously synced answers were recorded.' };
-                return;
+                isLate = true;
+                lateWarning = 'Submission was late. The exam was auto-submitted with your last synced answers.';
+                // Use previously synced responses instead of the ones sent in this payload
+                responses = attemptData.responses || {};
             }
 
             // --- Fetch Contest to Validate Server-Side ---
@@ -111,14 +107,9 @@ export async function POST(req: NextRequest) {
                     const contestEndTimeMs = new Date(contestData.endTime).getTime();
                     if (serverTime > contestEndTimeMs + 60000 && !attemptData.isPractice) {
                         console.warn(`[Submission Late - Contest Ended] Attempt ${attemptId}. ServerTime: ${serverTime}, EndTime: ${contestEndTimeMs}`);
-                        t.update(attemptRef, {
-                            isSubmitted: true,
-                            submittedAt: serverTime,
-                            lastUpdated: serverTime,
-                            timeLeftSeconds: 0
-                        });
-                        resultPayload = { success: true, warning: 'Submission was late. The contest had already ended. Only previously synced answers were recorded.' };
-                        return;
+                        isLate = true;
+                        lateWarning = 'Submission was late. The contest had already ended. The exam was auto-submitted with your last synced answers.';
+                        responses = attemptData.responses || {};
                     }
                 }
                 
@@ -157,7 +148,7 @@ export async function POST(req: NextRequest) {
                 }
             }
 
-            const finalTimeLeftSeconds = Math.max(0, Math.floor(attemptData.timeLeftSeconds - (timeSpentMs / 1000)));
+            const finalTimeLeftSeconds = isLate ? 0 : Math.max(0, Math.floor(attemptData.timeLeftSeconds - (timeSpentMs / 1000)));
 
             t.update(attemptRef, {
                 responses,
@@ -168,8 +159,8 @@ export async function POST(req: NextRequest) {
                 lastUpdated: serverTime
             });
 
-            console.log(`[Submission Success] Attempt ${attemptId} marked as completed.`);
-            resultPayload = { success: true };
+            console.log(`[Submission Success] Attempt ${attemptId} marked as completed. Late: ${isLate}`);
+            resultPayload = { success: true, ...(isLate && { warning: lateWarning }) };
         });
 
         if (resultPayload?.error) {
