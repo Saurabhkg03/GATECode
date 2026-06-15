@@ -359,10 +359,10 @@ export default function ContestDescriptionPage() {
                 )}
                 <button
                   onClick={handleShare}
-                  className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition-colors"
+                  className="w-9 h-9 rounded-full bg-white text-zinc-900 hover:bg-zinc-100 flex items-center justify-center shadow-lg transition-all active:scale-95"
                   title="Share"
                 >
-                  {isCopied ? <Copy className="w-4 h-4 text-green-300" /> : <Share2 className="w-4 h-4" />}
+                  {isCopied ? <Copy className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
                 </button>
               </div>
             </div>
@@ -454,19 +454,19 @@ export default function ContestDescriptionPage() {
               {upcoming && !isRegistered && (
                 <button
                   onClick={handleShare}
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                  className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-zinc-900 hover:bg-zinc-100 transition-all active:scale-95 shadow-lg"
                   title="Share"
                 >
-                  {isCopied ? <Copy className="w-4 h-4 text-green-400" /> : <Share2 className="w-4 h-4" />}
+                  {isCopied ? <Copy className="w-4.5 h-4.5 text-emerald-600" /> : <Share2 className="w-4.5 h-4.5" />}
                 </button>
               )}
               {!upcoming && (
                 <button
                   onClick={handleShare}
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                  className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-zinc-900 hover:bg-zinc-100 transition-all active:scale-95 shadow-lg"
                   title="Share"
                 >
-                  {isCopied ? <Copy className="w-4 h-4 text-green-400" /> : <Share2 className="w-4 h-4" />}
+                  {isCopied ? <Copy className="w-4.5 h-4.5 text-emerald-600" /> : <Share2 className="w-4.5 h-4.5" />}
                 </button>
               )}
             </div>

@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
         }
         const prefix = isAdminContest ? 'admin' : 'mock';
         const newContestId = `${Date.now()}-${prefix}-${branch}`;
-        const defaultTitle = `GATE ${branch.toUpperCase()} ${isAdminContest ? 'Live Competition' : 'Mock Practice'} (Real)`;
+        const defaultTitle = `GATE ${branch.toUpperCase()} ${isAdminContest ? 'Live Competition' : 'Practice Contest'} (Real)`;
         const title = contestTitle || defaultTitle;
 
         const isWeeklyOrBiweekly = title.toLowerCase().includes('weekly') || title.toLowerCase().includes('biweekly');

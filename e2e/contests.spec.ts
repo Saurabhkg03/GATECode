@@ -30,7 +30,7 @@ test.describe('Contests Page', () => {
     await communityTab.click();
     
     // Assuming either a grid of mock tests or the empty state for community
-    const emptyState = page.locator('h3', { hasText: 'No Community Mocks Yet' });
+    const emptyState = page.locator('h3', { hasText: 'No Community Contests Yet' });
     const grid = page.locator('.grid');
     
     // Wait for either the empty state or the grid
@@ -41,13 +41,13 @@ test.describe('Contests Page', () => {
   });
 
   test('should hide My Mocks tab if not authenticated', async ({ page }) => {
-    // If not authenticated, "My Mocks" tab should not be in the DOM
-    const myMocksTab = page.locator('button', { hasText: 'My Mocks' });
+    // If not authenticated, "My Contests" tab should not be in the DOM
+    const myMocksTab = page.locator('button', { hasText: 'My Contests' });
     await expect(myMocksTab).toHaveCount(0);
   });
 
   test('should filter contests by search query', async ({ page }) => {
-    const searchInput = page.getByPlaceholder('Search mock tests...');
+    const searchInput = page.getByPlaceholder('Search contests...');
     await searchInput.fill('Gate 2025');
     
     // We expect the list to filter. Since it's E2E and data is dynamic, 

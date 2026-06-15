@@ -339,7 +339,7 @@ const ScheduledContestCard = ({
                 {/* Title + date */}
                 <div className="mt-5">
                     <h2 className="text-[22px] font-black text-white leading-tight drop-shadow">
-                        GATE {branch.toUpperCase()} {isWeekly ? "Weekly" : "Biweekly"} Mock {info.number}
+                        GATE {branch.toUpperCase()} {isWeekly ? "Weekly" : "Biweekly"} Contest {info.number}
                     </h2>
                     <div className="mt-2 flex items-center gap-4 flex-wrap">
                         <p className="inline-flex items-center gap-1.5 bg-black/20 text-white text-[11px] font-semibold rounded-lg px-2.5 py-1">
@@ -538,7 +538,7 @@ const ContestsPage = () => {
     const handleRefresh = () => { fetchContests(); setShowGenerator(false); };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Delete this mock contest?")) return;
+        if (!confirm("Delete this contest?")) return;
         try {
             await deleteDoc(doc(db, "contests", id));
             setContests((prev) => prev.filter((c) => c.id !== id));
@@ -641,13 +641,13 @@ const ContestsPage = () => {
             {tab === "mine" && <User className="w-14 h-14 mx-auto text-gray-300 dark:text-zinc-700 mb-5" />}
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
                 {tab === "official" && "No Official Contests Yet"}
-                {tab === "community" && "No Community Mocks Yet"}
-                {tab === "mine" && "No Mocks Created Yet"}
+                {tab === "community" && "No Community Contests Yet"}
+                {tab === "mine" && "No Contests Created Yet"}
             </h3>
             <p className="text-sm text-gray-500 dark:text-zinc-500 max-w-xs mx-auto">
                 {tab === "official" && "No live or past official contests right now."}
                 {tab === "community" && "Be the first to create a public practice exam!"}
-                {tab === "mine" && 'Click "Create Custom Mock" to generate a personalized exam.'}
+                {tab === "mine" && 'Click "Create Custom Contest" to generate a personalized exam.'}
             </p>
         </div>
     );
@@ -665,7 +665,7 @@ const ContestsPage = () => {
                 <div className="absolute inset-0 pointer-events-none">
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-48 bg-[radial-gradient(ellipse_at_top,rgba(99,102,241,0.15),transparent_70%)] rounded-full" />
                 </div>
-                <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900 dark:text-white mb-1.5 relative z-10">Contest</h1>
+                <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900 dark:text-white mb-1.5 relative z-10">Contests</h1>
                 <p className="text-gray-500 dark:text-zinc-400 text-sm relative z-10">Contest every week. Compete and see your ranking!</p>
             </div>
 
@@ -677,7 +677,7 @@ const ContestsPage = () => {
                             {(["official", "community", "mine"] as TabType[]).map((tab) => {
                                 if (tab === "mine" && !userInfo) return null;
                                 const icons = { official: <Trophy className="w-4 h-4" />, community: <LayoutGrid className="w-4 h-4" />, mine: <User className="w-4 h-4" /> };
-                                const labels = { official: "Official", community: "Community", mine: "My Mocks" };
+                                const labels = { official: "Official", community: "Community", mine: "My Contests" };
                                 const activeColor = { official: "text-red-500", community: "text-blue-500", mine: "text-indigo-500" };
                                 return (
                                     <button key={tab} onClick={() => setActiveTab(tab)}
@@ -694,7 +694,7 @@ const ContestsPage = () => {
                                 onClick={() => setShowGenerator(!showGenerator)}
                                 className={`hidden sm:flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm border whitespace-nowrap ${showGenerator ? "bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300" : "bg-blue-600 hover:bg-blue-700 dark:bg-white dark:hover:bg-gray-100 border-transparent text-white dark:text-black hover:scale-[1.02]"}`}
                             >
-                                {showGenerator ? <><X className="w-4 h-4" /> Close</> : <><Sparkles className="w-4 h-4" /> Create Custom Mock</>}
+                                {showGenerator ? <><X className="w-4 h-4" /> Close</> : <><Sparkles className="w-4 h-4" /> Create Custom Contest</>}
                             </button>
                         )}
                     </div>
@@ -716,7 +716,7 @@ const ContestsPage = () => {
                                     </div>
                                     <input
                                         type="text"
-                                        placeholder="Search mock tests..."
+                                        placeholder="Search contests..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:text-gray-200"
@@ -739,7 +739,7 @@ const ContestsPage = () => {
                                     onClick={() => setShowGenerator(!showGenerator)}
                                     className={`sm:hidden w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm border whitespace-nowrap ${showGenerator ? "bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300" : "bg-blue-600 hover:bg-blue-700 dark:bg-white dark:hover:bg-gray-100 border-transparent text-white dark:text-black"}`}
                                 >
-                                    {showGenerator ? <><X className="w-4 h-4" /> Close</> : <><Sparkles className="w-4 h-4" /> Create Custom Mock</>}
+                                    {showGenerator ? <><X className="w-4 h-4" /> Close</> : <><Sparkles className="w-4 h-4" /> Create Custom Contest</>}
                                 </button>
                             )}
 
@@ -855,7 +855,7 @@ const ContestsPage = () => {
                                                     disabled={loadingMore}
                                                     className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50 shadow-sm"
                                                 >
-                                                    {loadingMore ? "Loading..." : "Load More Mocks"}
+                                                    {loadingMore ? "Loading..." : "Load More Contests"}
                                                 </button>
                                             </div>
                                         )}
@@ -881,7 +881,7 @@ const ContestsPage = () => {
                                 </div>
                             )}
                             <div className="space-y-4">
-                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="All Community Mocks" count={partitionedContests.past.length} />
+                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="All Community Contests" count={partitionedContests.past.length} />
                                 {loading ? (
                                     <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent" /></div>
                                 ) : partitionedContests.past.length === 0 ? renderEmpty("community") : (
@@ -894,7 +894,7 @@ const ContestsPage = () => {
                                                     disabled={loadingMore}
                                                     className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
                                                 >
-                                                    {loadingMore ? "Loading..." : "Load More Mocks"}
+                                                    {loadingMore ? "Loading..." : "Load More Contests"}
                                                 </button>
                                             </div>
                                         )}
@@ -920,7 +920,7 @@ const ContestsPage = () => {
                                 </div>
                             )}
                             <div className="space-y-4">
-                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="All My Mocks" count={filteredContests.length} />
+                                <SectionHeading icon={<History className="w-5 h-5 text-gray-400" />} label="All My Contests" count={filteredContests.length} />
                                 {loading ? (
                                     <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent" /></div>
                                 ) : filteredContests.length === 0 ? renderEmpty("mine") : (
@@ -933,7 +933,7 @@ const ContestsPage = () => {
                                                     disabled={loadingMore}
                                                     className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
                                                 >
-                                                    {loadingMore ? "Loading..." : "Load More Mocks"}
+                                                    {loadingMore ? "Loading..." : "Load More Contests"}
                                                 </button>
                                             </div>
                                         )}
