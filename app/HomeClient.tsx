@@ -155,10 +155,6 @@ export default function HomeClient({
     return <HomeSkeleton />;
   }
 
-  if (isDailyChallengeLoading) {
-    return <HomeSkeleton />;
-  }
-
   const branchName = availableBranches[selectedBranch] || "Preparation";
 
   // --- NEW: Get branch-specific rating for welcome message ---
@@ -201,7 +197,25 @@ export default function HomeClient({
       {isAuthenticated && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
           {/* Daily Challenge Card */}
-          {dailyChallenge && (
+          {isDailyChallengeLoading ? (
+            <div className="glass-card p-6 border-blue-500/20 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center shadow-sm opacity-50">
+                    <Zap className="w-5 h-5 text-white" />
+                  </div>
+                  <h2 className="text-xl font-bold text-zinc-800 dark:text-white">
+                    Daily Challenge
+                  </h2>
+                </div>
+                <div className="animate-pulse space-y-2 mb-4">
+                  <div className="h-4 bg-muted rounded w-3/4"></div>
+                  <div className="h-4 bg-muted rounded w-1/2"></div>
+                </div>
+              </div>
+              <div className="w-full h-[48px] bg-muted rounded-xl animate-pulse"></div>
+            </div>
+          ) : dailyChallenge ? (
             <div className="glass-card p-6 border-blue-500/20 flex flex-col justify-between">
               <div>
                 <div className="flex items-center gap-3 mb-4">
@@ -224,7 +238,7 @@ export default function HomeClient({
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
-          )}
+          ) : null}
 
           {/* Profile Activity & Streak */}
           <div className="glass-card p-6 border-orange-500/20 flex flex-col justify-between">
@@ -347,10 +361,10 @@ export default function HomeClient({
         </div>
       )}
 
-      {/* Main Grid: Subjects & Leaderboard Preview */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
+      {/* Main Grid: Subjects Overview */}
+      <div className="mb-16">
         {/* Subjects Section */}
-        <div className="lg:col-span-2">
+        <div>
           <h2 className="text-3xl font-bold text-zinc-900 dark:text-white mb-6">
             Subjects Overview ({branchName})
           </h2>
@@ -392,93 +406,6 @@ export default function HomeClient({
               <p className="md:col-span-2 text-center text-zinc-500 dark:text-zinc-400 py-6">
                 No subjects found for this branch.
               </p>
-            )}
-          </div>
-        </div>
-
-        {/* Leaderboard Preview Section */}
-        <div className="glass-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">
-              Top Performers
-            </h2>
-            <Link
-              href="/leaderboard"
-              className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              View All
-            </Link>
-          </div>
-          <div className="space-y-4">
-            {loadingLeaderboard ? (
-              // Simple skeleton for leaderboard
-              Array.from({ length: 5 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-4 animate-pulse"
-                >
-                  <div className="w-8 h-8 rounded-full bg-muted"></div>
-                  <div className="w-10 h-10 rounded-full bg-muted"></div>
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 rounded bg-muted w-3/4"></div>
-                    <div className="h-3 rounded bg-muted w-1/2"></div>
-                  </div>
-                  <div className="h-4 rounded bg-muted w-1/4"></div>
-                </div>
-              ))
-            ) : leaderboardPreview.length === 0 ? (
-              <p className="p-4 text-center text-zinc-500 dark:text-zinc-400">
-                No users yet.
-              </p>
-            ) : (
-              leaderboardPreview.map((leader: any, index: number) => (
-                <div key={leader.uid || `leader-${index}`} className="flex items-center gap-4">
-                  <div
-                    className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm ${index === 0
-                      ? "bg-yellow-400 text-white"
-                      : index === 1
-                        ? "bg-zinc-400 text-white"
-                        : index === 2
-                          ? "bg-orange-500 text-white"
-                          : "bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
-                      }`}
-                  >
-                    {index + 1}
-                  </div>
-                  <Image
-                    src={leader.avatar || "/user.png"}
-                    alt={leader.name || "Leader Avatar"}
-                    width={40}
-                    height={40}
-                    className="rounded-full object-cover w-10 h-10 border dark:border-zinc-700"
-                    unoptimized={
-                      leader.avatar?.startsWith(
-                        "https://lh3.googleusercontent.com",
-                      ) === false &&
-                      leader.avatar?.startsWith(
-                        "https://firebasestorage.googleapis.com",
-                      ) === false
-                    }
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-zinc-800 dark:text-white truncate">
-                      {leader.name}
-                    </p>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {leader.stats?.correct ?? 0} solved
-                    </p>
-                  </div>
-                  <div
-                    className="flex items-center gap-1 text-yellow-600 dark:text-yellow-400"
-                    title="Contest Elo"
-                  >
-                    <Trophy className="w-4 h-4" />
-                    <span className="font-semibold text-sm">
-                      {leader.rating ?? 0}
-                    </span>
-                  </div>
-                </div>
-              ))
             )}
           </div>
         </div>
