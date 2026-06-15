@@ -23,8 +23,9 @@ service cloud.firestore {
 
     // 1. Users Collection
     match /users/{userId} {
-      // Allow users to read/write their own profile
-      allow write: if isSignedIn() && isOwner(userId);
+      allow create, delete: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'rating', 'branchRatings', 'stats']);
       
       // Allow PUBLIC read for Leaderboard visibility
       allow read: if true; 
@@ -103,9 +104,8 @@ service cloud.firestore {
     }
     // 5. Contest Attempts (Exam Sessions)
     match /contest_attempts/{attemptId} {
-       // Open access required for Server-Side Client SDK (which is unauthenticated)
-       // usage in API routes unless we switch to Admin SDK.
-       allow read, write: if true;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update, read: if isSignedIn() && resource.data.uid == request.auth.uid;
     }
 
     // 6. Contest Registrations

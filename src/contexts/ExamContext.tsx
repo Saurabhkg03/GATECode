@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { Contest, ContestAttempt, QuestionResponse, QuestionStatus, Question, Section } from '../types/exam';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 
 // --- Types ---
@@ -258,9 +258,17 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
             try {
                 const forceFresh = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('force_fresh') === 'true';
 
+                let token = '';
+                if (auth.currentUser) {
+                    token = await auth.currentUser.getIdToken();
+                }
+
                 const res = await fetch('/api/exam/start', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
                     body: JSON.stringify({ contestId, uid, forceFresh }),
                     signal: controller.signal,
                 });
@@ -419,7 +427,25 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
             if (typeof window !== 'undefined') {
                 // Strictly backup only the responses map keyed by attemptId
                 const localKey = `exam_backup_${state.attemptId}`;
-                localStorage.setItem(localKey, JSON.stringify(state.responses));
+                try {
+                    localStorage.setItem(localKey, JSON.stringify(state.responses));
+                } catch (e) {
+                    console.warn('LocalStorage full, clearing old backups');
+                    const keysToRemove = [];
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && key.startsWith('exam_backup_') && key !== localKey) {
+                            keysToRemove.push(key);
+                        }
+                    }
+                    keysToRemove.forEach(k => localStorage.removeItem(k));
+                    
+                    try {
+                        localStorage.setItem(localKey, JSON.stringify(state.responses));
+                    } catch (e2) {
+                        console.error('Failed to save to LocalStorage even after cleanup', e2);
+                    }
+                }
             }
         }, 500); // 500ms debounce
 
@@ -516,9 +542,17 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
 
         // Use standard fetch instead of sendBeacon for reliable awaiting
         try {
+            let token = '';
+            if (auth.currentUser) {
+                token = await auth.currentUser.getIdToken();
+            }
+
             const res = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify(payload),
             });
 
