@@ -1,61 +1,87 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
+import { adminLimiter } from '@/lib/rateLimit';
 
 const BRANCHES = ['ece', 'cse', 'me', 'ce', 'ee'];
 
-export async function GET() {
-    if (!adminDb) {
-        return NextResponse.json({ error: "adminDb not initialized" }, { status: 500 });
-    }
-
+export async function GET(req: NextRequest) {
     try {
+        const decoded = await requireAdmin(req);
+
+        const { success } = await adminLimiter.limit(decoded.uid);
+        if (!success) {
+            return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+        }
+
+        if (!adminDb) {
+            return NextResponse.json({ error: "adminDb not initialized" }, { status: 500 });
+        }
+
         const usersRef = adminDb.collection('users');
-        const snapshot = await usersRef.get();
         let updatedCount = 0;
+        let lastDoc: any = null;
+        let hasMore = true;
 
-        const batch = adminDb.batch();
+        while (hasMore) {
+            let userQuery = usersRef.limit(500);
+            if (lastDoc) {
+                userQuery = userQuery.startAfter(lastDoc);
+            }
+            
+            const snapshot = await userQuery.get();
+            if (snapshot.empty) {
+                hasMore = false;
+                break;
+            }
 
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const updates: any = {};
-            let needsUpdate = false;
+            lastDoc = snapshot.docs[snapshot.docs.length - 1];
+            const batch = adminDb.batch();
+            let batchCount = 0;
 
-            const currentBranchRatings = data.branchRatings || {};
-            const newBranchRatings = { ...currentBranchRatings };
-            let modifiedBranchRatings = false;
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const updates: any = {};
+                let needsUpdate = false;
 
-            const currentRatings = data.ratings || {};
-            const newRatings = { ...currentRatings };
-            let modifiedRatings = false;
+                const currentBranchRatings = data.branchRatings || {};
+                const newBranchRatings = { ...currentBranchRatings };
+                let modifiedBranchRatings = false;
 
-            for (const branch of BRANCHES) {
-                if (newBranchRatings[branch] === undefined) {
-                    newBranchRatings[branch] = 1500;
-                    modifiedBranchRatings = true;
+                const currentRatings = data.ratings || {};
+                const newRatings = { ...currentRatings };
+                let modifiedRatings = false;
+
+                for (const branch of BRANCHES) {
+                    if (newBranchRatings[branch] === undefined) {
+                        newBranchRatings[branch] = 1500;
+                        modifiedBranchRatings = true;
+                    }
+                    if (newRatings[branch] === undefined) {
+                        newRatings[branch] = 0;
+                        modifiedRatings = true;
+                    }
                 }
-                if (newRatings[branch] === undefined) {
-                    newRatings[branch] = 0;
-                    modifiedRatings = true;
+
+                if (modifiedBranchRatings) {
+                    updates.branchRatings = newBranchRatings;
+                    needsUpdate = true;
                 }
-            }
+                if (modifiedRatings) {
+                    updates.ratings = newRatings;
+                    needsUpdate = true;
+                }
 
-            if (modifiedBranchRatings) {
-                updates.branchRatings = newBranchRatings;
-                needsUpdate = true;
-            }
-            if (modifiedRatings) {
-                updates.ratings = newRatings;
-                needsUpdate = true;
-            }
+                if (needsUpdate) {
+                    batch.update(doc.ref, updates);
+                    batchCount++;
+                    updatedCount++;
+                }
+            });
 
-            if (needsUpdate) {
-                batch.update(doc.ref, updates);
-                updatedCount++;
+            if (batchCount > 0) {
+                await batch.commit();
             }
-        });
-
-        if (updatedCount > 0) {
-            await batch.commit();
         }
 
         return NextResponse.json({ success: true, updatedCount });

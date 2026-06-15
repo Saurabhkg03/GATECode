@@ -24,6 +24,8 @@ interface ExamState {
     contest: Contest | null;
     attemptId: string | null;
     isSyncing: boolean;
+    tabSwitchCount: number;
+    tabSwitchViolations: number[];
 }
 
 interface ExamActionBase { type: string; }
@@ -40,7 +42,8 @@ type ExamAction =
     | { type: 'SET_SUBMITTED' }
     | { type: 'SET_TIME_UP' }
     | { type: 'SET_ERROR'; payload: string | null }
-    | { type: 'SET_SYNCING'; payload: boolean };
+    | { type: 'SET_SYNCING'; payload: boolean }
+    | { type: 'RECORD_TAB_SWITCH'; payload: number };
 
 const initialState: ExamState = {
     questions: [],
@@ -59,6 +62,8 @@ const initialState: ExamState = {
     contest: null,
     attemptId: null,
     isSyncing: false,
+    tabSwitchCount: 0,
+    tabSwitchViolations: [],
 };
 
 // --- Reducer ---
@@ -78,6 +83,8 @@ function examReducer(state: ExamState, action: ExamAction): ExamState {
                 timeOffset: action.payload.timeOffset || 0,
                 attemptId: action.payload.attempt.id,
                 isSubmitted: action.payload.attempt.isSubmitted,
+                tabSwitchCount: action.payload.attempt.tabSwitchCount || 0,
+                tabSwitchViolations: action.payload.attempt.tabSwitchViolations || [],
                 isLoading: false,
             };
 
@@ -222,6 +229,13 @@ function examReducer(state: ExamState, action: ExamAction): ExamState {
 
         case 'SET_SYNCING':
             return { ...state, isSyncing: action.payload };
+
+        case 'RECORD_TAB_SWITCH':
+            return {
+                ...state,
+                tabSwitchCount: state.tabSwitchCount + 1,
+                tabSwitchViolations: [...state.tabSwitchViolations, action.payload]
+            };
 
         default:
             return state;
@@ -456,46 +470,55 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
     const syncToFirestore = useCallback(async () => {
         const attemptId = stateRef.current.attemptId;
         const responses = stateRef.current.responses;
-        // The timeLeft in state is now drift-proof and completely reliable
         const accurateTimeLeft = stateRef.current.timeLeft;
+        const tabSwitchCount = stateRef.current.tabSwitchCount;
+        const tabSwitchViolations = stateRef.current.tabSwitchViolations;
 
         if (!attemptId) return;
 
         dispatch({ type: 'SET_SYNCING', payload: true });
 
         try {
-            const attemptRef = doc(db, 'contest_attempts', attemptId);
-            // Sanitize undefineds
             const cleanResponses = JSON.parse(JSON.stringify(responses));
+            let token = '';
+            if (auth.currentUser) {
+                token = await auth.currentUser.getIdToken();
+            }
 
-            await updateDoc(attemptRef, {
-                responses: cleanResponses,
-                timeLeftSeconds: accurateTimeLeft,
-                lastUpdated: Date.now()
+            const res = await fetch('/api/exam/autosave', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    uid,
+                    attemptId,
+                    responses: cleanResponses,
+                    tabSwitchCount,
+                    tabSwitchViolations
+                }),
             });
+
+            if (!res.ok) {
+                 throw new Error("Autosave failed");
+            }
 
             dispatch({ type: 'SYNC_TIME', payload: accurateTimeLeft });
             dispatch({ type: 'SET_SYNCING', payload: false });
 
-            // Clear any pending retries if success
             if (retryTimeoutRef.current) {
                 clearTimeout(retryTimeoutRef.current);
                 retryTimeoutRef.current = null;
             }
-
         } catch (error) {
             console.error("Sync failed, queuing retry...", error);
-            // Don't set syncing to false, maybe? Or keep it true to show "Offline"?
-            // Requirement says: Show "Syncing..." or "Offline"
-            // If we keep isSyncing=true, it indicates pending work.
-
-            // Queue retry in 5 seconds
             if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
             retryTimeoutRef.current = setTimeout(() => {
                 syncToFirestore();
             }, 5000);
         }
-    }, []);
+    }, [uid]);
 
     // Trigger sync periodically or manually
     useEffect(() => {
@@ -503,14 +526,30 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
             if (!state.isSubmitted && !state.isLoading) {
                 syncToFirestore();
             }
-        }, 10000); // 10s periodic sync
+        }, 25000); // 25s periodic sync
         return () => clearInterval(syncInterval);
     }, [syncToFirestore, state.isSubmitted, state.isLoading]);
 
-    const triggerSync = () => {
-        // Debounce slightly to allow state to settle if called immediately after dispatch
+    const triggerSync = useCallback(() => {
         setTimeout(() => syncToFirestore(), 0);
-    };
+    }, [syncToFirestore]);
+
+    // 7. Tab Switching Detection (Proctoring)
+    useEffect(() => {
+        if (!state.attemptId || state.isSubmitted || state.isLoading) return;
+
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                dispatch({ type: 'RECORD_TAB_SWITCH', payload: Date.now() });
+                console.warn('[Proctoring] Tab switched or window minimized');
+                // Force an autosave right when they hide the tab
+                triggerSync();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [state.attemptId, state.isSubmitted, state.isLoading, triggerSync]);
 
     // 6. Reliable Submission (Beacon API)
     const submitExam = async () => {
