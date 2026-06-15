@@ -24,10 +24,20 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
+        const authHeader = req.headers.get('authorization');
+        if (!authHeader?.startsWith('Bearer ')) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+        const token = authHeader.split('Bearer ')[1];
+
         // --- Save to Firestore using Admin SDK ---
         const app = await initAdmin();
         if (!app) {
              return NextResponse.json({ error: 'Firebase Admin not configured' }, { status: 500 });
+        }
+
+        const decodedToken = await app.auth().verifyIdToken(token);
+        if (decodedToken.uid !== uid) {
+            return NextResponse.json({ error: 'Forbidden: UID mismatch' }, { status: 403 });
         }
         const db = app.firestore();
         const attemptRef = db.collection('contest_attempts').doc(attemptId);

@@ -3,10 +3,26 @@ import { db } from '@/firebase';
 import { doc, getDoc, setDoc, updateDoc, Timestamp, collection, getDocs, query, where, documentId } from 'firebase/firestore';
 import { Contest, ContestAttempt, QuestionResponse, Section, Question } from '@/types/exam';
 import { evaluateExam } from '@/utils/examScoring';
+import { initAdmin } from '@/lib/firebaseAdmin';
 
 export async function POST(req: NextRequest) {
     try {
-        const { contestId, uid, forceFresh } = await req.json();
+        const body = await req.json();
+        const { contestId, uid, forceFresh } = body;
+
+        const authHeader = req.headers.get('authorization');
+        if (!authHeader?.startsWith('Bearer ')) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+        const token = authHeader.split('Bearer ')[1];
+        const app = await initAdmin();
+        if (!app) {
+             return NextResponse.json({ error: 'Firebase Admin not configured' }, { status: 500 });
+        }
+        const decodedToken = await app.auth().verifyIdToken(token);
+
+        if (decodedToken.uid !== uid) {
+            return NextResponse.json({ error: 'Forbidden: UID mismatch' }, { status: 403 });
+        }
 
         if (!contestId || !uid) {
             return NextResponse.json({ error: 'Missing contestId or uid' }, { status: 400 });

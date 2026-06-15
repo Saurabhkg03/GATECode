@@ -1,4 +1,5 @@
 import admin from 'firebase-admin';
+import { evaluateExam } from '../utils/examScoring';
 
 export async function processContestRatings(db: admin.firestore.Firestore, contestId: string) {
     // 1. Fetch the contest
@@ -29,26 +30,6 @@ export async function processContestRatings(db: admin.firestore.Firestore, conte
         return { success: true, message: 'No valid attempts found, marked as processed.' };
     }
 
-    // 3. Build a scoring dictionary for questions
-    const questionMap = new Map();
-    (contestData.sections || []).forEach((sec: any) => {
-        (sec.questions || []).forEach((q: any) => {
-            let negativeMarks = Number(q.negative_marks);
-            const marks = Number(q.marks) || 0;
-            if (isNaN(negativeMarks)) {
-                negativeMarks = q.question_type === 'mcq' ? marks / 3 : 0;
-            }
-            questionMap.set(q.id, {
-                type: q.question_type,
-                marks,
-                negativeMarks,
-                options: q.options,
-                natMin: parseFloat(q.nat_answer_min),
-                natMax: parseFloat(q.nat_answer_max)
-            });
-        });
-    });
-
     // 4. Calculate stats per attempt
     interface AttemptStat {
         uid: string;
@@ -77,42 +58,14 @@ export async function processContestRatings(db: admin.firestore.Firestore, conte
     
     validAttempts.forEach(docSnap => {
         const data = docSnap.data();
-        let score = 0;
         let totalTimeSpent = 0;
 
         Object.values(data.responses || {}).forEach((resp: any) => {
-            const qId = resp.questionId;
-            const qData = questionMap.get(qId);
-
             if (resp.timeSpent) totalTimeSpent += resp.timeSpent;
-
-            if (!qData) return;
-
-            const isAttempted = resp.status === 'answered' || resp.status === 'answered_marked_for_review';
-            if (!isAttempted) return;
-
-            let isCorrect = false;
-            if (qData.type === 'mcq') {
-                const correctOption = qData.options?.find((o: any) => o.is_correct);
-                isCorrect = correctOption && resp.selectedOptions?.[0] === correctOption.label;
-            } else if (qData.type === 'msq') {
-                const correctLabels = qData.options?.filter((o: any) => o.is_correct).map((o: any) => o.label).sort();
-                const userVal = resp.selectedOptions?.sort();
-                isCorrect = correctLabels && userVal && correctLabels.length === userVal.length &&
-                    correctLabels.every((val: string, index: number) => val === userVal[index]);
-            } else if (qData.type === 'nat') {
-                const val = parseFloat(resp.natAnswer || '');
-                if (!isNaN(val) && !isNaN(qData.natMin) && !isNaN(qData.natMax) && val >= qData.natMin && val <= qData.natMax) {
-                    isCorrect = true;
-                }
-            }
-
-            if (isCorrect) {
-                score += qData.marks;
-            } else {
-                score -= qData.negativeMarks;
-            }
         });
+
+        const result = evaluateExam(contestData, data.responses);
+        const score = result.totalScore;
 
         // Use the saved score if it exists, otherwise use calculated score
         const finalScore = data.score !== undefined ? data.score : score;
@@ -146,17 +99,35 @@ export async function processContestRatings(db: admin.firestore.Firestore, conte
     // 6. Multiplayer Elo Calculation
     const updates = new Map();
 
+    // Optimization: Bucket ratings to avoid O(N^2) complexity
+    const ratingBuckets = new Map<number, number>();
+    const BUCKET_SIZE = 10;
+    userStats.forEach(u => {
+        const bucket = Math.round(u.oldRating / BUCKET_SIZE) * BUCKET_SIZE;
+        ratingBuckets.set(bucket, (ratingBuckets.get(bucket) || 0) + 1);
+    });
+
     userStats.forEach((userA, rankIndexA) => {
         const actualRankA = rankIndexA + 1;
         let expectedRankA = 1;
 
-        userStats.forEach((userB) => {
-            if (userA.uid !== userB.uid) {
-                // Probability that B beats A
-                const pBbeatsA = 1 / (1 + Math.pow(10, (userA.oldRating - userB.oldRating) / 400));
-                expectedRankA += pBbeatsA;
-            }
-        });
+        if (userStats.length > 200) {
+            // Approximate Expected Rank using bucket distributions O(N * Buckets)
+            ratingBuckets.forEach((count, bucketRating) => {
+                const pBbeatsA = 1 / (1 + Math.pow(10, (userA.oldRating - bucketRating) / 400));
+                expectedRankA += pBbeatsA * count;
+            });
+            // Subtract the user's own contribution from the bucket (approximates to 0.5)
+            expectedRankA -= 0.5;
+        } else {
+            // Exact Expected Rank O(N^2) for small cohorts
+            userStats.forEach((userB) => {
+                if (userA.uid !== userB.uid) {
+                    const pBbeatsA = 1 / (1 + Math.pow(10, (userA.oldRating - userB.oldRating) / 400));
+                    expectedRankA += pBbeatsA;
+                }
+            });
+        }
 
         const userData = usersData.get(userA.uid) || {};
         const contestCount = (userData.contestCount || 0) + 1;

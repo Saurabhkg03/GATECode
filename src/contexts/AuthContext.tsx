@@ -349,30 +349,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/login');
   };
 
-  // Helper function to delete subcollections
-  async function deleteCollection(collectionPath: string) {
-    const q = query(collection(db, collectionPath));
-    const snapshot = await getDocs(q);
-
-    // Use chunks if the collection might be very large
-    const MAX_WRITES_PER_BATCH = 500;
-    let batch = writeBatch(db);
-    let count = 0;
-    for (const docSnapshot of snapshot.docs) {
-      batch.delete(docSnapshot.ref);
-      count++;
-      if (count === MAX_WRITES_PER_BATCH) {
-        await batch.commit();
-        batch = writeBatch(db); // Start a new batch
-        count = 0;
-      }
-    }
-    // Commit the remaining deletes
-    if (count > 0) {
-      await batch.commit();
-    }
-    console.log(`Deleted ${snapshot.size} documents from subcollection: ${collectionPath}`);
-  }
 
 
   const deleteAccount = async () => {
@@ -383,23 +359,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       console.log("Attempting to delete account for user:", currentUser.uid);
-      // 1. Delete Firestore subcollections first
-      await deleteCollection(`users/${currentUser.uid}/submissions`);
-      await deleteCollection(`users/${currentUser.uid}/userQuestionData`);
-      await deleteCollection(`users/${currentUser.uid}/questionLists`); // Also delete question lists
 
-      // 2. Delete main user document
-      const userDocRef = doc(db, 'users', currentUser.uid);
-      await deleteDoc(userDocRef);
-      console.log("Firestore user document and subcollections deleted.");
+      const token = await currentUser.getIdToken();
+      const res = await fetch('/api/user/delete', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
-      // 3. Delete Auth user
-      await deleteUser(currentUser);
-      console.log("Firebase Auth user deleted.");
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete account');
+      }
+
+      console.log("Account successfully deleted on server.");
+
+      // Sign out locally to clear the auth state
+      await signOut(auth);
 
       // Clear local state immediately
       setUserInfo(null);
       setUser(null);
+      localStorage.removeItem('isLoggedIn');
       router.push('/');
 
     } catch (error: any) {
