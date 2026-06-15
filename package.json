@@ -33,6 +33,7 @@
     "katex": "^0.16.27",
     "lucide-react": "^0.469.0",
     "next": "^16.1.4",
+    "nextjs-toploader": "^3.9.17",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-draggable": "^4.5.0",

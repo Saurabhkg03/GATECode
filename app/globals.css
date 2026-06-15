@@ -218,3 +218,10 @@
 .dark .katex {
   color: white !important;
 }
+
+/* Hide nextjs-toploader on desktop */
+@media (min-width: 768px) {
+  #nprogress {
+    display: none !important;
+  }
+}

@@ -6,6 +6,7 @@ import ClientProviders from "@/components/ClientProviders";
 import NavbarWrapper from "@/components/NavbarWrapper";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import LayoutWrapper from "@/components/LayoutWrapper";
+import NextTopLoader from 'nextjs-toploader';
 
 import { Toaster } from 'sonner';
 
@@ -41,6 +42,7 @@ export default function RootLayout({
                 />
             </head>
             <body className={`${inter.className} min-h-screen bg-zinc-50 dark:bg-zinc-950 font-sans text-foreground antialiased`} suppressHydrationWarning>
+                <NextTopLoader color="#3b82f6" height={1} showSpinner={false} zIndex={1600} />
                 <ClientProviders>
                     <ErrorBoundary>
                         <LayoutWrapper>
