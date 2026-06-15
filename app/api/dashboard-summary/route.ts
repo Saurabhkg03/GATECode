@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initAdmin } from '@/lib/firebaseAdmin';
 import { unstable_cache } from 'next/cache';
+import { apiError, apiSuccess } from '@/lib/apiResponse';
 
 const getDashboardSummary = unstable_cache(
     async (branch: string) => {
@@ -33,14 +34,14 @@ export async function GET(req: NextRequest) {
         const branch = searchParams.get('branch');
 
         if (!branch) {
-            return NextResponse.json({ error: 'Branch is required' }, { status: 400 });
+            return apiError('Branch is required', 'BAD_REQUEST', 400);
         }
 
         const summary = await getDashboardSummary(branch);
         
-        return NextResponse.json(summary);
+        return apiSuccess(summary);
     } catch (error: any) {
         console.error('Dashboard summary error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return apiError(error.message, 'INTERNAL_ERROR', 500);
     }
 }

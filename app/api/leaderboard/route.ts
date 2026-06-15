@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initAdmin } from '@/lib/firebaseAdmin';
 import { unstable_cache } from 'next/cache';
+import { apiError, apiSuccess } from '@/lib/apiResponse';
 
 const getCachedLeaderboard = unstable_cache(
     async (branch: string, limitCount: number) => {
@@ -43,14 +44,14 @@ export async function GET(req: NextRequest) {
         const limitCount = parseInt(searchParams.get('limit') || '5', 10);
 
         if (!branch) {
-            return NextResponse.json({ error: 'Branch is required' }, { status: 400 });
+            return apiError('Branch is required', 'BAD_REQUEST', 400);
         }
 
         const leaderboard = await getCachedLeaderboard(branch, limitCount);
         
-        return NextResponse.json(leaderboard);
+        return apiSuccess(leaderboard);
     } catch (error: any) {
         console.error('Leaderboard fetch error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return apiError(error.message, 'INTERNAL_ERROR', 500);
     }
 }

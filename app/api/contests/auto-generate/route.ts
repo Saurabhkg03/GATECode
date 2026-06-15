@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebaseAdmin";
+import { initAdmin } from '@/lib/firebaseAdmin';
+import { adminLimiter } from '@/lib/rateLimit';
+import { apiError, apiSuccess } from '@/lib/apiResponse';
 import {
   getNextWeeklyContest,
   getNextBiweeklyContest,
@@ -12,14 +14,20 @@ const shuffle = <T>(array: T[]) => array.sort(() => Math.random() - 0.5);
 const TARGET_BRANCHES = ["ece", "cse", "me", "ee", "in"];
 
 export async function GET(request: Request) {
-  // In production, you would definitely want to secure this endpoint!
-  // e.g., using a secret token passed in headers by your cron service.
-
-  if (!adminDb) {
-    return NextResponse.json({ error: "Firebase Admin is not configured. Auto-generate requires Admin SDK." }, { status: 500 });
-  }
+  const app = await initAdmin();
+  if (!app) return apiError('Firebase Admin not configured', 'SERVER_ERROR', 500);
 
   try {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) return apiError('Unauthorized', 'UNAUTHORIZED', 401);
+    
+    const token = authHeader.split('Bearer ')[1];
+    const decodedToken = await app.auth().verifyIdToken(token);
+    const adminDoc = await app.firestore().collection('users').doc(decodedToken.uid).get();
+    if (!adminDoc.exists || !adminDoc.data()?.isAdmin) {
+        return apiError('Forbidden: Admin access required', 'FORBIDDEN', 403);
+    }
+
     const nextWeekly = getNextWeeklyContest();
     const nextBiweekly = getNextBiweeklyContest();
 
@@ -72,7 +80,7 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({
+    return apiSuccess({
       message: "Auto-generation complete",
       generated: generatedIds,
       errors,
@@ -81,12 +89,13 @@ export async function GET(request: Request) {
     });
   } catch (error: any) {
     console.error("Auto-generate error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError(error.message, 'INTERNAL_SERVER_ERROR', 500);
   }
 }
 
 async function checkContestExists(contestId: string): Promise<boolean> {
-  const docRef = adminDb!.collection("contests").doc(contestId);
+  const adminDb = (await initAdmin())!.firestore();
+  const docRef = adminDb.collection("contests").doc(contestId);
   const docSnap = await docRef.get();
   return docSnap.exists;
 }
@@ -100,9 +109,10 @@ async function attemptToGenerateContest(
   endTime: Date,
   durationMinutes: number,
 ) {
+  const adminDb = (await initAdmin())!.firestore();
   const sourceCollection = `questions_${branch}`;
 
-  let qCol = adminDb!.collection(sourceCollection);
+  let qCol = adminDb.collection(sourceCollection);
   let qSnapshot = await qCol.get();
 
   const allQuestions: Question[] = [];
@@ -207,5 +217,5 @@ async function attemptToGenerateContest(
     description: `Official ${contestType.toLowerCase()} live contest. Test your rank amongst thousands of peers.`,
   };
 
-  await adminDb!.collection("contests").doc(fullContestId).set(newContest);
+  await adminDb.collection("contests").doc(fullContestId).set(newContest);
 }

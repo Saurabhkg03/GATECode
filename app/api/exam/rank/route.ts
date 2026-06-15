@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/firebase';
 import { collection, query, where, getCountFromServer } from 'firebase/firestore';
+import { apiError, apiSuccess } from '@/lib/apiResponse';
 
 export async function GET(req: NextRequest) {
     try {
@@ -9,12 +10,12 @@ export async function GET(req: NextRequest) {
         const scoreParam = searchParams.get('score');
 
         if (!contestId || scoreParam === null) {
-            return NextResponse.json({ error: 'Missing contestId or score' }, { status: 400 });
+            return apiError('Missing contestId or score', 'BAD_REQUEST', 400);
         }
 
         const score = parseFloat(scoreParam);
         if (isNaN(score)) {
-            return NextResponse.json({ error: 'Invalid score' }, { status: 400 });
+            return apiError('Invalid score', 'BAD_REQUEST', 400);
         }
 
         const attemptsRef = collection(db, 'contest_attempts');
@@ -46,13 +47,13 @@ export async function GET(req: NextRequest) {
         const totalUsers = totalSnap.data().count;
         const rank = higherScorersSnap.data().count + 1; // +1 because if 0 people are higher, you are rank 1
 
-        return NextResponse.json({
+        return apiSuccess({
             rank,
             totalUsers
         });
 
     } catch (e: any) {
         console.error("Rank fetch error:", e);
-        return NextResponse.json({ error: e.message || 'Internal Server Error' }, { status: 500 });
+        return apiError(e.message || 'Internal Server Error', 'INTERNAL_ERROR', 500);
     }
 }

@@ -4,6 +4,7 @@ import { processContestRatings } from '@/lib/ratingProcessor';
 import { requireAdmin } from '@/lib/adminAuth';
 import { adminLimiter } from '@/lib/rateLimit';
 import { waitUntil } from '@vercel/functions';
+import { apiError, apiSuccess } from '@/lib/apiResponse';
 
 export async function POST(req: NextRequest) {
     try {
@@ -11,29 +12,29 @@ export async function POST(req: NextRequest) {
 
         const { success } = await adminLimiter.limit(decoded.uid);
         if (!success) {
-            return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+            return apiError('Too Many Requests', 'RATE_LIMITED', 429);
         }
 
         const body = await req.json();
         const { contestId } = body;
 
         if (!contestId) {
-            return NextResponse.json({ error: 'Missing contestId' }, { status: 400 });
+            return apiError('Missing contestId', 'BAD_REQUEST', 400);
         }
 
         const app = await initAdmin();
         if (!app) {
-             return NextResponse.json({ error: 'Firebase Admin not configured' }, { status: 500 });
+             return apiError('Firebase Admin not configured', 'SERVER_ERROR', 500);
         }
         const db = app.firestore();
 
         // Process ratings in the background using waitUntil
         waitUntil(processContestRatings(db, contestId).catch(console.error));
         
-        return NextResponse.json({ success: true, message: "Processing started in background" }, { status: 202 });
+        return apiSuccess({ message: "Processing started in background" }, 202);
 
     } catch (e: any) {
         console.error("Process ratings error:", e);
-        return NextResponse.json({ error: e.message || 'Internal Server Error' }, { status: 500 });
+        return apiError(e.message || 'Internal Server Error', 'INTERNAL_ERROR', 500);
     }
 }

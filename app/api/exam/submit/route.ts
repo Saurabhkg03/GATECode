@@ -3,6 +3,7 @@ import { initAdmin } from '@/lib/firebaseAdmin';
 import { evaluateExam } from '@/utils/examScoring';
 import { z } from 'zod';
 import { examSubmitLimiter } from '@/lib/rateLimit';
+import { apiError, apiSuccess } from '@/lib/apiResponse';
 
 const submitSchema = z.object({
   contestId: z.string().optional(),
@@ -30,30 +31,30 @@ export async function POST(req: NextRequest) {
 
         const parsed = submitSchema.safeParse(body);
         if (!parsed.success) {
-            return NextResponse.json({ error: 'Bad Request', details: parsed.error.format() }, { status: 400 });
+            return apiError('Bad Request', 'BAD_REQUEST', 400, parsed.error.format());
         }
 
         const { contestId, uid, attemptId, responses } = parsed.data;
 
         const authHeader = req.headers.get('authorization');
-        if (!authHeader?.startsWith('Bearer ')) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        if (!authHeader?.startsWith('Bearer ')) return apiError('Unauthorized', 'UNAUTHORIZED', 401);
 
         const token = authHeader.split('Bearer ')[1];
 
         // --- Save to Firestore using Admin SDK ---
         const app = await initAdmin();
         if (!app) {
-             return NextResponse.json({ error: 'Firebase Admin not configured' }, { status: 500 });
+             return apiError('Firebase Admin not configured', 'SERVER_ERROR', 500);
         }
 
         const decodedToken = await app.auth().verifyIdToken(token);
         if (decodedToken.uid !== uid) {
-            return NextResponse.json({ error: 'Forbidden: UID mismatch' }, { status: 403 });
+            return apiError('Forbidden: UID mismatch', 'FORBIDDEN', 403);
         }
 
         const { success } = await examSubmitLimiter.limit(uid);
         if (!success) {
-            return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+            return apiError('Too Many Requests', 'RATE_LIMITED', 429);
         }
         const db = app.firestore();
         const attemptRef = db.collection('contest_attempts').doc(attemptId);
@@ -172,13 +173,13 @@ export async function POST(req: NextRequest) {
         });
 
         if (resultPayload?.error) {
-            return NextResponse.json({ error: resultPayload.error }, { status: resultPayload.status || 400 });
+            return apiError(resultPayload.error, 'BAD_REQUEST', resultPayload.status || 400);
         }
 
-        return NextResponse.json(resultPayload);
+        return apiSuccess(resultPayload);
 
     } catch (e: any) {
         console.error("Submission error:", e);
-        return NextResponse.json({ error: e.message || 'Internal Server Error' }, { status: 500 });
+        return apiError(e.message || 'Internal Server Error', 'INTERNAL_ERROR', 500);
     }
 }
