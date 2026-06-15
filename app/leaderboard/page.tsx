@@ -32,29 +32,29 @@ const PodiumCard = ({ user, rank }: { user: LeaderboardUser; rank: number }) => 
         1: {
             gradient: 'from-amber-400 to-yellow-500',
             ring: 'ring-[3px] ring-yellow-400',
-            glow: 'shadow-[0_0_24px_rgba(234,179,8,0.25)]',
-            border: 'border border-yellow-500/25',
-            rankColor: 'text-yellow-400',
+            glow: 'dark:shadow-[0_0_24px_rgba(234,179,8,0.25)]',
+            border: 'border border-yellow-300 dark:border-yellow-500/25',
+            rankColor: 'text-yellow-500 dark:text-yellow-400',
             order: 'order-1 md:order-2',
             crown: true,
             marginTop: '',
         },
         2: {
-            gradient: 'from-zinc-500 to-zinc-600',
-            ring: 'ring-[3px] ring-zinc-400',
+            gradient: 'from-zinc-400 to-zinc-500',
+            ring: 'ring-[3px] ring-zinc-400 dark:ring-zinc-400',
             glow: '',
-            border: 'border border-zinc-700/50',
-            rankColor: 'text-zinc-400',
+            border: 'border border-zinc-200 dark:border-zinc-700/50',
+            rankColor: 'text-zinc-500 dark:text-zinc-400',
             order: 'order-2 md:order-1',
             crown: false,
             marginTop: 'md:mt-10',
         },
         3: {
-            gradient: 'from-orange-500 to-amber-600',
-            ring: 'ring-[3px] ring-orange-500',
+            gradient: 'from-orange-400 to-amber-500',
+            ring: 'ring-[3px] ring-orange-400 dark:ring-orange-500',
             glow: '',
-            border: 'border border-orange-600/25',
-            rankColor: 'text-orange-400',
+            border: 'border border-orange-200 dark:border-orange-600/25',
+            rankColor: 'text-orange-500 dark:text-orange-400',
             order: 'order-3',
             crown: false,
             marginTop: 'md:mt-10',
@@ -65,7 +65,7 @@ const PodiumCard = ({ user, rank }: { user: LeaderboardUser; rank: number }) => 
 
     return (
         <div className={`w-full ${cfg.order} ${cfg.marginTop}`}>
-            <div className={`relative w-full bg-zinc-900 ${cfg.border} rounded-2xl p-5 flex flex-col items-center text-center gap-3 transition-all duration-300 hover:-translate-y-1 ${cfg.glow}`}>
+            <div className={`relative w-full bg-white dark:bg-zinc-900 shadow-md dark:shadow-none ${cfg.border} rounded-2xl p-5 flex flex-col items-center text-center gap-3 transition-all duration-300 hover:-translate-y-1 ${cfg.glow}`}>
                 {/* Rank badge */}
                 <div className={`absolute top-3 right-3.5 text-sm font-black ${cfg.rankColor}`}>
                     #{rank}
@@ -99,7 +99,7 @@ const PodiumCard = ({ user, rank }: { user: LeaderboardUser; rank: number }) => 
                     >
                         {user.name}
                     </Link>
-                    <p className="text-xs text-zinc-500 truncate mt-0.5">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
                         @{user.username} • <span className={getRankTier(user.contestElo).color}>{getRankTier(user.contestElo).title}</span>
                     </p>
                 </div>
