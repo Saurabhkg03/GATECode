@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initAdmin } from '@/lib/firebaseAdmin';
+import { authLimiter } from '@/lib/rateLimit';
 
 async function deleteCollection(db: any, collectionPath: string, batchSize = 500) {
     const collectionRef = db.collection(collectionPath);
@@ -20,7 +21,7 @@ async function deleteQueryBatch(db: any, query: any, resolve: any) {
     }
 
     const batch = db.batch();
-    snapshot.docs.forEach((doc) => {
+    snapshot.docs.forEach((doc: any) => {
         batch.delete(doc.ref);
     });
     await batch.commit();
@@ -46,6 +47,11 @@ export async function DELETE(req: NextRequest) {
 
         const decodedToken = await app.auth().verifyIdToken(token);
         const uid = decodedToken.uid;
+
+        const { success } = await authLimiter.limit(uid);
+        if (!success) {
+            return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+        }
 
         const db = app.firestore();
 

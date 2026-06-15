@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initAdmin } from '@/lib/firebaseAdmin';
 import { evaluateExam } from '@/utils/examScoring';
+import { z } from 'zod';
+import { examSubmitLimiter } from '@/lib/rateLimit';
+
+const submitSchema = z.object({
+  contestId: z.string().optional(),
+  uid: z.string().min(1, "uid is required"),
+  attemptId: z.string().min(1, "attemptId is required"),
+  responses: z.any().optional(),
+  timeLeftSeconds: z.number().optional()
+});
 
 // Simple implementation accepting the Beacon payload
 export async function POST(req: NextRequest) {
@@ -18,11 +28,12 @@ export async function POST(req: NextRequest) {
             body = JSON.parse(text);
         }
 
-        const { contestId, uid, attemptId, responses, timeLeftSeconds } = body;
-
-        if (!attemptId || !uid) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        const parsed = submitSchema.safeParse(body);
+        if (!parsed.success) {
+            return NextResponse.json({ error: 'Bad Request', details: parsed.error.format() }, { status: 400 });
         }
+
+        const { contestId, uid, attemptId, responses } = parsed.data;
 
         const authHeader = req.headers.get('authorization');
         if (!authHeader?.startsWith('Bearer ')) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -39,73 +50,88 @@ export async function POST(req: NextRequest) {
         if (decodedToken.uid !== uid) {
             return NextResponse.json({ error: 'Forbidden: UID mismatch' }, { status: 403 });
         }
+
+        const { success } = await examSubmitLimiter.limit(uid);
+        if (!success) {
+            return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+        }
         const db = app.firestore();
         const attemptRef = db.collection('contest_attempts').doc(attemptId);
+        const userRef = db.collection('users').doc(uid);
 
-        const attemptSnap = await attemptRef.get();
-        if (!attemptSnap.exists) {
-            return NextResponse.json({ error: 'Attempt not found' }, { status: 404 });
-        }
-        const attemptData = attemptSnap.data()!;
+        let resultPayload: any = null;
 
-        // 2. Calculate actual time spent based on server clock
-        const serverTime = Date.now();
-        const timeSpentMs = serverTime - attemptData.startedAt;
-        const serverTimeLeft = attemptData.timeLeftSeconds || 0;
-        const allowedTimeMs = (serverTimeLeft * 1000) + 60000; // Add 60s grace period for network latency
-
-        if (timeSpentMs > allowedTimeMs && !attemptData.isPractice) {
-            // Flag this submission as late or invalid. 
-            // Do not accept new answers, just auto-submit what was previously synced.
-            console.warn(`[Submission Late] Attempt ${attemptId}. TimeSpent: ${timeSpentMs}, Allowed: ${allowedTimeMs}`);
-            await attemptRef.update({
-                isSubmitted: true,
-                submittedAt: serverTime,
-                lastUpdated: serverTime,
-                timeLeftSeconds: 0 // Enforce 0
-            });
-            return NextResponse.json({ success: true, warning: 'Submission was late. Only previously synced answers were recorded.' });
-        }
-
-        // --- Fetch Contest to Validate Server-Side ---
-        const actualContestId = attemptData.contestId || contestId;
-        const contestRef = db.collection('contests').doc(actualContestId);
-        const contestSnap = await contestRef.get();
-        let contestData: any = null;
-        let totalScore = 0;
-        let correctCount = 0;
-        let totalAttempted = 0;
-
-        if (contestSnap.exists) {
-            contestData = contestSnap.data()!;
-            
-            if (contestData.endTime) {
-                const contestEndTimeMs = new Date(contestData.endTime).getTime();
-                if (serverTime > contestEndTimeMs + 60000 && !attemptData.isPractice) {
-                    console.warn(`[Submission Late - Contest Ended] Attempt ${attemptId}. ServerTime: ${serverTime}, EndTime: ${contestEndTimeMs}`);
-                    await attemptRef.update({
-                        isSubmitted: true,
-                        submittedAt: serverTime,
-                        lastUpdated: serverTime,
-                        timeLeftSeconds: 0
-                    });
-                    return NextResponse.json({ success: true, warning: 'Submission was late. The contest had already ended. Only previously synced answers were recorded.' });
-                }
+        await db.runTransaction(async (t: any) => {
+            const attemptSnap = await t.get(attemptRef);
+            if (!attemptSnap.exists) {
+                throw new Error('Attempt not found');
             }
-            
-            // Use the shared evaluation engine
-            const result = evaluateExam(contestData, responses);
-            
-            totalScore = result.totalScore;
-            correctCount = result.correctCount;
-            totalAttempted = result.totalAttempted;
-        }
+            const attemptData = attemptSnap.data()!;
 
-        // --- Update User Stats if not Practice ---
-        if (!attemptData.isPractice && contestData) {
-            try {
-                const userRef = db.collection('users').doc(uid);
-                const userSnap = await userRef.get();
+            // IDEMPOTENCY CHECK
+            if (attemptData.isSubmitted) {
+                resultPayload = { success: true, warning: 'Already submitted', idempotent: true };
+                return;
+            }
+
+            // 2. Calculate actual time spent based on server clock
+            const serverTime = Date.now();
+            const timeSpentMs = serverTime - attemptData.startedAt;
+            const serverTimeLeft = attemptData.timeLeftSeconds || 0;
+            const allowedTimeMs = (serverTimeLeft * 1000) + 60000; // Add 60s grace period for network latency
+
+            if (timeSpentMs > allowedTimeMs && !attemptData.isPractice) {
+                // Flag this submission as late or invalid. 
+                // Do not accept new answers, just auto-submit what was previously synced.
+                console.warn(`[Submission Late] Attempt ${attemptId}. TimeSpent: ${timeSpentMs}, Allowed: ${allowedTimeMs}`);
+                t.update(attemptRef, {
+                    isSubmitted: true,
+                    submittedAt: serverTime,
+                    lastUpdated: serverTime,
+                    timeLeftSeconds: 0 // Enforce 0
+                });
+                resultPayload = { success: true, warning: 'Submission was late. Only previously synced answers were recorded.' };
+                return;
+            }
+
+            // --- Fetch Contest to Validate Server-Side ---
+            const actualContestId = attemptData.contestId || contestId;
+            const contestRef = db.collection('contests').doc(actualContestId);
+            const contestSnap = await t.get(contestRef);
+            let contestData: any = null;
+            let totalScore = 0;
+            let correctCount = 0;
+            let totalAttempted = 0;
+
+            if (contestSnap.exists) {
+                contestData = contestSnap.data()!;
+                
+                if (contestData.endTime) {
+                    const contestEndTimeMs = new Date(contestData.endTime).getTime();
+                    if (serverTime > contestEndTimeMs + 60000 && !attemptData.isPractice) {
+                        console.warn(`[Submission Late - Contest Ended] Attempt ${attemptId}. ServerTime: ${serverTime}, EndTime: ${contestEndTimeMs}`);
+                        t.update(attemptRef, {
+                            isSubmitted: true,
+                            submittedAt: serverTime,
+                            lastUpdated: serverTime,
+                            timeLeftSeconds: 0
+                        });
+                        resultPayload = { success: true, warning: 'Submission was late. The contest had already ended. Only previously synced answers were recorded.' };
+                        return;
+                    }
+                }
+                
+                // Use the shared evaluation engine
+                const result = evaluateExam(contestData, responses);
+                
+                totalScore = result.totalScore;
+                correctCount = result.correctCount;
+                totalAttempted = result.totalAttempted;
+            }
+
+            // --- Update User Stats if not Practice ---
+            if (!attemptData.isPractice && contestData) {
+                const userSnap = await t.get(userRef);
 
                 if (userSnap.exists) {
                     const userData = userSnap.data()!;
@@ -125,27 +151,31 @@ export async function POST(req: NextRequest) {
                         'stats.correct': (userData.stats?.correct || 0) + correctCount,
                     };
 
-                    await userRef.update(updateObject);
+                    t.update(userRef, updateObject);
                     console.log(`[Stats Update] User ${uid} updated for branch ${branch}.`);
                 }
-            } catch (err) {
-                console.error("[Stats Update Error]:", err);
-                // We don't fail the whole submission if stats update fails, but we log it.
             }
-        }
 
-        await attemptRef.update({
-            responses,
-            score: parseFloat(totalScore.toFixed(2)),
-            timeLeftSeconds,
-            isSubmitted: true,
-            submittedAt: serverTime,
-            lastUpdated: serverTime
+            const finalTimeLeftSeconds = Math.max(0, Math.floor(attemptData.timeLeftSeconds - (timeSpentMs / 1000)));
+
+            t.update(attemptRef, {
+                responses,
+                score: parseFloat(totalScore.toFixed(2)),
+                timeLeftSeconds: finalTimeLeftSeconds,
+                isSubmitted: true,
+                submittedAt: serverTime,
+                lastUpdated: serverTime
+            });
+
+            console.log(`[Submission Success] Attempt ${attemptId} marked as completed.`);
+            resultPayload = { success: true };
         });
 
-        console.log(`[Submission Success] Attempt ${attemptId} marked as completed.`);
+        if (resultPayload?.error) {
+            return NextResponse.json({ error: resultPayload.error }, { status: resultPayload.status || 400 });
+        }
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json(resultPayload);
 
     } catch (e: any) {
         console.error("Submission error:", e);

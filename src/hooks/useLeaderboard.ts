@@ -1,8 +1,6 @@
 "use client";
 
 import { useQuery } from '@tanstack/react-query';
-import { db } from '@/firebase';
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { User } from '@/data/mockData';
 import { useMetadata } from '@/contexts/MetadataContext';
 
@@ -14,24 +12,11 @@ export function useLeaderboard(limitCount: number = 5) {
         queryFn: async () => {
             if (!selectedBranch) return [];
 
-            const usersQuery = query(
-                collection(db, 'users'),
-                orderBy(`branchRatings.${selectedBranch}`, 'desc'),
-                limit(limitCount)
-            );
-            const usersSnapshot = await getDocs(usersQuery);
-
-            return usersSnapshot.docs.map(doc => {
-                const data = doc.data() as User;
-                const branchStats = data.branchStats?.[selectedBranch] || { attempted: 0, correct: 0, accuracy: 0, subjects: {} };
-                const branchRating = data.branchRatings?.[selectedBranch] || 1500;
-
-                return {
-                    ...data,
-                    stats: branchStats,
-                    rating: branchRating,
-                };
-            });
+            const res = await fetch(`/api/leaderboard?branch=${selectedBranch}&limit=${limitCount}`);
+            if (!res.ok) {
+                throw new Error('Failed to fetch leaderboard');
+            }
+            return res.json();
         },
         enabled: !!selectedBranch,
         staleTime: 1000 * 60 * 5, // 5 minutes

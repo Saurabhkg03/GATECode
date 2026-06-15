@@ -88,13 +88,10 @@ export default function HomeClient({
   const { data: recentQuestions, isLoading: loadingRecentQuestions } = useQuery({
     queryKey: ["recentQuestions", activeBranch],
     queryFn: async () => {
-      const q = query(
-        collection(db, `questions_${activeBranch}`),
-        orderBy("year", "desc"),
-        limit(20),
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+      const res = await fetch(`/api/dashboard-summary?branch=${activeBranch}`);
+      if (!res.ok) throw new Error('Failed to fetch dashboard summary');
+      const data = await res.json();
+      return data.recentQuestions || [];
     },
     initialData: activeBranch === initialBranch ? initialQuestions : undefined,
     staleTime: 1000 * 60, // 1 minute
@@ -434,7 +431,7 @@ export default function HomeClient({
                 No users yet.
               </p>
             ) : (
-              leaderboardPreview.map((leader, index) => (
+              leaderboardPreview.map((leader: any, index: number) => (
                 <div key={leader.uid || `leader-${index}`} className="flex items-center gap-4">
                   <div
                     className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm ${index === 0

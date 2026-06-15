@@ -21,6 +21,9 @@
     "@serwist/next": "^9.5.7",
     "@supabase/supabase-js": "^2.108.1",
     "@tanstack/react-query": "^5.90.20",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
+    "@vercel/functions": "^3.7.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.4",
@@ -38,7 +41,8 @@
     "serwist": "^9.5.7",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
