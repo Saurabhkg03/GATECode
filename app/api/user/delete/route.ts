@@ -5,31 +5,16 @@ import { apiError, apiSuccess } from '@/lib/apiResponse';
 
 async function deleteCollection(db: any, collectionPath: string, batchSize = 500) {
     const collectionRef = db.collection(collectionPath);
-    const query = collectionRef.orderBy('__name__').limit(batchSize);
+    let query = collectionRef.orderBy('__name__').limit(batchSize);
 
-    return new Promise((resolve, reject) => {
-        deleteQueryBatch(db, query, resolve).catch(reject);
-    });
-}
+    while (true) {
+        const snapshot = await query.get();
+        if (snapshot.size === 0) break;
 
-async function deleteQueryBatch(db: any, query: any, resolve: any) {
-    const snapshot = await query.get();
-
-    const batchSize = snapshot.size;
-    if (batchSize === 0) {
-        resolve();
-        return;
+        const batch = db.batch();
+        snapshot.docs.forEach((doc: any) => batch.delete(doc.ref));
+        await batch.commit();
     }
-
-    const batch = db.batch();
-    snapshot.docs.forEach((doc: any) => {
-        batch.delete(doc.ref);
-    });
-    await batch.commit();
-
-    process.nextTick(() => {
-        deleteQueryBatch(db, query, resolve);
-    });
 }
 
 export async function DELETE(req: NextRequest) {

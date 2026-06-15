@@ -9,7 +9,17 @@ const submitSchema = z.object({
   contestId: z.string().optional(),
   uid: z.string().min(1, "uid is required"),
   attemptId: z.string().min(1, "attemptId is required"),
-  responses: z.any().optional(),
+  responses: z.record(
+    z.string(),
+    z.object({
+      questionId: z.string(),
+      status: z.string(),
+      selectedOptions: z.array(z.string()).optional(),
+      natAnswer: z.string().nullable().optional(),
+      timeSpent: z.number().optional(),
+      markedAt: z.number().optional()
+    })
+  ).optional(),
   timeLeftSeconds: z.number().optional()
 });
 
