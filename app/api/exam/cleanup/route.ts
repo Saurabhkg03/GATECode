@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initAdmin } from '@/lib/firebaseAdmin';
+import { apiError, apiSuccess } from '@/lib/apiResponse';
 import admin from 'firebase-admin';
 import { processContestRatings } from '@/lib/ratingProcessor';
 
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
 
         const app = await initAdmin();
         if (!app) {
-             return NextResponse.json({ error: 'Firebase Admin not configured' }, { status: 500 });
+             return apiError('Firebase Admin not configured', 'SERVER_ERROR', 500);
         }
         const db = app.firestore();
 
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
         const staleSnap = await attemptsQuery.get();
 
         if (staleSnap.empty) {
-            return NextResponse.json({ cleaned: 0 });
+            return apiSuccess({ cleaned: 0 });
         }
 
         let cleaned = 0;
@@ -136,9 +137,9 @@ export async function POST(req: NextRequest) {
             console.error('[Cleanup Auto-Elo] Error querying ended contests:', err);
         }
 
-        return NextResponse.json({ cleaned, processedContests });
+        return apiSuccess({ cleaned, processedContests });
     } catch (e: any) {
         console.error('[Cleanup] Error:', e);
-        return NextResponse.json({ error: e.message || 'Internal Server Error' }, { status: 500 });
+        return apiError(e.message || 'Internal Server Error', 'INTERNAL_ERROR', 500);
     }
 }

@@ -16,7 +16,8 @@ export function useLeaderboard(limitCount: number = 5) {
             if (!res.ok) {
                 throw new Error('Failed to fetch leaderboard');
             }
-            return res.json();
+            const data = await res.json();
+            return (data.data || []) as any[];
         },
         enabled: !!selectedBranch,
         staleTime: 1000 * 60 * 5, // 5 minutes

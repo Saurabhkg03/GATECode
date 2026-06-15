@@ -5,6 +5,7 @@ import { evaluateExam } from '@/utils/examScoring';
 import { initAdmin } from '@/lib/firebaseAdmin';
 import { z } from 'zod';
 import { examStartLimiter } from '@/lib/rateLimit';
+import { apiError, apiSuccess } from '@/lib/apiResponse';
 
 const startSchema = z.object({
   contestId: z.string().min(1, "contestId is required"),
@@ -16,32 +17,29 @@ export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
         const parsed = startSchema.safeParse(body);
-
         if (!parsed.success) {
-            return NextResponse.json({ error: 'Bad Request', details: parsed.error.format() }, { status: 400 });
+            return apiError('Bad Request', 'BAD_REQUEST', 400, parsed.error.format());
         }
 
         const { contestId, uid, forceFresh } = parsed.data;
 
         const authHeader = req.headers.get('authorization');
-        if (!authHeader?.startsWith('Bearer ')) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        if (!authHeader?.startsWith('Bearer ')) return apiError('Unauthorized', 'UNAUTHORIZED', 401);
 
         const token = authHeader.split('Bearer ')[1];
         const app = await initAdmin();
         if (!app) {
-             return NextResponse.json({ error: 'Firebase Admin not configured' }, { status: 500 });
+             return apiError('Firebase Admin not configured', 'SERVER_ERROR', 500);
         }
         const decodedToken = await app.auth().verifyIdToken(token);
-
         if (decodedToken.uid !== uid) {
-            return NextResponse.json({ error: 'Forbidden: UID mismatch' }, { status: 403 });
+            return apiError('Forbidden: UID mismatch', 'FORBIDDEN', 403);
         }
 
         const { success } = await examStartLimiter.limit(uid);
         if (!success) {
-            return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+            return apiError('Too Many Requests', 'RATE_LIMITED', 429);
         }
-
 
         const db = app.firestore();
 
@@ -64,13 +62,14 @@ export async function POST(req: NextRequest) {
         }
 
         if (!contestSnap.exists) {
-            return NextResponse.json({ error: 'Contest not found' }, { status: 404 });
+            return apiError('Contest not found', 'NOT_FOUND', 404);
         }
 
         const contestData = contestSnap.data() as Contest;
         let attempt: ContestAttempt | undefined = undefined;
         let serverTime = Date.now();
         const DEDUP_WINDOW_MS = 10_000;
+        let resultPayload: any;
 
         await db.runTransaction(async (t: any) => {
             const attemptsQuery = db.collection('contest_attempts')
@@ -170,51 +169,31 @@ export async function POST(req: NextRequest) {
                 };
 
                 t.set(attemptRef, attempt);
+                console.log(`[Exam Started] User ${uid} starting contest ${contestId}. TimeLeft: ${allocatedSeconds}s`);
             }
-        });
 
-        // 3. Extract Questions from Contest Document
-        // The questions are now embedded in the sections to ensure the test matches exactly what was generated.
+            // 3. Extract Questions from Contest Document
+            const allQuestions = contestData.sections.flatMap((s: Section) => s.questions);
 
-        const allQuestions = contestData.sections.flatMap((s: Section) => s.questions);
-
-        const sanitizedQuestions = allQuestions.map((q: Question) => {
-            // CRITICAL: SANITIZE
-            const {
+            const sanitizedQuestions = allQuestions.map((q: Question) => {
                 // @ts-ignore
-                explanation_html, explanation_image_links,
-                // @ts-ignore
-                options, correctAnswerLabel, correctAnswerLabels,
-                // @ts-ignore
-                nat_answer_min, nat_answer_max, // Strictly, we shouldn't send these if client validation isn't trusted. 
-                // But for a simple app usage, maybe keep NAT ranges for immediate feedback? 
-                // GATE usually validates on server or post-submission. 
-                // Let's hide them for security.
-                ...safeRest
-            } = q;
+                const { explanation_html, explanation_image_links, options, correctAnswerLabel, correctAnswerLabels, nat_answer_min, nat_answer_max, ...safeRest } = q;
+                const safeOptions = q.options?.map((opt: any) => ({ label: opt.label, text_html: opt.text_html }));
+                return { ...safeRest, options: safeOptions };
+            });
 
-            // Sanitize options
-            const safeOptions = q.options?.map((opt: any) => ({
-                label: opt.label,
-                text_html: opt.text_html,
-                // Remove is_correct
-            }));
-
-            return {
-                ...safeRest,
-                options: safeOptions
+            resultPayload = {
+                attempt,
+                contest: contestData,
+                questions: sanitizedQuestions,
+                serverTime
             };
         });
 
-        return NextResponse.json({
-            attempt,
-            contest: contestData,
-            questions: sanitizedQuestions,
-            serverTime
-        });
+        return apiSuccess(resultPayload);
 
-    } catch (error: any) {
-        console.error('Exam Start Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (e: any) {
+        console.error("Exam start error:", e);
+        return apiError(e.message || 'Internal Server Error', 'INTERNAL_ERROR', 500);
     }
 }

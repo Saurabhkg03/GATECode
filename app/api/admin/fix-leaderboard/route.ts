@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { requireAdmin } from '@/lib/adminAuth';
 import { adminLimiter } from '@/lib/rateLimit';
+import { apiError, apiSuccess } from '@/lib/apiResponse';
 
 const BRANCHES = ['ece', 'cse', 'me', 'ce', 'ee'];
 
@@ -11,11 +12,11 @@ export async function GET(req: NextRequest) {
 
         const { success } = await adminLimiter.limit(decoded.uid);
         if (!success) {
-            return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+            return apiError('Too Many Requests', 'RATE_LIMITED', 429);
         }
 
         if (!adminDb) {
-            return NextResponse.json({ error: "adminDb not initialized" }, { status: 500 });
+            return apiError('adminDb not initialized', 'SERVER_ERROR', 500);
         }
 
         const usersRef = adminDb.collection('users');
@@ -84,8 +85,8 @@ export async function GET(req: NextRequest) {
             }
         }
 
-        return NextResponse.json({ success: true, updatedCount });
+        return apiSuccess({ updatedCount });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return apiError(error.message, 'INTERNAL_ERROR', 500);
     }
 }

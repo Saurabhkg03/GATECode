@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initAdmin } from '@/lib/firebaseAdmin';
 import { authLimiter } from '@/lib/rateLimit';
+import { apiError, apiSuccess } from '@/lib/apiResponse';
 
 async function deleteCollection(db: any, collectionPath: string, batchSize = 500) {
     const collectionRef = db.collection(collectionPath);
@@ -35,14 +36,14 @@ export async function DELETE(req: NextRequest) {
     try {
         const authHeader = req.headers.get('authorization');
         if (!authHeader?.startsWith('Bearer ')) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return apiError('Unauthorized', 'UNAUTHORIZED', 401);
         }
 
         const token = authHeader.split('Bearer ')[1];
         
         const app = await initAdmin();
         if (!app) {
-             return NextResponse.json({ error: 'Firebase Admin not configured' }, { status: 500 });
+             return apiError('Firebase Admin not configured', 'SERVER_ERROR', 500);
         }
 
         const decodedToken = await app.auth().verifyIdToken(token);
@@ -50,7 +51,7 @@ export async function DELETE(req: NextRequest) {
 
         const { success } = await authLimiter.limit(uid);
         if (!success) {
-            return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+            return apiError('Too Many Requests', 'RATE_LIMITED', 429);
         }
 
         const db = app.firestore();
@@ -66,10 +67,10 @@ export async function DELETE(req: NextRequest) {
         // 3. Delete Auth user
         await app.auth().deleteUser(uid);
 
-        return NextResponse.json({ success: true });
+        return apiSuccess();
 
     } catch (error: any) {
         console.error("Delete Account Error:", error);
-        return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+        return apiError(error.message || 'Internal Server Error', 'INTERNAL_ERROR', 500);
     }
 }

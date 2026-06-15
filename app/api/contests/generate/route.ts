@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { Contest, Question, Section } from '@/types/exam';
 import { sampleQuestions } from '@/data/sampleQuestions';
+import { apiError, apiSuccess } from '@/lib/apiResponse';
 
 const shuffle = <T,>(array: T[]) => array.sort(() => Math.random() - 0.5);
 
@@ -22,11 +23,11 @@ export async function POST(req: NextRequest) {
         } = body;
 
         if (!branch || !uid || uid === 'anonymous') {
-            return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+            return apiError('Authentication required', 'UNAUTHORIZED', 401);
         }
 
         if (!adminDb) {
-            return NextResponse.json({ error: 'Firebase Admin not initialized' }, { status: 500 });
+            return apiError('Firebase Admin not initialized', 'SERVER_ERROR', 500);
         }
 
         const sourceCollection = `questions_${branch}`;
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
         messages.push(`Total Pool Size: ${totalFound} (Real + Sample).`);
 
         if (totalFound < 5) {
-            return NextResponse.json({ error: `Insufficient questions even with samples. Found ${totalFound}, need at least 5.` }, { status: 400 });
+            return apiError(`Insufficient questions even with samples. Found ${totalFound}, need at least 5.`, 'BAD_REQUEST', 400);
         }
 
         const gaQuestions = allQuestions.filter(q => {
@@ -139,9 +140,7 @@ export async function POST(req: NextRequest) {
                             finalSections[1].questions.reduce((sum, q) => sum + Number(q.marks), 0);
                             
         if (actualMarks !== 100) {
-            return NextResponse.json({ 
-                error: `Cannot generate a valid 100-mark exam. The generated exam contains ${actualMarks} marks. Ensure the database has enough 1-mark and 2-mark questions.` 
-            }, { status: 400 });
+            return apiError(`Cannot generate a valid 100-mark exam. The generated exam contains ${actualMarks} marks. Ensure the database has enough 1-mark and 2-mark questions.`, 'BAD_REQUEST', 400);
         }
         const prefix = isAdminContest ? 'admin' : 'mock';
         const newContestId = `${Date.now()}-${prefix}-${branch}`;
@@ -179,8 +178,7 @@ export async function POST(req: NextRequest) {
 
         await adminDb.collection('contests').doc(newContestId).set(newContest);
 
-        return NextResponse.json({
-            success: true,
+        return apiSuccess({
             contestId: newContestId,
             title,
             totalQs,
@@ -191,6 +189,6 @@ export async function POST(req: NextRequest) {
 
     } catch (error: any) {
         console.error('Error generating contest:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return apiError(error.message, 'INTERNAL_ERROR', 500);
     }
 }

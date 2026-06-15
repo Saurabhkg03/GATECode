@@ -11,9 +11,16 @@ const redis = hasUpstash ? new Redis({
 }) : {} as any;
 
 // Fallback mock ratelimiter that always succeeds if env vars are not set
-const createMockRatelimiter = () => ({
-    limit: async () => ({ success: true, limit: 100, remaining: 99, reset: 0 }),
-});
+const createMockRatelimiter = () => {
+    return {
+        limit: async () => {
+            if (process.env.NODE_ENV === 'production') {
+                throw new Error('Rate limiter not configured in production. Missing Upstash Redis URL/Token.');
+            }
+            return { success: true, limit: 100, remaining: 99, reset: 0 };
+        },
+    };
+};
 
 export const getRateLimiter = (options: { limit: number, window: `${number} s` | `${number} m` | `${number} h` | `${number} d` }) => {
     if (!hasUpstash) {

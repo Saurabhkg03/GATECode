@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initAdmin } from '@/lib/firebaseAdmin';
 import { z } from 'zod';
 import { examSubmitLimiter } from '@/lib/rateLimit';
+import { apiError, apiSuccess } from '@/lib/apiResponse';
 
 const autosaveSchema = z.object({
   uid: z.string().min(1, "uid is required"),
@@ -16,28 +17,28 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const parsed = autosaveSchema.safeParse(body);
         if (!parsed.success) {
-            return NextResponse.json({ error: 'Bad Request', details: parsed.error.format() }, { status: 400 });
+            return apiError('Bad Request', 'BAD_REQUEST', 400, parsed.error.format());
         }
 
         const { uid, attemptId, responses, tabSwitchCount, tabSwitchViolations } = parsed.data;
 
         const authHeader = req.headers.get('authorization');
-        if (!authHeader?.startsWith('Bearer ')) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        if (!authHeader?.startsWith('Bearer ')) return apiError('Unauthorized', 'UNAUTHORIZED', 401);
 
         const token = authHeader.split('Bearer ')[1];
         const app = await initAdmin();
-        if (!app) return NextResponse.json({ error: 'Firebase Admin not configured' }, { status: 500 });
+        if (!app) return apiError('Firebase Admin not configured', 'SERVER_ERROR', 500);
 
         const decodedToken = await app.auth().verifyIdToken(token);
         if (decodedToken.uid !== uid) {
-            return NextResponse.json({ error: 'Forbidden: UID mismatch' }, { status: 403 });
+            return apiError('Forbidden: UID mismatch', 'FORBIDDEN', 403);
         }
 
         // We can just use the same limiter, but a slightly larger threshold would be better.
         // Assuming examSubmitLimiter allows a few hits per 10s.
         const { success } = await examSubmitLimiter.limit(uid);
         if (!success) {
-            return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+            return apiError('Too Many Requests', 'RATE_LIMITED', 429);
         }
 
         const db = app.firestore();
@@ -65,9 +66,9 @@ export async function POST(req: NextRequest) {
             t.update(attemptRef, updates);
         });
 
-        return NextResponse.json({ success: true });
+        return apiSuccess();
     } catch (e: any) {
         console.error("Autosave error:", e);
-        return NextResponse.json({ error: e.message }, { status: 500 });
+        return apiError(e.message, 'INTERNAL_ERROR', 500);
     }
 }
