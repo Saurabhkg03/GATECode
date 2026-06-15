@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { CheckCircle, Circle } from 'lucide-react';
+import { CheckCircle, Circle, XCircle } from 'lucide-react';
 import { Question } from '@/data/mockData';
 
 // Dynamic import for Code Splitting
@@ -11,10 +11,10 @@ const LatexRenderer = dynamic(() => import('./LatexRenderer'), {
 
 interface QuestionCardProps {
     question: Question;
-    isSolved: boolean;
+    submissionStatus?: 'correct' | 'incorrect' | 'unattempted';
 }
 
-export default function QuestionCard({ question, isSolved }: QuestionCardProps) {
+export default function QuestionCard({ question, submissionStatus = 'unattempted' }: QuestionCardProps) {
     const getQuestionTypeColor = (type: string | undefined) => {
         switch (type) {
             case 'mcq': return 'text-blue-600 dark:text-blue-400';
@@ -24,20 +24,24 @@ export default function QuestionCard({ question, isSolved }: QuestionCardProps) 
         }
     };
 
+    const isAttempted = submissionStatus !== 'unattempted';
+
     return (
         <Link
             href={`/question/${question.id}`}
             className="block group"
         >
-            <div className={`flex items-center gap-4 px-4 py-3 sm:py-5 transition-all duration-200 border-b border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:scale-[1.01] hover:shadow-[0_0_15px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_0_15px_rgba(255,255,255,0.02)] relative z-0 hover:z-10 rounded-lg ${isSolved
+            <div className={`flex items-center gap-4 px-4 py-3 sm:py-5 transition-all duration-200 border-b border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:scale-[1.01] hover:shadow-[0_0_15px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_0_15px_rgba(255,255,255,0.02)] relative z-0 hover:z-10 rounded-lg ${isAttempted
                 ? 'bg-zinc-50/10 dark:bg-zinc-900/10'
                 : 'bg-transparent'
                 }`}>
                 
                 {/* 1. Status Column */}
                 <div className="flex-shrink-0 w-8 flex justify-center">
-                    {isSolved ? (
+                    {submissionStatus === 'correct' ? (
                         <CheckCircle className="w-4 h-4 text-green-500" />
+                    ) : submissionStatus === 'incorrect' ? (
+                        <XCircle className="w-4 h-4 text-red-500" />
                     ) : (
                         <Circle className="w-4 h-4 text-zinc-300 dark:text-zinc-600 group-hover:text-blue-500" />
                     )}

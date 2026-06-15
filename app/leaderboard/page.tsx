@@ -19,51 +19,108 @@ interface LeaderboardUser extends User {
 }
 
 const PodiumCard = ({ user, rank }: { user: LeaderboardUser; rank: number }) => {
-    const rankStyles: Record<number, any> = {
-        1: { gradient: 'from-amber-400 to-yellow-500', shadow: 'shadow-yellow-500/40', iconColor: 'text-amber-600 dark:text-amber-300', ring: 'ring-yellow-400', order: 'order-1 md:order-2', height: 'mt-0 md:-mt-6' },
-        2: { gradient: 'from-zinc-400 to-gray-500', shadow: 'shadow-gray-500/40', iconColor: 'text-gray-600 dark:text-zinc-300', ring: 'ring-gray-400', order: 'order-2 md:order-1', height: 'mt-0' },
-        3: { gradient: 'from-orange-400 to-amber-600', shadow: 'shadow-orange-600/40', iconColor: 'text-orange-600 dark:text-orange-300', ring: 'ring-orange-500', order: 'order-3', height: 'mt-0' },
+    const rankConfig: Record<number, {
+        gradient: string;
+        ring: string;
+        glow: string;
+        border: string;
+        rankColor: string;
+        order: string;
+        crown: boolean;
+        marginTop: string;
+    }> = {
+        1: {
+            gradient: 'from-amber-400 to-yellow-500',
+            ring: 'ring-[3px] ring-yellow-400',
+            glow: 'shadow-[0_0_24px_rgba(234,179,8,0.25)]',
+            border: 'border border-yellow-500/25',
+            rankColor: 'text-yellow-400',
+            order: 'order-1 md:order-2',
+            crown: true,
+            marginTop: '',
+        },
+        2: {
+            gradient: 'from-zinc-500 to-zinc-600',
+            ring: 'ring-[3px] ring-zinc-400',
+            glow: '',
+            border: 'border border-zinc-700/50',
+            rankColor: 'text-zinc-400',
+            order: 'order-2 md:order-1',
+            crown: false,
+            marginTop: 'md:mt-10',
+        },
+        3: {
+            gradient: 'from-orange-500 to-amber-600',
+            ring: 'ring-[3px] ring-orange-500',
+            glow: '',
+            border: 'border border-orange-600/25',
+            rankColor: 'text-orange-400',
+            order: 'order-3',
+            crown: false,
+            marginTop: 'md:mt-10',
+        },
     };
-    const styles = rankStyles[rank] || {};
+
+    const cfg = rankConfig[rank] || rankConfig[3];
 
     return (
-        <div className={`w-full ${styles.order} ${styles.height}`}>
-            <div className={`relative w-full glass-card p-4 rounded-2xl flex flex-row md:flex-col items-center text-left md:text-center gap-5 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${styles.shadow}`}>
-                {rank === 1 && <Crown className="absolute -top-3.5 md:-top-4 left-6 md:left-1/2 md:-translate-x-1/2 w-7 h-7 text-yellow-400 drop-shadow-lg z-10" fill="currentColor" />}
-                <div className={`absolute top-2 right-4 md:top-2 md:right-2 text-xl font-bold ${styles.iconColor} opacity-40 md:opacity-70`}>#{rank}</div>
-                
-                <div className="relative shrink-0">
+        <div className={`w-full ${cfg.order} ${cfg.marginTop}`}>
+            <div className={`relative w-full bg-zinc-900 ${cfg.border} rounded-2xl p-5 flex flex-col items-center text-center gap-3 transition-all duration-300 hover:-translate-y-1 ${cfg.glow}`}>
+                {/* Rank badge */}
+                <div className={`absolute top-3 right-3.5 text-sm font-black ${cfg.rankColor}`}>
+                    #{rank}
+                </div>
+
+                {/* Crown for 1st place */}
+                {cfg.crown && (
+                    <Crown
+                        className="w-7 h-7 text-yellow-400 drop-shadow-[0_2px_10px_rgba(234,179,8,0.6)] animate-bounce"
+                        style={{ animationDuration: '3s' }}
+                        fill="currentColor"
+                    />
+                )}
+
+                {/* Avatar */}
+                <div className={cfg.crown ? '' : 'mt-5'}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                         src={user.avatar || '/user.png'}
                         alt={user.name}
-                        className={`w-20 h-20 md:w-24 md:h-24 rounded-full object-cover ring-4 ${styles.ring} shadow-md`}
+                        className={`w-20 h-20 rounded-full object-cover ${cfg.ring} shadow-md`}
                         onError={(e) => { (e.target as HTMLImageElement).src = '/user.png'; }}
                     />
                 </div>
 
-                <div className="flex-1 min-w-0 md:w-full">
-                    <Link href={`/profile/${user.username}`} className={`font-bold text-lg md:text-base hover:underline truncate block ${getRankTier(user.contestElo).color}`}>
+                {/* Name & username */}
+                <div className="min-w-0 w-full">
+                    <Link
+                        href={`/profile/${user.username}`}
+                        className={`font-bold text-base hover:underline truncate block ${getRankTier(user.contestElo).color}`}
+                    >
                         {user.name}
                     </Link>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                    <p className="text-xs text-zinc-500 truncate mt-0.5">
                         @{user.username} • <span className={getRankTier(user.contestElo).color}>{getRankTier(user.contestElo).title}</span>
                     </p>
-                    
-                    <div className={`mt-3 w-full bg-gradient-to-r ${styles.gradient} p-2.5 rounded-xl shadow-inner md:mt-4`}>
-                        <div className="grid grid-cols-3 gap-1 items-center text-white text-center">
-                            <div>
-                                <p className="font-bold text-sm md:text-base leading-tight">{user.contestElo}</p>
-                                <p className="text-[9px] md:text-[10px] opacity-90">Contest Elo</p>
-                            </div>
-                            <div className="border-x border-white/25">
-                                <p className="font-bold text-sm md:text-base leading-tight">{user.practiceRating.toFixed(1)}</p>
-                                <p className="text-[9px] md:text-[10px] opacity-90">Practice</p>
-                            </div>
-                            <div>
-                                <p className="font-bold text-sm md:text-base leading-tight">{(user.stats?.accuracy ?? 0).toFixed(1)}%</p>
-                                <p className="text-[9px] md:text-[10px] opacity-90">Accuracy</p>
-                            </div>
+                </div>
+
+                {/* Spacer to push stats to bottom */}
+                <div className="flex-1" />
+
+                {/* Stats bar — always pinned to bottom */}
+                <div className={`w-full bg-gradient-to-r ${cfg.gradient} rounded-xl p-2.5`}>
+                    <div className="grid grid-cols-3 items-center text-white text-center">
+                        <div>
+                            <p className="font-bold text-sm leading-tight">{user.contestElo}</p>
+                            <p className="text-[9px] opacity-90 mt-0.5">Contest Elo</p>
+                        </div>
+                        <div className="border-x border-white/25">
+                            <p className="font-bold text-sm leading-tight">{user.practiceRating.toFixed(1)}</p>
+                            <p className="text-[9px] opacity-90 mt-0.5">Practice</p>
+                        </div>
+                        <div>
+                            <p className="font-bold text-sm leading-tight">{(user.stats?.accuracy ?? 0).toFixed(1)}%</p>
+                            <p className="text-[9px] opacity-90 mt-0.5">Accuracy</p>
                         </div>
                     </div>
                 </div>
@@ -294,27 +351,35 @@ export default function Leaderboard() {
     }
 
     return (
-        <div className="min-h-screen w-full px-4 py-6">
-            <div className="max-w-4xl mx-auto">
-                <div className="text-center mb-6">
-                    <div className="inline-flex items-center justify-center gap-3 mb-1">
-                        <Trophy className="w-8 h-8 text-yellow-400" />
-                        <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">Leaderboard ({branchName})</h1>
-                        <button
-                            onClick={() => setIsInfoModalOpen(true)}
-                            className="p-1 rounded-full text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
-                            aria-label="How rating is calculated"
-                        >
-                            <Info className="w-5 h-5" />
-                        </button>
-                    </div>
-                    <p className="text-zinc-600 dark:text-zinc-400 text-sm">
-                        {totalUsers > 0
-                            ? `Showing ranks ${(currentPage - 1) * PAGE_SIZE + 1}-${Math.min(currentPage * PAGE_SIZE, totalUsers)} of ${totalUsers} total users`
-                            : `Top performers for ${branchName}`
-                        }
-                    </p>
+        <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors">
+            {/* Page header */}
+            <div className="relative pt-10 pb-5 px-4 sm:px-6 lg:px-8 text-center overflow-hidden">
+                <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-48 bg-[radial-gradient(ellipse_at_top,rgba(99,102,241,0.15),transparent_70%)] rounded-full" />
                 </div>
+                <div className="inline-flex items-center justify-center gap-3 mb-1.5 relative z-10">
+                    <Trophy className="w-8 h-8 md:w-10 md:h-10 text-yellow-400 shrink-0" />
+                    <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900 dark:text-white">
+                        Leaderboard <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">({branchName})</span>
+                    </h1>
+                    <button
+                        onClick={() => setIsInfoModalOpen(true)}
+                        className="p-1 rounded-full text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors mt-1 md:mt-2"
+                        aria-label="How rating is calculated"
+                    >
+                        <Info className="w-5 h-5 md:w-6 md:h-6" />
+                    </button>
+                </div>
+                <p className="text-gray-500 dark:text-zinc-400 text-sm relative z-10">
+                    {totalUsers > 0
+                        ? `Showing ranks ${(currentPage - 1) * PAGE_SIZE + 1}-${Math.min(currentPage * PAGE_SIZE, totalUsers)} of ${totalUsers} total users`
+                        : `Top performers for ${branchName}`
+                    }
+                </p>
+            </div>
+
+            <div className="w-full px-4 py-6">
+                <div className="max-w-4xl mx-auto">
 
                 {/* Sorting Tabs */}
                 <div className="flex justify-center mb-6">
@@ -345,7 +410,7 @@ export default function Leaderboard() {
                 </div>
 
                 {currentPage === 1 && topThreePodium.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 items-end">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 items-start">
                         {topThreePodium[1] && <PodiumCard user={topThreePodium[1]} rank={2} />}
                         {topThreePodium[0] && <PodiumCard user={topThreePodium[0]} rank={1} />}
                         {topThreePodium[2] && <PodiumCard user={topThreePodium[2]} rank={3} />}
@@ -437,8 +502,9 @@ export default function Leaderboard() {
                     </div>
                 )}
             </div>
+        </div>
 
-            <RatingInfoModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
+        <RatingInfoModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
 
             <style>{`
             .pagination-button {

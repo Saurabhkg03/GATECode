@@ -190,6 +190,7 @@ function PracticeContent() {
     const [pageCache, setPageCache] = useState<Record<number, Question[]>>(initialCache?.pageCache || {});
     const [pageCursors, setPageCursors] = useState<Record<number, DocumentSnapshot>>(initialCache?.pageCursors || {});
     const [maxReachedPage, setMaxReachedPage] = useState(initialCache?.maxReachedPage || 1);
+    const [queryError, setQueryError] = useState<string>('');
 
     // Sync to global cache
     useEffect(() => {
@@ -208,6 +209,7 @@ function PracticeContent() {
 
         try {
             setIsLoadingQuestions(true);
+            setQueryError('');
 
             if (selectedListId !== null) {
                 const ids = listQuestionIds || [];
@@ -233,8 +235,8 @@ function PracticeContent() {
                 }
             } else {
                 const constraints: QueryConstraint[] = [];
-                // Admin/Moderator sees all, others see verified
-                if (userInfo && userInfo.role !== 'admin' && userInfo.role !== 'moderator') {
+                // Admin/Moderator sees all, others (including guests) see verified
+                if (!userInfo || (userInfo.role !== 'admin' && userInfo.role !== 'moderator')) {
                     constraints.push(where('verified', '==', true));
                 }
 
@@ -243,15 +245,7 @@ function PracticeContent() {
                 if (topicFilter !== 'all') constraints.push(where('topic', '==', topicFilter));
                 if (yearFilter !== 'all') constraints.push(where('year', '==', yearFilter));
 
-                // --- Zero-Read Cache Check ---
-                // We check it before counting total, saving a count query if we already cached this page!
-                // We can't completely skip the count query if we don't have totalQuestions cached, 
-                // but since it's cached globally, we can check.
-                if (pageCache[pageToFetch]) {
-                    setQuestions(pageCache[pageToFetch]);
-                    setIsLoadingQuestions(false);
-                    return; // Skip refetching entirely if we have it cached!
-                }
+                // Cache check removed to ensure fresh data after verification
 
                 // 1. Get exact total count for pagination first!
                 const countQuery = query(collection(db, questionCollectionPath), ...constraints);
@@ -303,8 +297,9 @@ function PracticeContent() {
                 }
                 setMaxReachedPage(prev => Math.max(prev, pageToFetch));
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error fetching questions:", error);
+            setQueryError(error.message || 'An error occurred fetching questions.');
         } finally {
             setIsLoadingQuestions(false);
         }
@@ -312,25 +307,12 @@ function PracticeContent() {
 
     // Auto-fetch when filters/dependencies change
     useEffect(() => {
-        // Only reset if we do NOT have a cache for this new key!
-        if (globalPracticeCache[cacheKey]) {
-            const cached = globalPracticeCache[cacheKey];
-            setQuestions(cached.pageCache[1] || []);
-            setTotalPages(cached.totalPages);
-            setTotalQuestions(cached.totalQuestions);
-            setPageCache(cached.pageCache);
-            setPageCursors(cached.pageCursors);
-            setMaxReachedPage(cached.maxReachedPage);
-            setCurrentPage(1);
-            setIsLoadingQuestions(false);
-        } else {
-            setQuestions([]);
-            setCurrentPage(1);
-            setPageCache({});
-            setPageCursors({});
-            setMaxReachedPage(1);
-            fetchQuestions(1);
-        }
+        setQuestions([]);
+        setCurrentPage(1);
+        setPageCache({});
+        setPageCursors({});
+        setMaxReachedPage(1);
+        fetchQuestions(1);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [cacheKey]);
 
@@ -364,6 +346,10 @@ function PracticeContent() {
     const tags = useMemo(() => metadata?.tags || [], [metadata]);
     const solvedQuestionIds = useMemo(() =>
         new Set(submissions.filter(s => s.correct).map(s => s.qid)),
+        [submissions]
+    );
+    const incorrectQuestionIds = useMemo(() =>
+        new Set(submissions.filter(s => !s.correct).map(s => s.qid)),
         [submissions]
     );
 
@@ -457,8 +443,8 @@ function PracticeContent() {
                     </select>
                 </div>
                 {(filtersAreActive || sortOrder !== 'qIndex-asc') && (
-                    <button onClick={handleResetFilters} className="px-3 py-1 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-md text-sm flex items-center gap-1">
-                        <RotateCcw className="w-3 h-3" /> Reset
+                    <button onClick={handleResetFilters} className="px-3 py-1 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-650 dark:text-zinc-300 rounded-md text-sm flex items-center gap-1">
+                        <RotateCcw className="w-3.5 h-3.5" /> Reset
                     </button>
                 )}
             </div>
@@ -466,7 +452,34 @@ function PracticeContent() {
     );
 
     return (
-        <div className="min-h-screen">
+        <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors">
+            {/* Page header */}
+            <div className="relative pt-10 pb-5 px-4 sm:px-6 lg:px-8 text-center overflow-hidden">
+                <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-48 bg-[radial-gradient(ellipse_at_top,rgba(99,102,241,0.15),transparent_70%)] rounded-full" />
+                </div>
+                <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900 dark:text-white mb-1.5 relative z-10">
+                    Practice Questions <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">({branchName})</span>
+                </h1>
+                <div className="text-gray-500 dark:text-zinc-400 text-sm relative z-10 flex items-center justify-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0 animate-pulse" />
+                    <span>
+                        {isLoadingQuestions && questions.length === 0 ? 'Loading your question bank...' : (
+                            (questions.length > 0) ? (
+                                <>
+                                    {totalQuestions} expertly curated questions
+                                    {!user && questions.length === 10 && (
+                                        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100/80 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400 ring-1 ring-inset ring-amber-500/20">
+                                            Preview
+                                        </span>
+                                    )}
+                                </>
+                            ) : '0 questions found'
+                        )}
+                    </span>
+                </div>
+            </div>
+
             <div className="max-w-full mx-auto flex flex-col md:flex-row">
                 {/* Desktop Sidebar */}
                 <div className="hidden md:block w-64 lg:w-72 flex-shrink-0 p-4 space-y-4 md:border-r border-zinc-200 dark:border-zinc-800">
@@ -498,40 +511,6 @@ function PracticeContent() {
 
                 <div className="flex-1 min-w-0">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-                        <div className="mb-4 relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50/50 via-indigo-50/30 to-purple-50/50 dark:from-blue-900/10 dark:via-indigo-900/5 dark:to-purple-900/10 border border-indigo-100/50 dark:border-indigo-500/10 p-4 sm:p-8">
-                            <div className="absolute top-0 right-0 -mt-12 -mr-12 w-48 h-48 bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-3xl"></div>
-                            <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-48 h-48 bg-purple-500/10 dark:bg-purple-500/5 rounded-full blur-3xl"></div>
-                            
-                            <div className="relative flex items-center gap-4 sm:gap-5">
-                                <div className="p-2 sm:p-3 bg-white dark:bg-zinc-800/80 shadow-sm rounded-xl border border-zinc-100 dark:border-zinc-700/50 flex-shrink-0">
-                                    <BookOpen className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600 dark:text-indigo-400" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h1 className="text-xl sm:text-3xl font-bold text-zinc-900 dark:text-white mb-0.5 sm:mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-                                        Practice Questions <span className="text-indigo-600 dark:text-indigo-400 text-lg sm:text-3xl">({branchName})</span>
-                                    </h1>
-                                    <div className="text-[11px] sm:text-base text-zinc-600 dark:text-zinc-400 flex items-center gap-1">
-                                        <Sparkles className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                                        <span>
-                                            {isLoadingQuestions && questions.length === 0 ? 'Loading your question bank...' : (
-                                                (questions.length > 0)
-                                                    ? (
-                                                        <>
-                                                            {totalQuestions} expertly curated questions
-                                                            {!user && questions.length === 10 && (
-                                                                <span className="ml-2 inline-flex items-center px-1 py-0.5 rounded text-[10px] sm:text-xs font-medium bg-amber-100/80 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400 ring-1 ring-inset ring-amber-500/20">
-                                                                    Preview
-                                                                </span>
-                                                            )}
-                                                        </>
-                                                    )
-                                                    : '0 questions found'
-                                            )}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
                         {/* Mobile Collapsibles */}
                         <div className="md:hidden space-y-3 mb-6">
@@ -676,6 +655,19 @@ function PracticeContent() {
                                         <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-4" />
                                         <p className="text-sm font-medium animate-pulse">Fetching questions...</p>
                                     </div>
+                                ) : queryError ? (
+                                    <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
+                                        <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-6 shadow-inner border border-red-200 dark:border-red-800/50">
+                                            <span className="text-red-500 dark:text-red-400 font-bold text-2xl">!</span>
+                                        </div>
+                                        <h3 className="text-lg sm:text-xl font-semibold text-red-600 dark:text-red-400 mb-2">
+                                            Error Loading Questions
+                                        </h3>
+                                        <p className="text-red-500/80 dark:text-red-400/80 max-w-md mb-6 text-sm">
+                                            {queryError}
+                                        </p>
+                                        <p className="text-xs text-zinc-500 dark:text-zinc-500">You may need to build Firestore indexes.</p>
+                                    </div>
                                 ) : questions.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
                                         <div className="w-20 h-20 bg-zinc-100 dark:bg-zinc-800/80 rounded-full flex items-center justify-center mb-6 shadow-inner border border-zinc-200/50 dark:border-zinc-700/50">
@@ -696,13 +688,19 @@ function PracticeContent() {
                                         </button>
                                     </div>
                                 ) : (
-                                    questions.map((q) => (
-                                        <QuestionCard
-                                            key={q.id}
-                                            question={q}
-                                            isSolved={solvedQuestionIds.has(q.id)}
-                                        />
-                                    ))
+                                    questions.map((q) => {
+                                        let status: 'correct' | 'incorrect' | 'unattempted' = 'unattempted';
+                                        if (solvedQuestionIds.has(q.id)) status = 'correct';
+                                        else if (incorrectQuestionIds.has(q.id)) status = 'incorrect';
+                                        
+                                        return (
+                                            <QuestionCard
+                                                key={q.id}
+                                                question={q}
+                                                submissionStatus={status}
+                                            />
+                                        );
+                                    })
                                 )}
                             </div>
                         </div>
