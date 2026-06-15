@@ -3,6 +3,7 @@ import { initAdmin } from '@/lib/firebaseAdmin';
 import { apiError, apiSuccess } from '@/lib/apiResponse';
 import admin from 'firebase-admin';
 import { processContestRatings } from '@/lib/ratingProcessor';
+import { evaluateExam } from '@/utils/examScoring';
 
 /**
  * POST /api/exam/cleanup
@@ -51,54 +52,59 @@ export async function POST(req: NextRequest) {
                 // This attempt has expired — auto-close it using its last synced state
                 const updateTask = (async () => {
                     try {
-                        const contestRef = db.collection('contests').doc(data.contestId);
-                        const contestSnap = await contestRef.get();
-
                         const attemptRef = db.collection('contest_attempts').doc(attemptDoc.id);
+                        await db.runTransaction(async (t: any) => {
+                            const currentAttempt = await t.get(attemptRef);
+                            if (!currentAttempt.exists || currentAttempt.data().isSubmitted) {
+                                return; // Already processed
+                            }
 
-                        // Mark as submitted first (idempotent-safe)
-                        await attemptRef.update({
-                            isSubmitted: true,
-                            submittedAt: serverTime,
-                            lastUpdated: serverTime,
-                            timeLeftSeconds: 0,
-                            autoSubmitted: true, // flag for debugging
-                        });
+                            const contestRef = db.collection('contests').doc(data.contestId);
+                            const contestSnap = await t.get(contestRef);
 
-                        // Only update user ratings for non-practice (live) attempts
-                        if (!data.isPractice && data.uid && contestSnap.exists) {
-                            const contestData = contestSnap.data()!;
-                            const branch = contestData?.branch || 'General';
-                            const responses = data.responses || {};
-
+                            let totalScore = 0;
                             let correctCount = 0;
                             let totalAttempted = 0;
+                            
+                            // Only update user ratings for non-practice (live) attempts
+                            if (!data.isPractice && data.uid && contestSnap.exists) {
+                                const contestData = contestSnap.data()!;
+                                const branch = contestData?.branch || 'General';
+                                const responses = data.responses || {};
 
-                            Object.values(responses).forEach((resp: any) => {
-                                if (resp.status === 'answered' || resp.status === 'marked') {
-                                    totalAttempted++;
-                                    if (resp.isCorrect) correctCount++;
+                                const result = evaluateExam(contestData, responses);
+                                totalScore = result.totalScore;
+                                correctCount = result.correctCount;
+                                totalAttempted = result.totalAttempted;
+
+                                const userRef = db.collection('users').doc(data.uid);
+                                const userSnap = await t.get(userRef);
+                                if (userSnap.exists) {
+                                    const userData = userSnap.data()!;
+                                    const branchStats = userData.branchStats?.[branch] || { attempted: 0, correct: 0, accuracy: 0 };
+                                    const newAttempted = (branchStats.attempted || 0) + totalAttempted;
+                                    const newCorrect = (branchStats.correct || 0) + correctCount;
+                                    const newAccuracy = newAttempted > 0 ? parseFloat(((newCorrect / newAttempted) * 100).toFixed(2)) : 0;
+                                    
+                                    t.update(userRef, {
+                                        [`branchStats.${branch}.attempted`]: newAttempted,
+                                        [`branchStats.${branch}.correct`]: newCorrect,
+                                        [`branchStats.${branch}.accuracy`]: newAccuracy,
+                                        'stats.attempted': (userData.stats?.attempted || 0) + totalAttempted,
+                                        'stats.correct': (userData.stats?.correct || 0) + correctCount,
+                                    });
                                 }
-                            });
-
-                            const userRef = db.collection('users').doc(data.uid);
-                            const userSnap = await userRef.get();
-                            if (userSnap.exists) {
-                                const userData = userSnap.data()!;
-                                const branchStats = userData.branchStats?.[branch] || { attempted: 0, correct: 0, accuracy: 0 };
-                                const newAttempted = (branchStats.attempted || 0) + totalAttempted;
-                                const newCorrect = (branchStats.correct || 0) + correctCount;
-                                const newAccuracy = newAttempted > 0 ? parseFloat(((newCorrect / newAttempted) * 100).toFixed(2)) : 0;
-                                
-                                await userRef.update({
-                                    [`branchStats.${branch}.attempted`]: newAttempted,
-                                    [`branchStats.${branch}.correct`]: newCorrect,
-                                    [`branchStats.${branch}.accuracy`]: newAccuracy,
-                                    'stats.attempted': (userData.stats?.attempted || 0) + totalAttempted,
-                                    'stats.correct': (userData.stats?.correct || 0) + correctCount,
-                                });
                             }
-                        }
+
+                            t.update(attemptRef, {
+                                isSubmitted: true,
+                                submittedAt: serverTime,
+                                lastUpdated: serverTime,
+                                timeLeftSeconds: 0,
+                                autoSubmitted: true,
+                                score: parseFloat(totalScore.toFixed(2))
+                            });
+                        });
 
                         cleaned++;
                         console.log(`[Cleanup] Auto-submitted stale attempt ${attemptDoc.id}`);

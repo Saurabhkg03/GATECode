@@ -25,7 +25,7 @@ export async function processContestRatings(db: admin.firestore.Firestore, conte
 
     if (validAttempts.length === 0) {
         // Mark as processed if there are no attempts
-        await contestRef.update({ isRatingsProcessed: true });
+        await contestRef.update({ isRatingsProcessed: true, status: 'completed' });
         console.log(`[ratingProcessor] No valid attempts for contest ${contestId}, marked as processed.`);
         return { success: true, message: 'No valid attempts found, marked as processed.' };
     }
@@ -199,10 +199,16 @@ export async function processContestRatings(db: admin.firestore.Firestore, conte
     });
 
     // Add contest update to batch
-    currentBatch.update(contestRef, { isRatingsProcessed: true });
+    currentBatch.update(contestRef, { isRatingsProcessed: true, status: 'completed' });
     batches.push(currentBatch.commit());
 
-    await Promise.all(batches);
+    try {
+        await Promise.all(batches);
+    } catch (e) {
+        await contestRef.update({ status: 'error' });
+        throw e;
+    }
+    
     console.log(`[ratingProcessor] Successfully processed ratings for contest ${contestId}. Size: ${updates.size}`);
     return { success: true, processedCount: updates.size, attemptsCount: validAttempts.length };
 }

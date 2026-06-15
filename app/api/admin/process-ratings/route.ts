@@ -28,8 +28,37 @@ export async function POST(req: NextRequest) {
         }
         const db = app.firestore();
 
+        let shouldProcess = false;
+
+        await db.runTransaction(async (t: any) => {
+            const contestRef = db.collection('contests').doc(contestId);
+            const contestSnap = await t.get(contestRef);
+
+            if (!contestSnap.exists) {
+                throw new Error("Contest not found");
+            }
+
+            const data = contestSnap.data()!;
+            if (data.isRatingsProcessed || data.status === 'processing') {
+                shouldProcess = false;
+                return;
+            }
+
+            t.update(contestRef, { status: 'processing' });
+            shouldProcess = true;
+        });
+
+        if (!shouldProcess) {
+            return apiSuccess({ message: "Contest is already processing or has been processed." }, 200);
+        }
+
         // Process ratings in the background using waitUntil
-        waitUntil(processContestRatings(db, contestId).catch(console.error));
+        waitUntil(
+            processContestRatings(db, contestId).catch(async (err) => {
+                console.error("[Process Ratings Background Error]", err);
+                await db.collection('contests').doc(contestId).update({ status: 'error' });
+            })
+        );
         
         return apiSuccess({ message: "Processing started in background" }, 202);
 
