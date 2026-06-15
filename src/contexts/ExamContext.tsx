@@ -272,10 +272,12 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
             try {
                 const forceFresh = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('force_fresh') === 'true';
 
-                let token = '';
-                if (auth.currentUser) {
-                    token = await auth.currentUser.getIdToken();
+                await auth.authStateReady();
+                const user = auth.currentUser;
+                if (!user) {
+                    throw new Error("User not authenticated.");
                 }
+                const token = await user.getIdToken();
 
                 const res = await fetch('/api/exam/start', {
                     method: 'POST',
@@ -480,10 +482,12 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
 
         try {
             const cleanResponses = JSON.parse(JSON.stringify(responses));
-            let token = '';
-            if (auth.currentUser) {
-                token = await auth.currentUser.getIdToken();
+            await auth.authStateReady();
+            const user = auth.currentUser;
+            if (!user) {
+                throw new Error("User not authenticated.");
             }
+            const token = await user.getIdToken();
 
             const res = await fetch('/api/exam/autosave', {
                 method: 'POST',
@@ -581,10 +585,12 @@ export const ExamProvider: React.FC<{ children: React.ReactNode; contestId: stri
 
         // Use standard fetch instead of sendBeacon for reliable awaiting
         try {
-            let token = '';
-            if (auth.currentUser) {
-                token = await auth.currentUser.getIdToken();
+            await auth.authStateReady();
+            const user = auth.currentUser;
+            if (!user) {
+                throw new Error("User not authenticated.");
             }
+            const token = await user.getIdToken();
 
             const res = await fetch(url, {
                 method: 'POST',
