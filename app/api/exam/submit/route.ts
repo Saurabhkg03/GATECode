@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
             return apiError('Bad Request', 'BAD_REQUEST', 400, parsed.error.format());
         }
 
-        const { contestId, uid, attemptId, responses } = parsed.data;
+        let { contestId, uid, attemptId, responses } = parsed.data;
 
         const authHeader = req.headers.get('authorization');
         if (!authHeader?.startsWith('Bearer ')) return apiError('Unauthorized', 'UNAUTHORIZED', 401);
