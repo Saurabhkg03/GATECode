@@ -3,7 +3,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 
 export const metadata: Metadata = {
   title: 'Exam | GATECode',
-  description: 'Take a realistic mock GATE exam.',
+  description: 'Take a realistic GATE contest.',
 };
 
 export default function ExamLayout({

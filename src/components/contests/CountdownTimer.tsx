@@ -97,36 +97,34 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
     <div className={`flex gap-2 items-center font-mono text-sm tracking-tighter ${className || ""}`}>
       {timeLeft.days > 0 && (
         <div className="flex flex-col items-center">
-          <span className="font-bold text-gray-900 dark:text-white bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded-md">
+          <span className="font-bold text-white bg-black/65 border border-white/10 px-2.5 py-1.5 rounded-lg shadow-sm min-w-[34px] text-center">
             {format(timeLeft.days)}
           </span>
-          <span className="text-[9px] uppercase text-gray-500 mt-0.5">d</span>
+          <span className="text-[10px] font-bold uppercase text-white/80 mt-1">d</span>
         </div>
       )}
       {timeLeft.days > 0 && (
-        <span className="text-gray-400 font-bold -mt-3">:</span>
+        <span className="text-white/60 font-black -mt-4 mx-0.5">:</span>
       )}
       <div className="flex flex-col items-center">
-        <span className="font-bold text-gray-900 dark:text-white bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded-md">
+        <span className="font-bold text-white bg-black/65 border border-white/10 px-2.5 py-1.5 rounded-lg shadow-sm min-w-[34px] text-center">
           {format(timeLeft.hours)}
         </span>
-        <span className="text-[9px] uppercase text-gray-500 mt-0.5">h</span>
+        <span className="text-[10px] font-bold uppercase text-white/80 mt-1">h</span>
       </div>
-      <span className="text-gray-400 font-bold -mt-3">:</span>
+      <span className="text-white/60 font-black -mt-4 mx-0.5">:</span>
       <div className="flex flex-col items-center">
-        <span className="font-bold text-gray-900 dark:text-white bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded-md">
+        <span className="font-bold text-white bg-black/65 border border-white/10 px-2.5 py-1.5 rounded-lg shadow-sm min-w-[34px] text-center">
           {format(timeLeft.minutes)}
         </span>
-        <span className="text-[9px] uppercase text-gray-500 mt-0.5">m</span>
+        <span className="text-[10px] font-bold uppercase text-white/80 mt-1">m</span>
       </div>
-      <span className="text-gray-400 font-bold -mt-3">:</span>
+      <span className="text-white/60 font-black -mt-4 mx-0.5">:</span>
       <div className="flex flex-col items-center">
-        <span className="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-2 py-1 rounded-md">
+        <span className="font-bold text-white bg-black/65 border border-white/10 px-2.5 py-1.5 rounded-lg shadow-sm min-w-[34px] text-center">
           {format(timeLeft.seconds)}
         </span>
-        <span className="text-[9px] uppercase text-blue-600 dark:text-blue-400 mt-0.5">
-          s
-        </span>
+        <span className="text-[10px] font-bold uppercase text-white/80 mt-1">s</span>
       </div>
     </div>
   );

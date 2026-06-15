@@ -213,7 +213,7 @@ const LiveExamUI = () => {
                 <div className="text-center max-w-md p-8 bg-white dark:bg-zinc-900 rounded-lg shadow-lg">
                     <h2 className="text-2xl font-bold text-green-600 mb-4">Exam Submitted Successfully!</h2>
                     <p className="text-gray-600 dark:text-gray-400 mb-6">
-                        Thank you for taking the mock test. You can now view your detailed analysis and solutions.
+                        Thank you for taking the contest. You can now view your detailed analysis and solutions.
                     </p>
                     <a
                         href={`/exam/${contest.id}/result`}

@@ -401,7 +401,7 @@ export default function AdminPage() {
                                                 <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <span className={`px-2 py-1 rounded text-xs font-bold ${c.type === 'admin' ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'}`}>
-                                                            {c.type === 'admin' ? 'Official' : 'Mock'}
+                                                            {c.type === 'admin' ? 'Official' : 'Practice'}
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white line-clamp-1 max-w-[200px]">{c.title}</td>

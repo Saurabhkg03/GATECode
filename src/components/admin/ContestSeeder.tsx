@@ -61,7 +61,7 @@ const ContestSeeder = () => {
             // 2. Construct the Mock Contest
             const mockContest: Contest = {
                 id: 'mock-test-1',
-                title: 'GATE 2025 Mock Test 1 (General & Technical)',
+                title: 'GATE 2025 Contest 1 (General & Technical)',
                 durationMinutes: 180,
                 totalMarks: 100,
                 sections: [
@@ -105,7 +105,7 @@ const ContestSeeder = () => {
                 disabled={loading}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             >
-                {loading ? 'Seeding...' : 'Seed Mock Contest'}
+                {loading ? 'Seeding...' : 'Seed Practice Contest'}
             </button>
         </div>
     );

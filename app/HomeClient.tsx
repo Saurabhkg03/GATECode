@@ -276,7 +276,7 @@ export default function HomeClient({
         <div className="mb-16">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-              <Timer className="w-6 h-6 text-amber-500" /> Active & Upcoming Mocks
+              <Timer className="w-6 h-6 text-amber-500" /> Active & Upcoming Contests
             </h2>
             <Link href="/contests" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
               View Schedule
@@ -311,7 +311,7 @@ export default function HomeClient({
                   </div>
                 </div>
                 <div className="mt-4">
-                  <h3 className="text-2xl font-black text-white leading-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.2)]">Weekly Mock {weeklyInfo.number}</h3>
+                  <h3 className="text-2xl font-black text-white leading-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.2)]">Weekly Contest {weeklyInfo.number}</h3>
                   <div className="flex items-center gap-2 text-white/90 text-sm mt-1.5 font-bold">
                     <Calendar className="w-4 h-4" />
                     <span>Starts {weeklyInfo.startTime.toLocaleDateString("en-IN", { weekday: "long", hour: "2-digit", minute: "2-digit" })}</span>
@@ -349,7 +349,7 @@ export default function HomeClient({
                   </div>
                 </div>
                 <div className="mt-4">
-                  <h3 className="text-2xl font-black text-white leading-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.2)]">Biweekly Mock {biweeklyInfo.number}</h3>
+                  <h3 className="text-2xl font-black text-white leading-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.2)]">Biweekly Contest {biweeklyInfo.number}</h3>
                   <div className="flex items-center gap-2 text-white/90 text-sm mt-1.5 font-bold">
                     <Calendar className="w-4 h-4" />
                     <span>Starts {biweeklyInfo.startTime.toLocaleDateString("en-IN", { weekday: "long", hour: "2-digit", minute: "2-digit" })}</span>
@@ -542,7 +542,7 @@ export default function HomeClient({
                 Climb the ranks from <br className="hidden md:block" /> Novice to Grandmaster.
               </h2>
               <p className="text-lg text-zinc-600 dark:text-zinc-400">
-                Every mock test affects your global rating. Track your progress against thousands of aspirants nationwide and compete on the real-time leaderboard.
+                Every contest affects your global rating. Track your progress against thousands of aspirants nationwide and compete on the real-time leaderboard.
               </p>
               <Link href="/login" className="mt-4 inline-flex items-center gap-2 bg-zinc-900 text-white dark:bg-white dark:text-black px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg">
                 Start Climbing <ArrowRight className="w-4 h-4" />
