@@ -108,7 +108,10 @@ service cloud.firestore {
     // 5. Contest Attempts (Exam Sessions)
     match /contest_attempts/{attemptId} {
       allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
-      allow update, read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      // Allow public read for Leaderboard
+      allow read: if true;
     }
 
     // 6. Contest Registrations

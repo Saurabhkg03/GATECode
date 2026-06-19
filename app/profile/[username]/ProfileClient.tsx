@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { Calendar, Settings as SettingsIcon, CheckCircle, TrendingUp, Zap, BarChart, Loader2, Trophy, Info, X, ChevronDown, ChevronUp, Star, Target, Flame, Crown, Diamond } from 'lucide-react';
+import { Calendar, Settings as SettingsIcon, CheckCircle, TrendingUp, Zap, BarChart, Loader2, Trophy, Info, X, ChevronDown, ChevronUp, Star, Target, Flame, Crown, Diamond, Share2, Download } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/firebase';
 import {
@@ -312,6 +312,39 @@ export default function ProfileClient({ username }: { username: string }) {
     const [submissionsLastDoc, setSubmissionsLastDoc] = useState<DocumentSnapshot<DocumentData> | null>(null);
     const [hasMoreSubmissions, setHasMoreSubmissions] = useState(false);
     const [isRankInfoOpen, setIsRankInfoOpen] = useState(false);
+    const [isSharing, setIsSharing] = useState(false);
+
+    const handleShareProfile = async () => {
+        setIsSharing(true);
+        try {
+            const html2canvas = (await import('html2canvas')).default;
+            const node = document.getElementById('shareable-profile-card');
+            if (!node) return;
+            
+            // Adding a small delay to ensure rendering is complete
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            const canvas = await html2canvas(node, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#18181b',
+                logging: false,
+                width: 1080
+            });
+            
+            const dataUrl = canvas.toDataURL('image/png');
+
+            const link = document.createElement('a');
+            link.download = `${profileUser?.username || 'user'}-gatecode-stats.png`;
+            link.href = dataUrl;
+            link.click();
+        } catch (err) {
+            console.error('Failed to generate image', err);
+            alert('Failed to generate image. Please try again. If using a custom avatar, try updating it.');
+        } finally {
+            setIsSharing(false);
+        }
+    };
 
     const isOwnProfile = authUser && profileUser && authUser.uid === profileUser.uid;
 
@@ -554,6 +587,19 @@ export default function ProfileClient({ username }: { username: string }) {
                                 </button>
                             </div>
 
+                            {isOwnProfile && (
+                                <div className="flex justify-center w-full mt-3">
+                                    <button 
+                                        onClick={handleShareProfile}
+                                        disabled={isSharing}
+                                        className="flex items-center justify-center gap-2 text-sm font-bold text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 px-6 py-2.5 rounded-xl transition-all duration-200 w-full md:w-auto shadow-lg hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed"
+                                    >
+                                        {isSharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
+                                        {isSharing ? 'Generating...' : 'Share Profile'}
+                                    </button>
+                                </div>
+                            )}
+
                             <RankModal isOpen={isRankInfoOpen} onClose={() => setIsRankInfoOpen(false)} />
 
                             {isOwnProfile && (<Link href="/settings" className="absolute top-3 right-3 md:top-4 md:right-4 p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors" title="Settings"><SettingsIcon className="w-4 h-4 md:w-5 md:h-5 text-zinc-500 dark:text-zinc-400" /></Link>)}
@@ -582,8 +628,8 @@ export default function ProfileClient({ username }: { username: string }) {
                                 <h2 className="text-lg font-semibold pb-4 text-zinc-800 dark:text-white flex items-center gap-2">
                                     <TrendingUp className="w-5 h-5 text-purple-500" /> Contest Elo History
                                 </h2>
-                                <div className="h-64 mt-4 w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
+                                <div className="h-64 mt-4 w-full min-w-0" style={{ minHeight: '256px' }}>
+                                    <ResponsiveContainer width="100%" height="100%" minHeight={256}>
                                         <LineChart data={ratingHistory}>
                                             <XAxis
                                                 dataKey="date"
@@ -679,6 +725,124 @@ export default function ProfileClient({ username }: { username: string }) {
                     </div>
                 </div>
             </div>
+
+            {/* Hidden Shareable Profile Card */}
+            <div 
+                id="shareable-profile-card" 
+                style={{ 
+                    display: 'flex', 
+                    position: 'absolute', 
+                    top: '-9999px', 
+                    left: '-9999px', 
+                    width: '1080px', 
+                    minHeight: '1080px', 
+                    background: 'linear-gradient(135deg, #18181b 0%, #09090b 100%)', 
+                    color: 'white', 
+                    fontFamily: 'Inter, sans-serif',
+                    padding: '80px',
+                    flexDirection: 'column',
+                    justifyContent: 'flex-start',
+                    gap: '40px',
+                    overflow: 'hidden'
+                }}
+            >
+                {/* Background Decoration */}
+                <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: '600px', height: '600px', background: 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%' }}></div>
+                <div style={{ position: 'absolute', bottom: '-20%', left: '-10%', width: '600px', height: '600px', background: 'radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%' }}></div>
+
+                {/* Header Container */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '50px', zIndex: 10 }}>
+                    {/* Branding Top */}
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src="/logo.png" alt="Logo" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />
+                            <h2 style={{ fontSize: '56px', fontWeight: 900, margin: 0, letterSpacing: '-1px', whiteSpace: 'nowrap', lineHeight: 1 }}>GATECode</h2>
+                        </div>
+                        <p style={{ fontSize: '26px', color: '#71717a', margin: '8px 0 0 0' }}>gatecode.co.in</p>
+                    </div>
+
+                    {/* User Details */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '30px' }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img 
+                            src={profileUser.avatar || '/user.png'} 
+                            alt="Avatar" 
+                            style={{ width: '150px', height: '150px', borderRadius: '50%', border: '6px solid #27272a', objectFit: 'cover' }} 
+                            crossOrigin="anonymous" 
+                            onError={(e) => { e.currentTarget.src = '/user.png'; e.currentTarget.removeAttribute('crossOrigin'); }}
+                        />
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                            <h1 style={{ fontSize: '56px', fontWeight: 800, margin: 0, color: '#a78bfa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '800px' }}>{profileUser.name || 'User'}</h1>
+                            <p style={{ fontSize: '28px', color: '#a1a1aa', margin: '8px 0 0 0' }}>@{profileUser.username || 'username'}</p>
+                            <div style={{ marginTop: '16px' }}>
+                                <span style={{ padding: '8px 24px', borderRadius: '9999px', fontSize: '24px', fontWeight: 'bold', backgroundColor: '#3f3f46', color: 'white', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                                    {getRankTier(contestElo).title}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Stats */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '30px', zIndex: 10, marginTop: '50px' }}>
+                    <div style={{ backgroundColor: 'rgba(39, 39, 42, 0.4)', border: '1px solid #3f3f46', borderRadius: '24px', padding: '40px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        <span style={{ fontSize: '26px', color: '#a1a1aa' }}>Contest Elo ({selectedBranch.toUpperCase()})</span>
+                        <span style={{ fontSize: '64px', fontWeight: 800, color: '#fbbf24' }}>{contestElo}</span>
+                    </div>
+                    <div style={{ backgroundColor: 'rgba(39, 39, 42, 0.4)', border: '1px solid #3f3f46', borderRadius: '24px', padding: '40px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        <span style={{ fontSize: '26px', color: '#a1a1aa' }}>Practice Rating</span>
+                        <span style={{ fontSize: '64px', fontWeight: 800, color: '#60a5fa' }}>{practiceRating}</span>
+                    </div>
+                    <div style={{ backgroundColor: 'rgba(39, 39, 42, 0.4)', border: '1px solid #3f3f46', borderRadius: '24px', padding: '40px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        <span style={{ fontSize: '26px', color: '#a1a1aa' }}>Problems Solved</span>
+                        <span style={{ fontSize: '64px', fontWeight: 800, color: '#34d399' }}>{branchStats.correct || 0}</span>
+                    </div>
+                    <div style={{ backgroundColor: 'rgba(39, 39, 42, 0.4)', border: '1px solid #3f3f46', borderRadius: '24px', padding: '40px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        <span style={{ fontSize: '26px', color: '#a1a1aa' }}>Current Streak</span>
+                        <span style={{ fontSize: '64px', fontWeight: 800, color: '#fb923c' }}>{branchStreak.currentStreak || 0} Days</span>
+                    </div>
+                </div>
+
+                {/* Graph */}
+                {ratingHistory && ratingHistory.length > 1 && (
+                    <div style={{ zIndex: 10, padding: '40px', backgroundColor: 'rgba(39, 39, 42, 0.4)', borderRadius: '24px', border: '1px solid #3f3f46', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                        <h3 style={{ fontSize: '26px', color: '#a1a1aa', margin: '0 0 30px 0', fontWeight: 'normal' }}>Elo History ({selectedBranch.toUpperCase()})</h3>
+                        <svg viewBox="-40 -60 1080 320" style={{ width: '100%', height: 'auto', minHeight: '250px', overflow: 'visible', flex: 1 }} preserveAspectRatio="none">
+                            <polyline 
+                                points={ratingHistory.map((h: any, i: number) => {
+                                    const x = (i / (ratingHistory.length - 1)) * 1000;
+                                    const minRating = Math.min(...ratingHistory.map((r: any) => r.newRating)) - 50;
+                                    const maxRating = Math.max(...ratingHistory.map((r: any) => r.newRating)) + 50;
+                                    const y = 200 - ((h.newRating - minRating) / (maxRating - minRating)) * 200;
+                                    return `${x},${y}`;
+                                }).join(' ')} 
+                                fill="none" 
+                                stroke="#8b5cf6" 
+                                strokeWidth="8" 
+                            />
+                            {ratingHistory.map((h: any, i: number) => {
+                                const x = (i / (ratingHistory.length - 1)) * 1000;
+                                const minRating = Math.min(...ratingHistory.map((r: any) => r.newRating)) - 50;
+                                const maxRating = Math.max(...ratingHistory.map((r: any) => r.newRating)) + 50;
+                                const y = 200 - ((h.newRating - minRating) / (maxRating - minRating)) * 200;
+                                return (
+                                    <g key={i}>
+                                        <circle cx={x} cy={y} r="12" fill="#8b5cf6" stroke="#27272a" strokeWidth="6" />
+                                        <text x={x} y={y - 25} fill="#e4e4e7" fontSize="24px" fontWeight="bold" textAnchor="middle">{h.newRating}</text>
+                                    </g>
+                                );
+                            })}
+                        </svg>
+                    </div>
+                )}
+
+                {/* Footer */}
+                <div style={{ zIndex: 10, display: 'flex', justifyContent: 'center', marginTop: 'auto', paddingTop: '10px' }}>
+                    <p style={{ fontSize: '24px', color: '#71717a', margin: 0 }}>Join me and thousands of others preparing for GATE!</p>
+                </div>
+            </div>
+
         </div>
     );
 }

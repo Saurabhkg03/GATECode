@@ -288,6 +288,46 @@ export default function AdminPage() {
 
     const totalPages = Math.max(1, Math.ceil(totalQuestions / PAGE_SIZE));
 
+    // Platform Seeding Handlers
+    const [seedingState, setSeedingState] = useState<'idle' | 'seeding' | 'deleting'>('idle');
+    const handleSeedAuthenticUsers = async () => {
+        if (!window.confirm("Are you sure you want to seed 100 realistic dummy users? This will take ~15-30 seconds.")) return;
+        setSeedingState('seeding');
+        try {
+            const res = await fetch('/api/admin/seed-authentic-users', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                alert("Successfully seeded authentic users and simulated their history!");
+                fetchAdminContests();
+            } else {
+                alert(`Error: ${data.error}`);
+            }
+        } catch (e: any) {
+            alert(`Request failed: ${e.message}`);
+        } finally {
+            setSeedingState('idle');
+        }
+    };
+
+    const handleDeleteSeededUsers = async () => {
+        if (!window.confirm("Are you sure you want to delete all seeded authentic users? This will permanently wipe their history and attempts.")) return;
+        setSeedingState('deleting');
+        try {
+            const res = await fetch('/api/admin/delete-seeded-users', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                alert("Successfully deleted all seeded users and their attempts.");
+                fetchAdminContests();
+            } else {
+                alert(`Error: ${data.error}`);
+            }
+        } catch (e: any) {
+            alert(`Request failed: ${e.message}`);
+        } finally {
+            setSeedingState('idle');
+        }
+    };
+
     if (authLoading || metadataLoading || (loadingData && questions.length === 0)) {
         return <AdminPanelSkeleton />;
     }
@@ -374,8 +414,35 @@ export default function AdminPage() {
 
                 {adminView === 'contests' ? (
                     <div className="space-y-6">
-                        <div className="mb-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                             <ContestGenerator isAdminContest={true} onContestCreated={() => { alert("Contest created securely."); fetchAdminContests(); }} />
+                            
+                            <div className="bg-white dark:bg-zinc-950 p-6 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm flex flex-col justify-center">
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-2">
+                                    <Shield className="w-5 h-5 text-indigo-500" /> Platform Seeding
+                                </h2>
+                                <p className="text-gray-500 dark:text-zinc-400 text-sm mb-6">
+                                    Generate authentic-looking user data (100 accounts with realistic Indian names, progress histories, and masteries) to make the platform feel lively. You can delete them anytime.
+                                </p>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <button
+                                        onClick={handleSeedAuthenticUsers}
+                                        disabled={seedingState !== 'idle'}
+                                        className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl transition-all flex-1 shadow-md hover:-translate-y-0.5"
+                                    >
+                                        {seedingState === 'seeding' ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
+                                        {seedingState === 'seeding' ? 'Seeding Data...' : 'Seed Authentic Users'}
+                                    </button>
+                                    <button
+                                        onClick={handleDeleteSeededUsers}
+                                        disabled={seedingState !== 'idle'}
+                                        className="flex items-center justify-center gap-2 px-6 py-2.5 bg-red-100 hover:bg-red-200 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 disabled:opacity-50 font-bold rounded-xl transition-all shadow-sm"
+                                    >
+                                        {seedingState === 'deleting' ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                                        {seedingState === 'deleting' ? 'Deleting...' : 'Cleanup Seeded Data'}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="bg-white dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden relative">
