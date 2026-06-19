@@ -6,6 +6,10 @@ import { apiError, apiSuccess } from '@/lib/apiResponse';
 export async function POST(req: NextRequest) {
     try {
         console.log('[Simulate 5] Starting...');
+
+        if (!adminDb) {
+            return apiError('Admin DB is not initialized', 'INTERNAL_ERROR', 500);
+        }
         
         // 1. Delete old simulated users
         const oldUsersSnap = await adminDb.collection('users').where('isSimulated', '==', true).get();
@@ -16,7 +20,7 @@ export async function POST(req: NextRequest) {
         const commit = async () => {
             if (ops > 0) {
                 batches.push(batch.commit());
-                batch = adminDb.batch();
+                batch = adminDb!.batch();
                 ops = 0;
             }
         };

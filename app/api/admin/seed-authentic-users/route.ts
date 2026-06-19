@@ -17,7 +17,12 @@ function generateName() {
 export async function POST(req: NextRequest) {
     try {
         console.log('[Seed Authentic] Starting...');
+
+        if (!adminDb) {
+            return apiError('Admin DB is not initialized', 'INTERNAL_ERROR', 500);
+        }
         
+
         let batches: Promise<any>[] = [];
         let batch = adminDb.batch();
         let ops = 0;
@@ -25,7 +30,7 @@ export async function POST(req: NextRequest) {
         const commit = async () => {
             if (ops > 0) {
                 batches.push(batch.commit());
-                batch = adminDb.batch();
+                batch = adminDb!.batch();
                 ops = 0;
             }
         };
