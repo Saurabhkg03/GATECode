@@ -12,6 +12,10 @@ export async function POST(req: NextRequest) {
             return apiError('contestId is required', 'BAD_REQUEST', 400);
         }
 
+        if (!adminDb) {
+            return apiError('Admin DB is not initialized', 'INTERNAL_ERROR', 500);
+        }
+
         const contestRef = adminDb.collection('contests').doc(contestId);
         const contestSnap = await contestRef.get();
         if (!contestSnap.exists) {
@@ -31,7 +35,7 @@ export async function POST(req: NextRequest) {
         const commitBatch = async () => {
             if (opsCount > 0) {
                 batches.push(batch.commit());
-                batch = adminDb.batch();
+                batch = adminDb!.batch();
                 opsCount = 0;
             }
         };

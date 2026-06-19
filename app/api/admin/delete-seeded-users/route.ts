@@ -6,6 +6,10 @@ export async function POST(req: NextRequest) {
     try {
         console.log('[Delete Seeded Users] Starting cleanup...');
 
+        if (!adminDb) {
+            return apiError('Admin DB is not initialized', 'INTERNAL_ERROR', 500);
+        }
+
         // 1. Find all seeded users
         const usersSnap = await adminDb.collection('users').where('isSimulated', '==', true).get();
         const userIds = usersSnap.docs.map(doc => doc.id);
@@ -18,7 +22,7 @@ export async function POST(req: NextRequest) {
         const commit = async () => {
             if (ops > 0) {
                 batches.push(batch.commit());
-                batch = adminDb.batch();
+                batch = adminDb!.batch();
                 ops = 0;
             }
         };
