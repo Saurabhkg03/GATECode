@@ -132,14 +132,19 @@ export async function processContestRatings(db: admin.firestore.Firestore, conte
         const userData = usersData.get(userA.uid) || {};
         const contestCount = (userData.contestCount || 0) + 1;
 
-        // Volatility Factor. Start at 50, decrease slowly
-        let K = 50;
-        if (contestCount > 3) K = 40;
-        if (contestCount > 10) K = 30;
-        if (contestCount > 20) K = 20;
+        // Volatility Factor - Max rating change per contest
+        let K = 200;
+        if (contestCount > 3) K = 120;
+        if (contestCount > 10) K = 80;
+        if (contestCount > 20) K = 50;
 
-        const ratingChange = K * (expectedRankA - actualRankA);
-        const newRating = Math.round(userA.oldRating + ratingChange);
+        const N = userStats.length;
+        // Normalize the rank difference to a [-1, 1] scale
+        // This ensures the max rating change is exactly bounded by K, regardless of participant count
+        const rankDiffNormalized = N > 1 ? (expectedRankA - actualRankA) / (N - 1) : 0;
+        
+        const ratingChange = Math.round(K * rankDiffNormalized);
+        const newRating = Math.max(100, userA.oldRating + ratingChange); // Prevent Elo from dropping below 100
 
         updates.set(userA.uid, {
             oldRating: userA.oldRating,

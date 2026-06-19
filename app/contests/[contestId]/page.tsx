@@ -349,8 +349,16 @@ export default function ContestDescriptionPage() {
                     onClick={handleAction}
                     className="flex items-center gap-2 bg-white text-gray-900 hover:bg-gray-100 px-6 py-2.5 rounded-full font-bold text-sm transition-all shadow-lg hover:-translate-y-0.5"
                   >
-                    {!user ? <><Lock className="w-4 h-4" /> Login to Start</> : <><Trophy className="w-4 h-4" /> Start Contest</>}
+                    {!user ? <><Lock className="w-4 h-4" /> Login to Start</> : <><Trophy className="w-4 h-4" /> {live ? "Join Live" : "Start Contest"}</>}
                   </button>
+                )}
+                {!upcoming && (
+                  <Link
+                    href={`/contests/${contestId}/leaderboard`}
+                    className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-5 py-2.5 rounded-full font-bold text-sm transition-all shadow-lg border border-white/10"
+                  >
+                    <Trophy className="w-4 h-4 text-[#ffa116]" /> Leaderboard
+                  </Link>
                 )}
                 {isRegistered && upcoming && (
                   <button
@@ -475,13 +483,21 @@ export default function ContestDescriptionPage() {
                 </button>
               )}
               {!upcoming && (
-                <button
-                  onClick={handleShare}
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-zinc-900 hover:bg-zinc-100 transition-all active:scale-95 shadow-lg"
-                  title="Share"
-                >
-                  {isCopied ? <Copy className="w-4.5 h-4.5 text-emerald-600" /> : <Share2 className="w-4.5 h-4.5" />}
-                </button>
+                <>
+                  <Link
+                    href={`/contests/${contestId}/leaderboard`}
+                    className="px-5 py-2.5 rounded-full font-bold text-sm bg-white/10 hover:bg-white/20 text-white transition-all shadow-lg flex items-center gap-2 border border-white/5"
+                  >
+                    <Trophy className="w-4 h-4 text-[#ffa116]" /> Leaderboard
+                  </Link>
+                  <button
+                    onClick={handleShare}
+                    className="w-10 h-10 rounded-full flex items-center justify-center bg-white text-zinc-900 hover:bg-zinc-100 transition-all active:scale-95 shadow-lg"
+                    title="Share"
+                  >
+                    {isCopied ? <Copy className="w-4.5 h-4.5 text-emerald-600" /> : <Share2 className="w-4.5 h-4.5" />}
+                  </button>
+                </>
               )}
             </div>
             </div>

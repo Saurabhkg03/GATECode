@@ -481,21 +481,23 @@ export default function Leaderboard() {
                 </div>
 
                 {totalUsers > PAGE_SIZE && (
-                    <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="mt-8 flex items-center justify-between bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-sm">
                         <button
                             onClick={handlePrevPage}
                             disabled={currentPage === 1 || loadingMore}
-                            className="pagination-button"
+                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl border border-zinc-200 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-all shadow-sm active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
                         >
                             <ChevronLeft className="w-4 h-4" /> Previous
                         </button>
-                        <span className="text-sm text-gray-700 dark:text-gray-400 order-first sm:order-none">
-                            Page {currentPage} of {totalPages}
+                        
+                        <span className="text-xs sm:text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+                            Page <span className="text-zinc-900 dark:text-white font-bold">{currentPage}</span> of <span className="text-zinc-900 dark:text-white font-bold">{totalPages}</span>
                         </span>
+                        
                         <button
                             onClick={handleNextPage}
                             disabled={currentPage === totalPages || loadingMore || leaderboard.length < PAGE_SIZE || !lastVisible}
-                            className="pagination-button"
+                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl border border-zinc-200 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-all shadow-sm active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
                         >
                             Next <ChevronRight className="w-4 h-4" />
                         </button>
@@ -505,12 +507,6 @@ export default function Leaderboard() {
         </div>
 
         <RatingInfoModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
-
-            <style>{`
-            .pagination-button {
-                @apply w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed;
-            }
-      `}</style>
         </div>
     );
 }
