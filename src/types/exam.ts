@@ -47,6 +47,9 @@ export interface Contest {
     difficulty?: 'Easy' | 'Medium' | 'Hard';
     sections: Section[];
     description?: string;
+    examMode?: 'full' | 'custom';
+    targetSubjects?: string[];
+    prizes?: { rank: string; prize: string }[];
 }
 
 export interface QuestionResponse {

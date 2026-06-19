@@ -85,6 +85,9 @@ service cloud.firestore {
 
       // Allow users to create (for Seeding purposes - restrict to Admin in logic if needed, but Rule allows signedIn)
       allow create: if isSignedIn();
+      
+      // Allow admin to delete
+      allow delete: if isAdmin();
 
       // Updates:
       allow update: if isSignedIn() && (
