@@ -50,6 +50,7 @@ export default function AdminPage() {
     // Admin Contests State
     const [adminContests, setAdminContests] = useState<Contest[]>([]);
     const [loadingContests, setLoadingContests] = useState(false);
+    const [showScheduled, setShowScheduled] = useState(false);
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -397,52 +398,74 @@ export default function AdminPage() {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                                            {adminContests.map(c => (
-                                                <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className={`px-2 py-1 rounded text-xs font-bold ${c.type === 'admin' ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'}`}>
-                                                            {c.type === 'admin' ? 'Official' : 'Practice'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white line-clamp-1 max-w-[200px]">{c.title}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{c.id.split('-').slice(0, 3).join('-')}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 max-w-[150px] truncate" title={c.createdBy || 'Unknown'}>{c.createdBy || 'Unknown'}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                        <div className="flex items-center gap-2">
-                                                            {c.type === 'admin' && c.isRated && !c.isRatingsProcessed && (
-                                                                <button
-                                                                    onClick={async () => {
-                                                                        if (window.confirm("Are you sure? This will calculate ratings for all completed attempts and cannot be undone easily.")) {
-                                                                            try {
-                                                                                const res = await fetch('/api/admin/process-ratings', {
-                                                                                    method: 'POST',
-                                                                                    headers: { 'Content-Type': 'application/json' },
-                                                                                    body: JSON.stringify({ contestId: c.id })
-                                                                                });
-                                                                                const data = await res.json();
-                                                                                if (data.success) {
-                                                                                    alert(`Successfully processed ratings for ${data.processedCount || 0} users.`);
-                                                                                    fetchAdminContests();
-                                                                                } else {
-                                                                                    alert(`Error: ${data.error}`);
+                                            {(() => {
+                                                const scheduledContests = adminContests.filter(c => c.id.startsWith("weekly-") || c.id.startsWith("biweekly-") || c.title.toLowerCase().includes("weekly") || c.title.toLowerCase().includes("biweekly"));
+                                                const regularContests = adminContests.filter(c => !(c.id.startsWith("weekly-") || c.id.startsWith("biweekly-") || c.title.toLowerCase().includes("weekly") || c.title.toLowerCase().includes("biweekly")));
+                                                
+                                                const renderRow = (c: Contest) => (
+                                                    <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <span className={`px-2 py-1 rounded text-xs font-bold ${c.type === 'admin' ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'}`}>
+                                                                {c.type === 'admin' ? 'Official' : 'Practice'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white line-clamp-1 max-w-[200px]">{c.title}</td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{c.id.split('-').slice(0, 3).join('-')}</td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 max-w-[150px] truncate" title={c.createdBy || 'Unknown'}>{c.createdBy || 'Unknown'}</td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                            <div className="flex items-center gap-2">
+                                                                {c.type === 'admin' && c.isRated && !c.isRatingsProcessed && (
+                                                                    <button
+                                                                        onClick={async () => {
+                                                                            if (window.confirm("Are you sure? This will calculate ratings for all completed attempts and cannot be undone easily.")) {
+                                                                                try {
+                                                                                    const res = await fetch('/api/admin/process-ratings', {
+                                                                                        method: 'POST',
+                                                                                        headers: { 'Content-Type': 'application/json' },
+                                                                                        body: JSON.stringify({ contestId: c.id })
+                                                                                    });
+                                                                                    const data = await res.json();
+                                                                                    if (data.success) {
+                                                                                        alert(`Successfully processed ratings for ${data.processedCount || 0} users.`);
+                                                                                        fetchAdminContests();
+                                                                                    } else {
+                                                                                        alert(`Error: ${data.error}`);
+                                                                                    }
+                                                                                } catch (e: any) {
+                                                                                    alert(`Request failed: ${e.message}`);
                                                                                 }
-                                                                            } catch (e: any) {
-                                                                                alert(`Request failed: ${e.message}`);
                                                                             }
-                                                                        }
-                                                                    }}
-                                                                    className="px-3 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 rounded-md text-xs font-bold transition-all border border-blue-200 dark:border-blue-500/20"
-                                                                >
-                                                                    Process Ratings
+                                                                        }}
+                                                                        className="px-3 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 rounded-md text-xs font-bold transition-all border border-blue-200 dark:border-blue-500/20"
+                                                                    >
+                                                                        Process Ratings
+                                                                    </button>
+                                                                )}
+                                                                <button onClick={() => handleDeleteContest(c.id)} title="Delete Contest" className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-500/10 transition-colors">
+                                                                    <X className="w-5 h-5" />
                                                                 </button>
-                                                            )}
-                                                            <button onClick={() => handleDeleteContest(c.id)} title="Delete Contest" className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-500/10 transition-colors">
-                                                                <X className="w-5 h-5" />
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+
+                                                return (
+                                                    <>
+                                                        {regularContests.map(renderRow)}
+                                                        {scheduledContests.length > 0 && (
+                                                            <tr>
+                                                                <td colSpan={5} className="px-6 py-4 bg-gray-50 dark:bg-zinc-900/80 text-center border-y border-gray-200 dark:border-zinc-800">
+                                                                    <button onClick={() => setShowScheduled(!showScheduled)} className="text-sm font-bold text-blue-500 hover:text-blue-600 transition-colors flex items-center justify-center gap-2 mx-auto">
+                                                                        {showScheduled ? <ChevronLeft className="w-4 h-4 -rotate-90" /> : <ChevronRight className="w-4 h-4 rotate-90" />}
+                                                                        {showScheduled ? 'Hide' : 'Show'} {scheduledContests.length} Scheduled (Weekly/Biweekly) Contests
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                        {showScheduled && scheduledContests.map(renderRow)}
+                                                    </>
+                                                );
+                                            })()}
                                         </tbody>
                                     </table>
                                 </div>

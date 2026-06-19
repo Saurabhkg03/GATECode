@@ -167,6 +167,15 @@ const ContestCard = ({
                                 <Sparkles className="w-3 h-3" /> Official
                             </span>
                         )}
+                        {contest.isRated ? (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-500/20">
+                                Rated
+                            </span>
+                        ) : (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-500/10 text-gray-600 dark:bg-gray-500/10 dark:text-gray-400 border border-gray-500/20">
+                                Unrated
+                            </span>
+                        )}
                         {contest.branch && (
                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-zinc-400">
                                 {contest.branch}

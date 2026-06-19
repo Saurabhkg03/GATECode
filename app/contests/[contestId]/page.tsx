@@ -297,9 +297,14 @@ export default function ContestDescriptionPage() {
               )}
             </div>
             <div className="relative z-10">
-              <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm text-white text-[10px] font-black uppercase tracking-widest rounded-full px-3 py-1 mb-4 border border-white/10">
-                {isWeekly ? <><Trophy className="w-3 h-3" /> Weekly Contest</> : <><Sparkles className="w-3 h-3" /> Biweekly Contest</>}
-              </span>
+              <div className="flex gap-2 flex-wrap mb-4">
+                <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm text-white text-[10px] font-black uppercase tracking-widest rounded-full px-3 py-1 border border-white/10">
+                  {isWeekly ? <><Trophy className="w-3 h-3" /> Weekly Contest</> : <><Sparkles className="w-3 h-3" /> Biweekly Contest</>}
+                </span>
+                <span className="inline-flex items-center gap-1.5 bg-blue-500/30 backdrop-blur-sm text-blue-100 text-[10px] font-black uppercase tracking-widest rounded-full px-3 py-1 border border-blue-500/30">
+                   Rated
+                </span>
+              </div>
               <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2 drop-shadow tracking-tight">{title}</h1>
               <p className="text-white/95 text-sm mb-6 font-medium drop-shadow-sm">{formattedDate}</p>
 
@@ -378,6 +383,15 @@ export default function ContestDescriptionPage() {
             <div className="relative z-10">
               {/* Status badges */}
               <div className="flex gap-2 flex-wrap mb-4">
+                {contest?.isRated ? (
+                  <span className="inline-flex items-center gap-1.5 bg-blue-500/30 border border-blue-500/50 text-blue-100 text-xs font-bold rounded-full px-3 py-1 backdrop-blur-md">
+                    Rated
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 bg-gray-500/30 border border-gray-500/50 text-gray-200 text-xs font-bold rounded-full px-3 py-1 backdrop-blur-md">
+                    Unrated
+                  </span>
+                )}
                 {live && (
                   <span className="inline-flex items-center gap-1.5 bg-green-500/20 border border-green-500/40 text-green-100 text-xs font-bold rounded-full px-3 py-1 backdrop-blur-md">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> Live Now
@@ -563,21 +577,62 @@ export default function ContestDescriptionPage() {
                   This contest is sponsored by <strong className="text-gray-300">GATECode Community</strong>.
                 </p>
               )}
+
+              {(contest ? contest.isRated : !!scheduledMeta) ? (
+                <div className="mt-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                  <h4 className="text-sm font-bold text-blue-400 flex items-center gap-2 mb-2">
+                    <Trophy className="w-4 h-4" /> Rated Contest
+                  </h4>
+                  <p className="text-gray-300 text-sm leading-relaxed">
+                    This is a Rated contest. Your performance will affect your Global Contest Elo Rating. Performing well relative to other participants will increase your rating, while poor performance may decrease it. The rating calculation is based on your final ranking and the rating of other competitors.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-4 p-4 rounded-xl bg-gray-500/10 border border-gray-500/20">
+                  <h4 className="text-sm font-bold text-gray-400 flex items-center gap-2 mb-2">
+                    <Info className="w-4 h-4" /> Unrated Contest
+                  </h4>
+                  <p className="text-gray-300 text-sm leading-relaxed">
+                    This is an Unrated contest. It is designed for practice and learning. Your performance here will <strong>not</strong> affect your Global Contest Elo Rating.
+                  </p>
+                </div>
+              )}
             </div>
 
-            {/* What to expect */}
+            {/* What to Expect */}
             <div className="pt-4 border-t border-white/10 space-y-3">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-[#ffa116]" /> What to Expect
               </h3>
               <ul className="space-y-2.5 text-gray-300 text-sm">
+                {contest?.examMode === 'custom' ? (
+                  <>
+                    <li className="flex gap-3">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#1b85ff] mt-2 shrink-0" />
+                      <span><strong>Custom Subjects:</strong> {contest.targetSubjects?.join(", ") || "Specific selected subjects."}</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#1b85ff] mt-2 shrink-0" />
+                      <span><strong>Format:</strong> {contest.sections.reduce((sum, sec) => sum + sec.questions.length, 0)} questions ({
+                        contest.sections.reduce((sum, sec) => sum + sec.questions.filter(q => Number(q.marks) === 1).length, 0)
+                      } × 1-Mark, {
+                        contest.sections.reduce((sum, sec) => sum + sec.questions.filter(q => Number(q.marks) === 2).length, 0)
+                      } × 2-Mark). Total: {contest.totalMarks || 0} Marks.</span>
+                    </li>
+                  </>
+                ) : (
+                  <li className="flex gap-3">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#1b85ff] mt-2 shrink-0" />
+                    <span><strong>Format:</strong> 65 questions (30 × 1-Mark, 35 × 2-Mark). Total: 100 Marks. Mix of General Aptitude and Core Technical.</span>
+                  </li>
+                )}
                 {[
-                  "A mix of General Aptitude and Core Technical questions.",
-                  "Questions are MCQ and NAT (numerical answer type).",
-                  "Marking scheme: +1 / -0.33 for 1-mark MCQs, +2 / -0.66 for 2-mark MCQs.",
-                  "No negative marking for NAT (Numerical Answer Type) or MSQ (Multiple Select) questions.",
-                  "Results and rank published immediately after submission.",
-                  "Leaderboard updated in real time.",
+                  "Questions are a mix of MCQ, MSQ, and NAT (Numerical Answer Type).",
+                  "Marking scheme for 1-Mark questions: +1 for correct, -0.33 for incorrect MCQs, 0 for incorrect MSQ/NAT.",
+                  "Marking scheme for 2-Mark questions: +2 for correct, -0.66 for incorrect MCQs, 0 for incorrect MSQ/NAT.",
+                  "No negative marking for unattempted questions.",
+                  "Results, ranks, and detailed solutions are published immediately after submission.",
+                  "Leaderboard is updated in real time.",
                 ].map((point) => (
                   <li key={point} className="flex gap-3">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#1b85ff] mt-2 shrink-0" />
@@ -597,49 +652,49 @@ export default function ContestDescriptionPage() {
           </div>
 
           {/* Bonus Prizes */}
-          <div className="bg-[#282828] p-6 rounded-2xl border border-white/5">
-            <h3 className="text-xl font-bold text-white flex items-center gap-2 mb-5">
-              <Star className="w-5 h-5 text-[#ffa116]" fill="#ffa116" /> Bonus Prizes
-            </h3>
-            <ul className="space-y-3 mb-7 text-gray-300 text-sm">
-              {[
-                { rank: "1st – 3rd", prize: "GATECode Premium Backpack" },
-                { rank: "4th – 10th", prize: "GATECode Steel Water Bottle" },
-                { rank: "Random top-100", prize: "GATECode Notebook" },
-              ].map((item) => (
-                <li key={item.rank} className="flex gap-3">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#1b85ff] mt-2 shrink-0" />
-                  <span>
-                    Rank <strong>{item.rank}</strong> → {item.prize}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <p className="text-xs text-gray-500 italic mb-6">
-              Only verified accounts are eligible. An admin will reach out by email after ranking is finalised.
-            </p>
+          {contest?.prizes && contest.prizes.length > 0 && (
+            <div className="bg-[#282828] p-6 rounded-2xl border border-white/5">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2 mb-5">
+                <Star className="w-5 h-5 text-[#ffa116]" fill="#ffa116" /> Bonus Prizes
+              </h3>
+              <ul className="space-y-3 mb-7 text-gray-300 text-sm">
+                {contest.prizes.map((item, idx) => (
+                  <li key={idx} className="flex gap-3">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#1b85ff] mt-2 shrink-0" />
+                    <span>
+                      Rank <strong>{item.rank}</strong> → {item.prize}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-gray-500 italic mb-6">
+                Only verified accounts are eligible. An admin will reach out by email after ranking is finalised.
+              </p>
 
-            {/* Prize cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[
-                { emoji: "🎒", label: "Premium Backpack", gradient: "from-yellow-700 to-yellow-400" },
-                { emoji: "🫙", label: "Steel Water Bottle", gradient: "from-gray-500 to-gray-300" },
-                { emoji: "📓", label: "GATECode Notebook", gradient: "from-amber-800 to-amber-600" },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="bg-[#1a1a1a] p-5 rounded-xl flex flex-col items-center justify-center border border-white/5 hover:border-[#ffa116]/40 transition-colors group"
-                >
-                  <div className={`w-20 h-20 rounded-full bg-gradient-to-tr ${item.gradient} p-1 mb-3 group-hover:scale-105 transition-transform duration-300`}>
-                    <div className="w-full h-full bg-[#1a1a1a] rounded-full flex items-center justify-center text-3xl">
-                      {item.emoji}
+              {/* Prize cards - Only show if matching keywords are found in custom prizes */}
+              {contest.prizes.some(p => p.prize.toLowerCase().includes('backpack') || p.prize.toLowerCase().includes('bottle') || p.prize.toLowerCase().includes('notebook')) && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {[
+                    { emoji: "🎒", label: "Premium Backpack", gradient: "from-yellow-700 to-yellow-400", key: 'backpack' },
+                    { emoji: "🫙", label: "Steel Water Bottle", gradient: "from-gray-500 to-gray-300", key: 'bottle' },
+                    { emoji: "📓", label: "GATECode Notebook", gradient: "from-amber-800 to-amber-600", key: 'notebook' },
+                  ].filter(item => contest.prizes!.some(p => p.prize.toLowerCase().includes(item.key))).map((item) => (
+                    <div
+                      key={item.label}
+                      className="bg-[#1a1a1a] p-5 rounded-xl flex flex-col items-center justify-center border border-white/5 hover:border-[#ffa116]/40 transition-colors group"
+                    >
+                      <div className={`w-20 h-20 rounded-full bg-gradient-to-tr ${item.gradient} p-1 mb-3 group-hover:scale-105 transition-transform duration-300`}>
+                        <div className="w-full h-full bg-[#1a1a1a] rounded-full flex items-center justify-center text-3xl">
+                          {item.emoji}
+                        </div>
+                      </div>
+                      <span className="font-bold text-white text-sm text-center">{item.label}</span>
                     </div>
-                  </div>
-                  <span className="font-bold text-white text-sm text-center">{item.label}</span>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          </div>
+          )}
 
           {/* Bottom CTA */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-[#282828] border border-white/5 rounded-2xl p-5">
