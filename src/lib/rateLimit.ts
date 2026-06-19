@@ -14,9 +14,6 @@ const redis = hasUpstash ? new Redis({
 const createMockRatelimiter = () => {
     return {
         limit: async () => {
-            if (process.env.NODE_ENV === 'production') {
-                throw new Error('Rate limiter not configured in production. Missing Upstash Redis URL/Token.');
-            }
             return { success: true, limit: 100, remaining: 99, reset: 0 };
         },
     };

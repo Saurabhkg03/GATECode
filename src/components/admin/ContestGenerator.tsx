@@ -56,7 +56,7 @@ const ContestGenerator: React.FC<ContestGeneratorProps> = ({ onContestCreated, i
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to generate contest.');
+                throw new Error(data.message || data.error || 'Failed to generate contest.');
             }
 
             setStatus('Server processing complete.\n' + data.messages.join('\n'));
